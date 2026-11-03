@@ -428,6 +428,32 @@
       "레몬과김부각", "혼술바 고도 잠실점"
     ];
 
+    // --- Admin Constants ---
+    const ADMIN_PASSWORD = "partyconnect2024"; // 간단한 비밀번호 (실제 운영 시 환경변수 권장)
+    const STORAGE_KEYS = {
+      parties: "partyconnect:parties",
+      reviews: "partyconnect:reviews",
+      applications: "partyconnect:applications",
+      wishlist: "partyconnect:wishlist",
+    };
+
+    // 초기 데이터 로드 헬퍼
+    const loadInitialParties = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.parties) || "[]");
+        if (Array.isArray(saved) && saved.length > 0) return saved;
+      } catch (e) {}
+      return PARTY_LIST;
+    };
+
+    const loadInitialReviews = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.reviews) || "[]");
+        if (Array.isArray(saved) && saved.length > 0) return saved;
+      } catch (e) {}
+      return REVIEWS;
+    };
+
     // --- Main Application Component ---
     function App() {
       // Filter states
@@ -444,6 +470,12 @@
           return new Set();
         }
       });
+
+      // 파티 리스트 — persisted in localStorage (관리자 관리 가능)
+      const [parties, setParties] = useState(() => loadInitialParties());
+
+      // 후기 리스트 — persisted in localStorage (관리자 관리 가능)
+      const [reviews, setReviews] = useState(() => loadInitialReviews());
 
       // 체험단 신청 내역 — persisted in localStorage
       const [applications, setApplications] = useState(() => {
@@ -476,6 +508,38 @@
       const [modalSelectedCategory, setModalSelectedCategory] = useState("seoul");
       const [selectedDetailImage, setSelectedDetailImage] = useState(0);
 
+      // --- Admin Dashboard State ---
+      const [isAdminOpen, setIsAdminOpen] = useState(false);
+      const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+      const [adminPassword, setAdminPassword] = useState("");
+      const [adminTab, setAdminTab] = useState("dashboard"); // dashboard, parties, applications, reviews, stats
+      const [adminPartyForm, setAdminPartyForm] = useState({
+        title: "",
+        region: "강남/서초",
+        category: "소개팅",
+        days: ["금", "토", "일"],
+        recruit: 10,
+        currentRecruit: 0,
+        venue: "",
+        address: "",
+        desc: "",
+        images: [""],
+        badges: [],
+        isFeatured: false
+      });
+      const [editingPartyId, setEditingPartyId] = useState(null);
+      const [adminReviewForm, setAdminReviewForm] = useState({
+        avatar: "관",
+        avatarBg: "bg-rose-100 text-rose-700",
+        name: "",
+        time: "방금 전",
+        venue: "",
+        address: "",
+        comment: "",
+        rating: 5
+      });
+      const [editingReviewId, setEditingReviewId] = useState(null);
+
       // Banner Auto-play
       useEffect(() => {
         if (isBannerPaused) return;
@@ -504,6 +568,19 @@
           localStorage.setItem("partyconnect:applications", JSON.stringify(applications));
         } catch (e) {}
       }, [applications]);
+
+      // Persist parties & reviews (localStorage)
+      useEffect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEYS.parties, JSON.stringify(parties));
+        } catch (e) {}
+      }, [parties]);
+
+      useEffect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEYS.reviews, JSON.stringify(reviews));
+        } catch (e) {}
+      }, [reviews]);
 
       // Close modals on ESC
       useEffect(() => {
@@ -625,9 +702,41 @@
         return "bg-zinc-800";
       };
 
+      // ===== Admin Dashboard Functions =====
+      const handleAdminLogin = (e) => {
+        e.preventDefault();
+        if (adminPassword === ADMIN_PASSWORD) {
+          setIsAdminAuthenticated(true);
+          setAdminPassword("");
+          showToast("관리자 모드 진입");
+        } else {
+          showToast("비밀번호가 틀렸습니다.");
+        }
+      };
+
+      const handleAdminLogout = () => {
+        setIsAdminAuthenticated(false);
+        setIsAdminOpen(false);
+        setAdminTab("dashboard");
+        setEditingPartyId(null);
+        setEditingReviewId(null);
+      };
+
+      const openAdmin = () => {
+        setIsAdminOpen(true);
+        setIsAdminAuthenticated(false);
+        setAdminPassword("");
+      };
+
+      const closeAdmin = () => {
+        setIsAdminOpen(false);
+        setIsAdminAuthenticated(false);
+        setAdminPassword("");
+      };
+
       // Filtered parties
       const filteredParties = useMemo(() => {
-        return PARTY_LIST.filter((party) => {
+        return parties.filter((party) => {
           // Region filter
           if (selectedRegion !== "전체 지역" && selectedRegion !== "전체") {
             if (!party.region.includes(selectedRegion)) return false;
@@ -662,7 +771,144 @@
         return found ? found.subRegions : ["전체"];
       }, [modalSelectedCategory]);
 
-      const visibleReviews = showAllReviews ? REVIEWS : REVIEWS.slice(0, 4);
+      // Party CRUD
+      const handlePartySubmit = (e) => {
+        e.preventDefault();
+        const newParty = {
+          ...adminPartyForm,
+          id: editingPartyId || Date.now(),
+          days: Array.isArray(adminPartyForm.days) ? adminPartyForm.days : [adminPartyForm.days],
+          badges: Array.isArray(adminPartyForm.badges) ? adminPartyForm.badges : [],
+          images: adminPartyForm.images.filter((img) => img.trim()),
+          currentRecruit: Number(adminPartyForm.currentRecruit) || 0,
+          recruit: Number(adminPartyForm.recruit) || 10,
+        };
+
+        if (editingPartyId) {
+          setParties((prev) => prev.map((p) => (p.id === editingPartyId ? newParty : p)));
+          showToast("파티가 수정되었습니다.");
+        } else {
+          setParties((prev) => [newParty, ...prev]);
+          showToast("파티가 등록되었습니다.");
+        }
+        setEditingPartyId(null);
+        setAdminPartyForm({
+          title: "",
+          region: "강남/서초",
+          category: "소개팅",
+          days: ["금", "토", "일"],
+          recruit: 10,
+          currentRecruit: 0,
+          venue: "",
+          address: "",
+          desc: "",
+          images: [""],
+          badges: [],
+          isFeatured: false
+        });
+      };
+
+      const handlePartyEdit = (party) => {
+        setEditingPartyId(party.id);
+        setAdminPartyForm({
+          title: party.title,
+          region: party.region,
+          category: party.category,
+          days: party.days,
+          recruit: party.recruit,
+          currentRecruit: party.currentRecruit,
+          venue: party.venue,
+          address: party.address,
+          desc: party.desc,
+          images: party.images.length ? party.images : [""],
+          badges: party.badges || [],
+          isFeatured: party.isFeatured || false
+        });
+      };
+
+      const handlePartyDelete = (partyId) => {
+        if (window.confirm("정말 삭제하시겠습니까?")) {
+          setParties((prev) => prev.filter((p) => p.id !== partyId));
+          showToast("파티가 삭제되었습니다.");
+        }
+      };
+
+      // Review CRUD
+      const handleReviewSubmit = (e) => {
+        e.preventDefault();
+        const newReview = {
+          ...adminReviewForm,
+          id: editingReviewId || Date.now(),
+          rating: Number(adminReviewForm.rating) || 5,
+        };
+
+        if (editingReviewId) {
+          setReviews((prev) => prev.map((r) => (r.id === editingReviewId ? newReview : r)));
+          showToast("후기가 수정되었습니다.");
+        } else {
+          setReviews((prev) => [newReview, ...prev]);
+          showToast("후기가 등록되었습니다.");
+        }
+        setEditingReviewId(null);
+        setAdminReviewForm({
+          avatar: "관",
+          avatarBg: "bg-rose-100 text-rose-700",
+          name: "",
+          time: "방금 전",
+          venue: "",
+          address: "",
+          comment: "",
+          rating: 5
+        });
+      };
+
+      const handleReviewEdit = (review) => {
+        setEditingReviewId(review.id);
+        setAdminReviewForm({
+          avatar: review.avatar,
+          avatarBg: review.avatarBg,
+          name: review.name,
+          time: review.time,
+          venue: review.venue,
+          address: review.address,
+          comment: review.comment,
+          rating: review.rating
+        });
+      };
+
+      const handleReviewDelete = (reviewId) => {
+        if (window.confirm("정말 삭제하시겠습니까?")) {
+          setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+          showToast("후기가 삭제되었습니다.");
+        }
+      };
+
+      // Application actions
+      const handleApplicationDelete = (appId) => {
+        if (window.confirm("신청 내역을 삭제하시겠습니까?")) {
+          setApplications((prev) => prev.filter((a) => a.id !== appId));
+          showToast("신청 내역이 삭제되었습니다.");
+        }
+      };
+
+      // Stats helpers
+      const getStats = () => ({
+        totalParties: parties.length,
+        activeParties: parties.filter((p) => p.currentRecruit < p.recruit).length,
+        totalApplications: applications.length,
+        totalReviews: reviews.length,
+        totalWishlists: wishlist.size,
+        categories: parties.reduce((acc, p) => {
+          acc[p.category] = (acc[p.category] || 0) + 1;
+          return acc;
+        }, {}),
+        regions: parties.reduce((acc, p) => {
+          acc[p.region] = (acc[p.region] || 0) + 1;
+          return acc;
+        }, {}),
+      });
+
+      const visibleReviews = showAllReviews ? reviews : reviews.slice(0, 4);
 
       const latestApplicationForDetail = activePartyDetail
         ? applications.find((application) => application.partyId === activePartyDetail.id)
@@ -1470,6 +1716,117 @@
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= ADMIN DASHBOARD MODAL ================= */}
+          {isAdminOpen && isAdminAuthenticated && (
+            <div
+              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              onClick={closeAdmin}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="admin-modal-title"
+                onClick={(event) => event.stopPropagation()}
+                className="animate-slide-up relative w-full max-w-4xl max-h-[95vh] rounded-2xl bg-white shadow-2xl overflow-y-auto"
+              >
+                
+                {/* Modal Header */}
+                <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                  <h3 id="admin-modal-title" className="text-base font-bold text-zinc-900">관리자 대시보드</h3>
+                  <button
+                    type="button"
+                    onClick={closeAdmin}
+                    aria-label="관리자 대시보드 닫기"
+                    className="size-7 rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Admin Tabs */}
+                <div className="mt-4 border-b border-zinc-200">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={adminTab === "dashboard"}
+                    onClick={() => setAdminTab("dashboard")}
+                    className="flex-1 py-2 text-xs font-bold text-zinc-600 hover:text-zinc-900 border-b-2 " +
+                      (adminTab === "dashboard" ? "border-rose-600 text-rose-600" : "border-transparent")
+                  >
+                    대시보드
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={adminTab === "parties"}
+                    onClick={() => setAdminTab("parties")}
+                    className="flex-1 py-2 text-xs font-bold text-zinc-600 hover:text-zinc-900 border-b-2 " +
+                      (adminTab === "parties" ? "border-rose-600 text-rose-600" : "border-transparent")
+                  >
+                    파티 관리
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={adminTab === "applications"}
+                    onClick={() => setAdminTab("applications")}
+                    className="flex-1 py-2 text-xs font-bold text-zinc-600 hover:text-zinc-900 border-b-2 " +
+                      (adminTab === "applications" ? "border-rose-600 text-rose-600" : "border-transparent")
+                  >
+                    신청 관리
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={adminTab === "reviews"}
+                    onClick={() => setAdminTab("reviews")}
+                    className="flex-1 py-2 text-xs font-bold text-zinc-600 hover:text-zinc-900 border-b-2 " +
+                      (adminTab === "reviews" ? "border-rose-600 text-rose-600" : "border-transparent")
+                  >
+                    후기 관리
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={adminTab === "stats"}
+                    onClick={() => setAdminTab("stats")}
+                    className="flex-1 py-2 text-xs font-bold text-zinc-600 hover:text-zinc-900 border-b-2 " +
+                      (adminTab === "stats" ? "border-rose-600 text-rose-600" : "border-transparent")
+                  >
+                    통계
+                  </button>
+                </div>
+
+                {/* Tab Content */}
+                <div className="p-4">
+                  {adminTab === "dashboard" && <AdminDashboardTab parties={parties} applications={applications} reviews={reviews} wishlist={wishlist} />}
+                  {adminTab === "parties" && <AdminPartiesTab parties={parties} setParties={setParties} editingPartyId={editingPartyId} setEditingPartyId={setEditingPartyId} adminPartyForm={adminPartyForm} setAdminPartyForm={setAdminPartyForm} handlePartySubmit={handlePartySubmit} handlePartyEdit={handlePartyEdit} handlePartyDelete={handlePartyDelete} />}
+                  {adminTab === "applications" && <AdminApplicationsTab applications={applications} handleApplicationDelete={handleApplicationDelete} />}
+                  {adminTab === "reviews" && <AdminReviewsTab reviews={reviews} setReviews={setReviews} editingReviewId={editingReviewId} setEditingReviewId={setEditingReviewId} adminReviewForm={adminReviewForm} setAdminReviewForm={setAdminReviewForm} handleReviewSubmit={handleReviewSubmit} handleReviewEdit={handleReviewEdit} handleReviewDelete={handleReviewDelete} />}
+                  {adminTab === "stats" && <AdminStatsTab parties={parties} applications={applications} reviews={reviews} wishlist={wishlist} />}
+                </div>
+                
+                {/* Admin Footer Actions */}
+                <div className="mt-6 flex items-center justify-between gap-2 border-t border-zinc-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={handleAdminLogout}
+                    className="rounded-lg px-4 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100"
+                  >
+                    로그아웃
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeAdmin}
+                    className="rounded-lg bg-zinc-900 px-5 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800"
+                  >
+                    닫기
+                  </button>
                 </div>
               </div>
             </div>
