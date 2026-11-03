@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>매일을 파티로 채우자! 파티커넥트</title>
+  
+  <!-- SEO & Open Graph -->
+  <meta name="description" content="혼술바, 소개팅, 소모임 등 다양한 소셜링 파티를 한 곳에서 만나보세요.">
+  <meta property="og:title" content="매일을 파티로 채우자! 파티커넥트">
+  <meta property="og:description" content="혼술바, 소개팅, 소모임 등 다양한 소셜링 파티를 한 곳에서 만나보세요.">
+  <meta property="og:type" content="website">
+
+  <!-- Pretendard Font -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              primary: '#E11D48',
+              secondary: '#FB7185',
+              dark: '#0F172A',
+              light: '#FFF1F2',
+            },
+            error: '#EF4444'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 & ReactDOM & Babel CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Hide scrollbar for category tabs */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-white text-zinc-900 selection:bg-rose-100 selection:text-rose-900">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // --- Mock Data ---
+    const BANNER_SLIDES = [
+      {
+        id: 1,
+        title: "방문한 파티, 솔직한 평가를 남겨보세요",
+        desc: "별점과 짧은 후기로 경험을 공유하면 더 좋은 모임을 만드는 데 도움이 됩니다.",
+        badge: "리뷰 이벤트",
+        bgGradient: "from-rose-500/90 to-pink-600/90",
+        img: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        id: 2,
+        title: "친구와 함께하면 적립 혜택도 두 배",
+        desc: "추천인 코드로 멤버 등록을 완료하면 나와 친구 모두 적립금을 받아요.",
+        badge: "친구 초대",
+        bgGradient: "from-purple-600/90 to-indigo-600/90",
+        img: "https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        id: 3,
+        title: "지금 바로 파티커넥트 멤버 되기",
+        desc: "멤버 등록 후 관심 파티에 신청하고 선정되면 무료 초대 티켓을 받아보세요.",
+        badge: "신규 멤버십",
+        bgGradient: "from-amber-500/90 to-rose-500/90",
+        img: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80"
+      }
+    ];
+
+    const REGION_CATEGORIES = [
+      {
+        id: "all",
+        name: "전체 지역",
+        subRegions: ["전체"]
+      },
+      {
+        id: "seoul",
+        name: "서울",
+        subRegions: [
+          "전체", "강남/서초", "교대/사당", "홍대/마포", "용산/이태원", 
+          "명동/을지로", "잠실/송파", "강북/성북", "마포/상암", "여의도/영등포",
+          "강서/목동", "건대/성수/왕십리", "강동/천호", "종로/광화문", "신촌/이대",
+          "압구정/청담", "관악/신림"
+        ]
+      },
+      {
+        id: "gyeonggi",
+        name: "경기·인천",
+        subRegions: ["전체", "일산/파주", "인천/부천", "수원/성남", "안양/군포", "하남/광주"]
+      },
+      {
+        id: "others",
+        name: "지방/기타",
+        subRegions: ["전체", "대전/충청", "대구/경북", "부산/경남", "광주/전라", "제주"]
+      }
+    ];
+
+    const DAYS = ["전체", "월", "화", "수", "목", "금", "토", "일"];
+    const CATEGORIES = ["전체", "혼술바", "소개팅", "소셜파티"];
+
+    const PARTY_LIST = [
+      {
+        id: 1,
+        title: "[양재] 올해만 3커플 결혼 확정! 연프 출연진도 내돈내산하는 바로 그곳",
+        region: "강남/서초",
+        category: "소개팅",
+        days: ["금", "토", "일"],
+        recruit: 10,
+        currentRecruit: 8,
+        venue: "솔로몬클럽 양재본점",
+        address: "서울 서초구 양재동 12-4",
+        desc: "💖 올해만 벌써 3커플 결혼 확정! 📺 연애 프로그램 출연진도 '내돈내산'으로 방문하는 프리미엄 소셜 클럽",
+        images: [
+          "https://qdoyiwzgysussttzvzxn.supabase.co/storage/v1/object/public/hospital-lumi-connect-campaigns/05427d2a-ad94-40e8-80c2-7455382cb8f4/6d6db1aa-a8f4-4c53-883f-1608bc64bdaa/thumbnail-32c8c8ef-4334-4b0e-a8c5-c2049cd794ed.jpg",
+          "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=600&q=80"
+        ],
+        badges: ["NEW", "이벤트"],
+        isFeatured: true
+      },
+      {
+        id: 2,
+        title: "[강남] 제로라운지의 두번째, 프리미엄 와인파티 제로러브",
+        region: "강남/서초",
+        category: "소셜파티",
+        days: ["목", "금", "토"],
+        recruit: 10,
+        currentRecruit: 10,
+        venue: "제로러브 라운지",
+        address: "서울 강남구 테헤란로 14길 8",
+        desc: "고급 와인 4종과 핑거푸드가 무제한 제공되는 2030 프리미엄 소셜 네트워킹 와인파티",
+        images: [
+          "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=600&q=80"
+        ],
+        badges: ["마감임박"],
+        isFeatured: true
+      },
+      {
+        id: 3,
+        title: "[을지로] 제주보름 🌕 힙한 을지로에서 즐기는 편안한 혼술바! 제주보름 을지로점",
+        region: "종로/광화문",
+        category: "혼술바",
+        days: ["월", "화", "수", "목", "금", "토", "일"],
+        recruit: 8,
+        currentRecruit: 5,
+        venue: "제주보름 을지로점",
+        address: "서울 중구 마른내로 42",
+        desc: "사장님이 정말 친절하시고, 처음 온 사람도 편안한 분위기에 즐길 수 있는 힙지로 최고의 혼술바",
+        images: [
+          "https://qdoyiwzgysussttzvzxn.supabase.co/storage/v1/object/public/hospital-lumi-connect-campaigns/05427d2a-ad94-40e8-80c2-7455382cb8f4/83fed0a3-ca66-4928-81ba-2c3f3d19f1e2/thumbnail-764360e4-a9ee-40d3-a763-e523b938625a.jpg",
+          "https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=600&q=80"
+        ],
+        badges: ["HOT"],
+        isFeatured: false
+      },
+      {
+        id: 4,
+        title: "[신촌] 내향인들의 프리미엄 대화형 소셜링, 큐피드파티",
+        region: "신촌/이대",
+        category: "소개팅",
+        days: ["수", "금", "토"],
+        recruit: 12,
+        currentRecruit: 9,
+        venue: "큐피트파티 신촌점",
+        address: "서울 서대문구 연세로7안길 10-4",
+        desc: "어색함 없는 1:1 로테이션 대화 카드와 편안한 분위기 조성. 내향인(I)도 200% 만족하는 소셜링",
+        images: [
+          "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=600&q=80"
+        ],
+        badges: ["NEW"],
+        isFeatured: false
+      },
+      {
+        id: 5,
+        title: "[합정] 하이엔드 와인파티, 편안하고 자연스러운 파티",
+        region: "홍대/마포",
+        category: "소셜파티",
+        days: ["금", "토"],
+        recruit: 10,
+        currentRecruit: 7,
+        venue: "살롱드솔내 합정",
+        address: "서울 마포구 양화로6길 57",
+        desc: "합정역 5분 역세권! 실제 운영되는 고급 와인바에서 열리는 맛과 분위기 모두 보장된 시크릿 파티",
+        images: [
+          "https://qdoyiwzgysussttzvzxn.supabase.co/storage/v1/object/public/hospital-lumi-connect-campaigns/05427d2a-ad94-40e8-80c2-7455382cb8f4/0343b81f-e139-4aa0-8f4d-3502e33bcd4d/thumbnail-99b0bfee-ef2d-4fe2-869c-a57b20639e9e.jpg"
+        ],
+        badges: ["이벤트"],
+        isFeatured: true
+      },
+      {
+        id: 6,
+        title: "[신림] 야화 신림점 신규 입점! 분위기 아주 좋아요",
+        region: "관악/신림",
+        category: "혼술바",
+        days: ["월", "화", "수", "목", "금", "토"],
+        recruit: 8,
+        currentRecruit: 6,
+        venue: "야화 혼술바 신림점",
+        address: "서울 관악구 신림로59길 14",
+        desc: "감성 조명과 음악, 혼자 와도 사장님과 도란도란 이야기 나누며 힐링할 수 있는 따뜻한 심야 아지트",
+        images: [
+          "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=600&q=80"
+        ],
+        badges: ["NEW"],
+        isFeatured: false
+      },
+      {
+        id: 7,
+        title: "[문래] 제로라운지 내향인 도파민파티",
+        region: "여의도/영등포",
+        category: "소셜파티",
+        days: ["목", "금", "토"],
+        recruit: 10,
+        currentRecruit: 8,
+        venue: "문래 제로라운지",
+        address: "서울 영등포구 도림로 432",
+        desc: "문래 창작촌의 힙한 감성 공간에서 맛있는 핑거푸드와 함께 부담 없이 즐기는 웰컴 소셜링",
+        images: [
+          "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=600&q=80"
+        ],
+        badges: [],
+        isFeatured: false
+      },
+      {
+        id: 8,
+        title: "[을지로] 43번지 혼술바 을지로점, 퇴근 후 혼술하기 좋은 곳!",
+        region: "명동/을지로",
+        category: "혼술바",
+        days: ["월", "화", "수", "목", "금"],
+        recruit: 6,
+        currentRecruit: 4,
+        venue: "43번지 혼술바",
+        address: "서울 중구 을지로11길 19",
+        desc: "퇴근길 가볍게 한잔! 하루의 피로를 풀어주는 웰컴 드링크와 편안한 좌석 배치",
+        images: [
+          "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=600&q=80"
+        ],
+        badges: [],
+        isFeatured: false
+      }
+    ];
+
+    const REVIEWS = [
+      {
+        id: 1,
+        avatar: "따",
+        avatarBg: "bg-amber-100 text-amber-700",
+        name: "따뜻한리듬헌터8090",
+        time: "6시간 전",
+        venue: "레몬과김부각",
+        address: "서울 중구 마른내로 60-1",
+        comment: "너무나도 따뜻하고 또 가고 싶은 혼술바였습니다!! 단골분들이 많은 데에는 분명 이유가 있네요~ 따뜻한 온정을 느끼고 싶을 때 또 찾게 될 것 같습니다. 완전 추천합니다!",
+        rating: 5
+      },
+      {
+        id: 2,
+        avatar: "유",
+        avatarBg: "bg-blue-100 text-blue-700",
+        name: "유쾌한산책러2175",
+        time: "22시간 전",
+        venue: "살롱드솔내",
+        address: "서울 마포구 양화로6길 57",
+        comment: "처음 와인파티였는데 기대 이상으로 너무 좋았습니다. 와인 셀렉션도 훌륭하고 모이신 분들 매너도 최고였어요. 개인적으로 또 방문할 예정입니다!",
+        rating: 5
+      },
+      {
+        id: 3,
+        avatar: "센",
+        avatarBg: "bg-rose-100 text-rose-700",
+        name: "센스있는파티러버7561",
+        time: "1일 전",
+        venue: "큐피트파티",
+        address: "서울 서대문구 연세로7안길 10-4",
+        comment: "진행자분이 어색할 틈 없이 너무 스무스하게 분위기 이끌어주셔서 진짜 편하게 대화 나누고 왔습니다. 2차까지 다들 같이 갈 정도로 훈훈했어요!",
+        rating: 5
+      },
+      {
+        id: 4,
+        avatar: "시",
+        avatarBg: "bg-emerald-100 text-emerald-700",
+        name: "시크한무드메이커3410",
+        time: "1일 전",
+        venue: "혼술바 고도 잠실방이점",
+        address: "서울 송파구 올림픽로32길 22-13",
+        comment: "혼자 처음 다녀왔는데 매장 분위기 너무 아늑하고 사장님, 직원분들 다 친절하셔서 시간 가는 줄 몰랐네요. 혼술 초보자분들께 강추합니다.",
+        rating: 5
+      }
+    ];
+
+    const PARTNERS = [
+      "야화 혼술바 왕십리점", "홍대혼술바 시점", "만남회관", "제로러브", 
+      "솔로몬파티", "제주보름 분당야탑점", "제주보름 천호점", "LOVE ATTACK", 
+      "43번지 혼술바 을지로점", "동률 혼술바", "제주아홉 동인천점", "살롱드솔내",
+      "레몬과김부각", "혼술바 고도 잠실점"
+    ];
+
+    // --- Main Application Component ---
+    function App() {
+      // Filter states
+      const [selectedRegion, setSelectedRegion] = useState("전체 지역");
+      const [selectedDay, setSelectedDay] = useState("전체");
+      const [selectedCategory, setSelectedCategory] = useState("전체");
+      
+      // Wishlist (favorites) state
+      const [wishlist, setWishlist] = useState(new Set([1]));
+
+      // Banner carousel state
+      const [currentBanner, setCurrentBanner] = useState(0);
+      const [isBannerPaused, setIsBannerPaused] = useState(false);
+
+      // Dialog states
+      const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
+      const [activePartyDetail, setActivePartyDetail] = useState(null);
+      const [toastMessage, setToastMessage] = useState("");
+
+      // Region modal helper state
+      const [modalSelectedCategory, setModalSelectedCategory] = useState("seoul");
+
+      // Banner Auto-play
+      useEffect(() => {
+        if (isBannerPaused) return;
+        const timer = setInterval(() => {
+          setCurrentBanner((prev) => (prev + 1) % BANNER_SLIDES.length);
+        }, 4500);
+        return () => clearInterval(timer);
+      }, [isBannerPaused]);
+
+      // Trigger lucide icons render on update
+      useEffect(() => {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      });
+
+      // Show toast
+      const showToast = (msg) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(""), 2500);
+      };
+
+      // Toggle wishlist
+      const toggleWishlist = (e, partyId) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setWishlist((prev) => {
+          const next = new Set(prev);
+          if (next.has(partyId)) {
+            next.delete(partyId);
+            showToast("관심 파티에서 삭제되었습니다.");
+          } else {
+            next.add(partyId);
+            showToast("관심 파티에 추가되었습니다! (찜 목록)");
+          }
+          return next;
+        });
+      };
+
+      // Filtered parties
+      const filteredParties = useMemo(() => {
+        return PARTY_LIST.filter((party) => {
+          // Region filter
+          if (selectedRegion !== "전체 지역" && selectedRegion !== "전체") {
+            if (!party.region.includes(selectedRegion)) return false;
+          }
+          // Day filter
+          if (selectedDay !== "전체") {
+            if (!party.days.includes(selectedDay)) return false;
+          }
+          // Category filter
+          if (selectedCategory !== "전체") {
+            if (party.category !== selectedCategory) return false;
+          }
+          return true;
+        });
+      }, [selectedRegion, selectedDay, selectedCategory]);
+
+      return (
+        <div className="flex min-h-screen flex-col bg-white">
+          
+          {/* Toast Notification */}
+          {toastMessage && (
+            <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 transform rounded-full bg-zinc-900/90 px-5 py-2.5 text-xs font-medium text-white shadow-lg backdrop-blur-md transition-all">
+              {toastMessage}
+            </div>
+          )}
+
+          {/* ================= HEADER ================= */}
+          <header className="sticky top-0 z-40 border-b border-black/[.08] bg-white/95 backdrop-blur-md">
+            <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-2.5 sm:px-6 lg:px-8">
+              
+              {/* Brand Logo & Nav */}
+              <div className="flex items-center gap-6 md:gap-8">
+                <a href="#" className="flex items-center gap-1.5 focus:outline-none">
+                  <div className="flex items-center">
+                    <span className="text-xl font-extrabold tracking-tighter text-zinc-950 sm:text-2xl">
+                      PARTY<span className="text-rose-600">connect</span>
+                    </span>
+                  </div>
+                </a>
+
+                {/* Desktop Nav Items */}
+                <nav className="hidden items-center gap-6 md:flex">
+                  <a href="#parties" className="text-sm font-semibold text-zinc-900 transition hover:text-rose-600">체험단</a>
+                  <a href="#parties" className="text-sm font-bold text-rose-600 transition">파티커넥트</a>
+                  <a href="#parties" className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-700 transition hover:text-rose-600">
+                    러브커넥트
+                    <span className="rounded-full bg-rose-100 px-1.5 py-0.2 text-[10px] font-bold text-rose-600">HOT</span>
+                  </a>
+                  <a href="#reviews" className="text-sm font-semibold text-zinc-700 transition hover:text-rose-600">커뮤니티</a>
+                  <a href="#partners" className="text-sm font-semibold text-zinc-500 transition hover:text-zinc-900">제휴신청</a>
+                </nav>
+              </div>
+
+              {/* Header Right Actions */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => showToast("로그인 서비스는 현재 준비 중입니다.")}
+                  className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 sm:text-sm"
+                >
+                  로그인
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* ================= MAIN CONTENT ================= */}
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+
+            {/* --- HERO BANNER SLIDER --- */}
+            <section className="relative mb-8 overflow-hidden rounded-2xl bg-zinc-900 shadow-sm sm:mb-10 sm:rounded-3xl">
+              <div className="relative aspect-[16/9] w-full max-h-[360px] sm:aspect-[21/9]">
+                {BANNER_SLIDES.map((slide, idx) => (
+                  <div
+                    key={slide.id}
+                    className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                      idx === currentBanner ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                    }`}
+                  >
+                    <img
+                      src={slide.img}
+                      alt={slide.title}
+                      className="absolute inset-0 h-full w-full object-cover brightness-[0.65]"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                    
+                    <div className="relative flex h-full flex-col justify-end p-6 sm:p-10 text-white">
+                      <span className="mb-2 inline-flex w-fit items-center rounded-full bg-rose-600 px-2.5 py-0.5 text-xs font-bold tracking-wide text-white shadow-sm">
+                        {slide.badge}
+                      </span>
+                      <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl md:text-3xl">
+                        {slide.title}
+                      </h2>
+                      <p className="mt-1.5 max-w-xl text-xs text-zinc-300 sm:text-sm">
+                        {slide.desc}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Banner Pagination Indicator */}
+                <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 rounded-full bg-black/60 px-3 py-1 backdrop-blur-md">
+                  <span className="text-[11px] font-bold text-white">
+                    {currentBanner + 1} <span className="text-white/60">/</span> {BANNER_SLIDES.length}
+                  </span>
+                  <button
+                    onClick={() => setIsBannerPaused(!isBannerPaused)}
+                    aria-label={isBannerPaused ? "재생" : "일시정지"}
+                    className="text-white/80 hover:text-white focus:outline-none"
+                  >
+                    {isBannerPaused ? (
+                      <span className="text-[10px]">▶</span>
+                    ) : (
+                      <span className="text-[10px]">❚❚</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* --- INTRO VALUE PROPOSITION --- */}
+            <section className="mb-10 text-center sm:mb-12">
+              <h2 className="text-lg font-bold text-zinc-900 sm:text-xl">파티커넥트 소개</h2>
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 text-left">
+                <div className="rounded-2xl border border-zinc-100 bg-zinc-50/80 p-5 transition hover:shadow-sm">
+                  <div className="mb-2 inline-flex size-8 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+                    <span className="text-base font-bold">✨</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-zinc-900 sm:text-base">
+                    파티커넥트 멤버는 단순한 무료 체험단이 아닙니다.
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+                    소셜링 파티와 소모임을 직접 경험하며, 참가자의 시선으로 퀄리티와 분위기를 투명하게 평가하고 추천합니다.
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-zinc-100 bg-zinc-50/80 p-5 transition hover:shadow-sm">
+                  <div className="mb-2 inline-flex size-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <span className="text-base font-bold">🍷</span>
+                  </div>
+                  <h3 className="text-sm font-bold text-zinc-900 sm:text-base">
+                    매일을 파티처럼 즐겨요, 파티커넥트
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+                    혼술바, 소개팅, 와인 소셜링 등 취향에 맞는 다양한 오프라인 파티에 게스트로 초대받고 혜택을 누리세요.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* --- REAL REVIEWS CAROUSEL --- */}
+            <section id="reviews" className="mb-12">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-zinc-900 sm:text-xl">파티커넥트 멤버 실제후기</h2>
+                  <p className="text-xs text-zinc-500 mt-0.5">실제 예약 후, 방문까지 완료하여야 작성할 수 있는 검증된 리뷰</p>
+                </div>
+                <a
+                  href="#reviews"
+                  onClick={(e) => { e.preventDefault(); showToast("전체 리뷰 목록으로 이동합니다."); }}
+                  className="text-xs font-semibold text-zinc-500 hover:text-zinc-900"
+                >
+                  전체보기 &gt;
+                </a>
+              </div>
+
+              {/* Review Cards Grid */}
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                {REVIEWS.map((r) => (
+                  <div key={r.id} className="flex flex-col justify-between rounded-xl border border-zinc-200/80 bg-white p-4 shadow-sm hover:border-zinc-300">
+                    <div>
+                      {/* Reviewer Header */}
+                      <div className="flex items-center gap-2.5">
+                        <div className={`flex size-9 shrink-0 items-center justify-center rounded-full font-bold text-sm ${r.avatarBg}`}>
+                          {r.avatar}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-bold text-zinc-900">{r.name}</p>
+                          <div className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+                            <span>{r.time}</span>
+                            <span>·</span>
+                            <span className="text-amber-500 font-bold">★ {r.rating}.0</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Comment text */}
+                      <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-zinc-700">
+                        {r.comment}
+                      </p>
+                    </div>
+
+                    {/* Venue badge */}
+                    <div className="mt-3 border-t border-zinc-100 pt-2.5">
+                      <p className="truncate text-xs font-semibold text-zinc-900">{r.venue}</p>
+                      <p className="truncate text-[11px] text-zinc-400">{r.address}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* ================= PARTY LIST SECTION (CORE MVP) ================= */}
+            <section id="parties" className="mt-2">
+              
+              {/* Section Header with Title & Region Picker Button */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold tracking-tight text-zinc-900 sm:text-xl">
+                    🎉 리뷰쓰고 무료로 체험받을 수 있는 파티
+                  </h2>
+                </div>
+
+                {/* Region Selector Modal Trigger */}
+                <button
+                  type="button"
+                  onClick={() => setIsRegionModalOpen(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 focus:outline-none"
+                >
+                  <span className="text-zinc-400 font-normal">지역 선택 &gt;</span>
+                  <span className="font-bold text-rose-600">{selectedRegion}</span>
+                  <span className="text-zinc-400">▼</span>
+                </button>
+              </div>
+
+              {/* Filter Tabs Toolbar */}
+              <div className="mt-4 flex flex-col gap-3">
+                
+                {/* Day of the Week Tabs */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                  {DAYS.map((day) => (
+                    <button
+                      key={day}
+                      onClick={() => setSelectedDay(day)}
+                      className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                        selectedDay === day
+                          ? "bg-zinc-900 text-white"
+                          : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900"
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Category Pills & Count Indicator */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+                          selectedCategory === cat
+                            ? "bg-rose-50 text-rose-600 ring-1 ring-rose-300"
+                            : "bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-50"
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  <span className="text-xs font-semibold text-zinc-500">
+                    참여 가능한 파티 <strong className="text-zinc-900">{filteredParties.length}</strong>개
+                  </span>
+                </div>
+              </div>
+
+              {/* Party Cards Grid */}
+              {filteredParties.length === 0 ? (
+                <div className="my-16 flex flex-col items-center justify-center text-center">
+                  <div className="rounded-full bg-zinc-100 p-4 text-2xl">🔍</div>
+                  <p className="mt-3 text-sm font-semibold text-zinc-800">선택한 조건의 파티가 없습니다.</p>
+                  <p className="mt-1 text-xs text-zinc-500">지역이나 요일 필터를 전체로 변경해 보세요.</p>
+                  <button
+                    onClick={() => { setSelectedRegion("전체 지역"); setSelectedDay("전체"); setSelectedCategory("전체"); }}
+                    className="mt-4 rounded-lg bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
+                  >
+                    필터 초기화
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">
+                  {filteredParties.map((party) => {
+                    const isWished = wishlist.has(party.id);
+                    return (
+                      <div
+                        key={party.id}
+                        onClick={() => setActivePartyDetail(party)}
+                        className="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border border-zinc-200/90 bg-white transition-all hover:-translate-y-0.5 hover:shadow-md"
+                      >
+                        {/* Thumbnail Image Container */}
+                        <div className="relative aspect-square w-full overflow-hidden bg-zinc-100">
+                          <img
+                            src={party.images[0]}
+                            alt={party.title}
+                            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          />
+                          
+                          {/* Badges Overlay */}
+                          <div className="absolute left-2.5 top-2.5 z-10 flex flex-wrap gap-1">
+                            {party.badges.map((b) => (
+                              <span
+                                key={b}
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm ${
+                                  b === "NEW" ? "bg-rose-600" : "bg-amber-500"
+                                }`}
+                              >
+                                {b}
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* Wishlist Heart Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => toggleWishlist(e, party.id)}
+                            aria-label={isWished ? "찜 해제" : "찜하기"}
+                            className="absolute bottom-2.5 right-2.5 z-20 flex size-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-[2px] transition hover:bg-black/60"
+                          >
+                            <span className={`text-sm ${isWished ? "text-rose-500" : "text-white"}`}>
+                              {isWished ? "❤️" : "🤍"}
+                            </span>
+                          </button>
+                        </div>
+
+                        {/* Card Meta & Title */}
+                        <div className="flex flex-1 flex-col p-3.5">
+                          <p className="text-[11px] font-bold text-zinc-900">
+                            {party.region} <span className="font-normal text-zinc-400">·</span> 모집 {party.recruit}명
+                          </p>
+                          <h3 className="mt-1 line-clamp-2 text-sm font-extrabold leading-snug text-zinc-900 group-hover:text-rose-600">
+                            {party.title}
+                          </h3>
+                          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-zinc-500">
+                            {party.desc}
+                          </p>
+                          
+                          {/* Card Footer tags */}
+                          <div className="mt-auto pt-3 flex items-center justify-between text-[11px]">
+                            <span className="font-medium text-rose-600">
+                              신청 {party.currentRecruit}/{party.recruit}명
+                            </span>
+                            <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-zinc-600">
+                              {party.category}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* --- PARTNER BRANDS GRID --- */}
+            <section id="partners" className="mt-16 mb-12 border-t border-zinc-200 pt-10">
+              <h2 className="text-center text-sm font-bold tracking-tight text-zinc-900 sm:text-base">
+                파티커넥트와 함께하는 제휴사들
+              </h2>
+              <div className="mt-6 flex flex-wrap justify-center gap-2 sm:gap-2.5">
+                {PARTNERS.map((p) => (
+                  <span
+                    key={p}
+                    className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:text-zinc-950"
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            </section>
+
+          </main>
+
+          {/* ================= FOOTER ================= */}
+          <footer className="border-t border-zinc-200 bg-zinc-50 py-10 text-xs text-zinc-500">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+              
+              {/* Policies nav */}
+              <div className="flex flex-wrap gap-4 font-medium text-zinc-700">
+                <a href="#" className="hover:underline">개인정보 처리방침</a>
+                <span>·</span>
+                <a href="#" className="hover:underline">이메일 무단수집거부</a>
+                <span>·</span>
+                <a href="#" className="hover:underline">이용약관</a>
+              </div>
+
+              {/* Business info table */}
+              <div className="mt-6 grid grid-cols-2 gap-y-1.5 text-[11px] sm:grid-cols-4 leading-relaxed">
+                <div>
+                  <span className="text-zinc-400">업체명: </span>
+                  <span className="text-zinc-700 font-semibold">루미랩</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400">대표자: </span>
+                  <span className="text-zinc-700">김혜원</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400">사업자등록번호: </span>
+                  <span className="text-zinc-700">884-05-03114</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400">전화번호: </span>
+                  <span className="text-zinc-700">010-5390-8692</span>
+                </div>
+                <div className="col-span-2 sm:col-span-4">
+                  <span className="text-zinc-400">E-mail: </span>
+                  <span className="text-zinc-700">lea@boutiquedelea.com</span>
+                </div>
+              </div>
+
+              <div className="mt-6 border-t border-zinc-200 pt-4 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] text-zinc-400">
+                  Copyright &copy; 2026 PARTY CONNECT. All Rights Reserved.
+                </p>
+                <button
+                  onClick={() => showToast("비즈니스 제휴 문의 이메일로 연결됩니다.")}
+                  className="font-semibold text-rose-600 hover:underline"
+                >
+                  비즈니스 문의 &rarr;
+                </button>
+              </div>
+            </div>
+          </footer>
+
+          {/* ================= REGION SELECTOR MODAL ================= */}
+          {isRegionModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+              <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+                
+                {/* Modal Header */}
+                <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                  <h3 className="text-base font-bold text-zinc-900">지역 선택</h3>
+                  <button
+                    onClick={() => setIsRegionModalOpen(false)}
+                    className="size-7 rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Main Region Category Tabs */}
+                <div className="mt-4 flex border-b border-zinc-200">
+                  {REGION_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      onClick={() => setModalSelectedCategory(cat.id)}
+                      className={`flex-1 py-2 text-center text-xs font-bold transition border-b-2 ${
+                        modalSelectedCategory === cat.id
+                          ? "border-rose-600 text-rose-600"
+                          : "border-transparent text-zinc-500 hover:text-zinc-800"
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sub Regions Grid */}
+                <div className="mt-4 max-h-60 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-3 gap-2">
+                    {REGION_CATEGORIES.find((c) => c.id === modalSelectedCategory)?.subRegions.map((sub) => {
+                      const isSelected = selectedRegion === sub;
+                      return (
+                        <button
+                          key={sub}
+                          onClick={() => {
+                            setSelectedRegion(sub);
+                            setIsRegionModalOpen(false);
+                            showToast(`'${sub}' 지역이 선택되었습니다.`);
+                          }}
+                          className={`rounded-lg p-2.5 text-xs font-semibold text-center transition ${
+                            isSelected
+                              ? "bg-rose-600 text-white shadow-sm"
+                              : "bg-zinc-50 text-zinc-700 hover:bg-zinc-100"
+                          }`}
+                        >
+                          {sub}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="mt-6 flex justify-end gap-2 border-t border-zinc-100 pt-3">
+                  <button
+                    onClick={() => {
+                      setSelectedRegion("전체 지역");
+                      setIsRegionModalOpen(false);
+                    }}
+                    className="rounded-lg px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-100"
+                  >
+                    전체 선택
+                  </button>
+                  <button
+                    onClick={() => setIsRegionModalOpen(false)}
+                    className="rounded-lg bg-zinc-900 px-5 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= PARTY DETAIL MODAL ================= */}
+          {activePartyDetail && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
+              <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+                
+                {/* Modal Image */}
+                <div className="relative h-56 w-full bg-zinc-900">
+                  <img
+                    src={activePartyDetail.images[0]}
+                    alt={activePartyDetail.title}
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    onClick={() => setActivePartyDetail(null)}
+                    className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-6">
+                  <div className="flex items-center justify-between">
+                    <span className="rounded bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-600">
+                      {activePartyDetail.category}
+                    </span>
+                    <span className="text-xs font-semibold text-zinc-500">
+                      신청 현황: {activePartyDetail.currentRecruit} / {activePartyDetail.recruit}명
+                    </span>
+                  </div>
+
+                  <h3 className="mt-2 text-lg font-bold text-zinc-900">
+                    {activePartyDetail.title}
+                  </h3>
+
+                  <div className="mt-4 rounded-xl bg-zinc-50 p-3.5 text-xs text-zinc-700 space-y-1.5">
+                    <p>📍 <strong>장소:</strong> {activePartyDetail.venue} ({activePartyDetail.address})</p>
+                    <p>🗓️ <strong>일정:</strong> 매주 {activePartyDetail.days.join(", ")}요일 진행</p>
+                    <p>👥 <strong>모집 정원:</strong> {activePartyDetail.recruit}명 (남녀 성비 균형)</p>
+                  </div>
+
+                  <p className="mt-4 text-xs leading-relaxed text-zinc-600">
+                    {activePartyDetail.desc}
+                  </p>
+
+                  <div className="mt-6 flex gap-3">
+                    <button
+                      onClick={(e) => toggleWishlist(e, activePartyDetail.id)}
+                      className={`flex items-center justify-center rounded-xl border px-4 py-3 text-xs font-bold transition ${
+                        wishlist.has(activePartyDetail.id)
+                          ? "border-rose-300 bg-rose-50 text-rose-600"
+                          : "border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                      }`}
+                    >
+                      {wishlist.has(activePartyDetail.id) ? "❤️ 찜완료" : "🤍 찜하기"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        showToast("체험단 신청이 접수되었습니다! (선정 시 알림 발송)");
+                        setActivePartyDetail(null);
+                      }}
+                      className="flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md transition hover:bg-rose-700"
+                    >
+                      무료 체험단 신청하기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
