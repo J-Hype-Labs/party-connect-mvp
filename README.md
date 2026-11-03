@@ -1,6 +1,6 @@
 # Party Connect (파티커넥트) MVP
 
-🔗 **라이브 데모:** https://hustlinjh.github.io/party-connect-mvp/
+🔗 **라이브 데모:** https://j-hype-labs.github.io/party-connect-mvp/
 
 [lumiconnect.cloud](https://www.lumiconnect.cloud) 서비스를 벤치마킹하여 제작한 2030 오프라인 소셜링 파티 & 혼술바 예약 플랫폼 MVP입니다.
 
@@ -33,6 +33,6 @@ python3 -m http.server 3000
 ## 📦 배포
 `main` 브랜치에 push하면 GitHub Pages에 자동으로 반영됩니다.
 
-- 배포 URL: https://hustlinjh.github.io/party-connect-mvp/
+- 배포 URL: https://j-hype-labs.github.io/party-connect-mvp/
 - 개발용 파일(`*.png`, `SPECIFICATION.md`, `start.sh`, `.agents`)은 `_config.yml`의 `exclude` 설정으로 배포에서 제외됩니다.
 - 배포 상태 확인: `https://api.github.com/repos/hustlinjh/party-connect-mvp/pages/builds/latest`
