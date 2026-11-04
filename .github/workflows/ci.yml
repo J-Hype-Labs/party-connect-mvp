@@ -18,9 +18,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
-      - name: Install @babel/parser globally
-        run: npm install -g @babel/parser
+      - name: Create temporary package.json for @babel/parser
+        run: |
+          cat > package.json << 'EOF'
+{
+  "name": "temp-validation",
+  "private": true,
+  "dependencies": {
+    "@babel/parser": "^7.23.0"
+  }
+}
+EOF
+
+      - name: Install @babel/parser
+        run: npm install --no-audit --prefer-offline
 
       - name: Validate JSX syntax with @babel/parser
         run: |
