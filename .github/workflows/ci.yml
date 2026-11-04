@@ -108,8 +108,8 @@ jobs:
 
       - name: Debug - show local server content
         run: |
-          echo "=== Local server HTML (first 3000 chars) ==="
-          curl -s http://localhost:3000/ | head -c 3000
+          echo "=== Local server HTML (first 5000 chars) ==="
+          curl -s http://localhost:3000/ | head -c 5000
           echo ""
           echo "=== End HTML ==="
 
@@ -136,6 +136,65 @@ jobs:
               console.log('✅ Basic load test passed');
             } catch (e) {
               console.error('❌ Basic load test failed:', e.message);
+              process.exit(1);
+            } finally {
+              await browser.close();
+            }
+          })();
+          EOF
+
+      - name: Run Playwright E2E test - Discover UI elements
+        run: |
+          node << 'EOF'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            try {
+              await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+              await page.waitForSelector('#root', { timeout: 30000 });
+              await page.waitForTimeout(5000);
+              
+              // Get all button texts
+              const buttons = await page.locator('button').all();
+              console.log('=== BUTTONS FOUND ===');
+              for (const btn of buttons) {
+                const text = await btn.textContent().catch(() => '');
+                if (text.trim()) console.log('  Button:', text.trim().substring(0, 50));
+              }
+              
+              // Get all section texts
+              const sections = await page.locator('section').all();
+              console.log('=== SECTIONS FOUND ===');
+              for (const sec of sections) {
+                const text = await sec.textContent().catch(() => '');
+                if (text.trim()) console.log('  Section:', text.trim().substring(0, 100));
+              }
+              
+              // Get all text containing Korean keywords
+              const koreanElements = await page.locator('text=파티커넥트, text=지역, text=전체, text=혼술, text=소개팅, text=소셜, text=파티, text=체험단, text=후기, text=관리자').all();
+              console.log('=== KOREAN ELEMENTS FOUND ===');
+              for (const el of koreanElements) {
+                const text = await el.textContent().catch(() => '');
+                if (text.trim()) console.log('  Korean:', text.trim().substring(0, 100));
+              }
+              
+              // Count elements with role=button
+              const roleButtons = await page.locator('[role="button"]').count();
+              console.log('Elements with role=button:', roleButtons);
+              
+              // Count card-like elements
+              const cards = await page.locator('.card, article, [class*="card"]').count();
+              console.log('Card-like elements:', cards);
+              
+              // Check for any visible text content
+              const bodyText = await page.locator('body').textContent();
+              console.log('=== BODY TEXT (first 500 chars) ===');
+              console.log(bodyText.substring(0, 500));
+              
+              console.log('✅ Discovery test completed');
+            } catch (e) {
+              console.error('❌ Discovery test failed:', e.message);
               process.exit(1);
             } finally {
               await browser.close();
