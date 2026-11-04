@@ -4,10 +4,16 @@
   "description": "파티커넥트 MVP - 2030 오프라인 소셜링 파티 예약 플랫폼",
   "private": true,
   "scripts": {
-    "test": "echo \"No tests specified\" && exit 0",
-    "validate": "node validate.js"
+    "validate:jsx": "node scripts/validate-jsx.js",
+    "validate:html": "node scripts/validate-html.js",
+    "test:unit": "node scripts/validate-all.js",
+    "test:e2e": "playwright test",
+    "test": "npm run test:unit && npm run test:e2e"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@babel/parser": "^7.23.0",
+    "@playwright/test": "^1.40.0"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
