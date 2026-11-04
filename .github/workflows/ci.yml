@@ -90,7 +90,7 @@ jobs:
         run: npm ci --prefer-offline --no-audit
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Start local server
         run: |
