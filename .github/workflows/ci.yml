@@ -18,27 +18,73 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
-
-      - name: Debug - show Node and npm versions
-        run: |
-          node --version
-          npm --version
-
-      - name: Debug - show package.json scripts
-        run: cat package.json
-
-      - name: Validate HTML structure
-        run: npm run validate:html
+      - name: Install @babel/parser globally
+        run: npm install -g @babel/parser
 
       - name: Validate JSX syntax with @babel/parser
-        run: npm run validate:jsx
+        run: |
+          node << 'EOF'
+const fs = require('fs');
+const parser = require('@babel/parser');
 
-      - name: Run all validations
-        run: npm run test:unit
+const html = fs.readFileSync('index.html', 'utf-8');
+const scriptRegex = /<script type="text\/babel">([\s\S]*?)<\/script>/;
+const match = html.match(scriptRegex);
+if (!match) {
+  console.error('ERROR: No <script type="text/babel"> found');
+  process.exit(1);
+}
+
+const jsxCode = match[1];
+console.log(`Extracted ${jsxCode.length} characters of JSX`);
+
+try {
+  parser.parse(jsxCode, {
+    sourceType: 'module',
+    plugins: ['jsx', 'typescript'],
+    strictMode: false
+  });
+  console.log('✅ JSX syntax validation PASSED');
+} catch (error) {
+  console.error('❌ JSX syntax validation FAILED');
+  console.error(`  Line ${error.loc?.line}, Column ${error.loc?.column}: ${error.message}`);
+  process.exit(1);
+}
+EOF
+
+      - name: Validate HTML structure
+        run: |
+          node << 'EOF'
+const fs = require('fs');
+const html = fs.readFileSync('index.html', 'utf-8');
+
+const checks = [
+  { name: 'Root element', pattern: /id="root"/, required: true },
+  { name: 'Babel script type', pattern: /type="text\/babel"/, required: true },
+  { name: 'ReactDOM.createRoot', pattern: /ReactDOM\.createRoot/, required: true },
+  { name: 'App component render', pattern: /<App \/>/, required: true },
+  { name: 'Tailwind CDN', pattern: /cdn\.tailwindcss\.com/, required: true },
+  { name: 'React CDN', pattern: /unpkg\.com\/react@18/, required: true },
+  { name: 'ReactDOM CDN', pattern: /unpkg\.com\/react-dom@18/, required: true },
+  { name: 'Babel CDN', pattern: /unpkg\.com\/@babel\/standalone/, required: true },
+  { name: 'Pretendard CDN', pattern: /cdn\.jsdelivr\.net.*pretendard/, required: true },
+];
+
+let allPassed = true;
+for (const check of checks) {
+  const found = check.pattern.test(html);
+  if (found) {
+    console.log(`  ✅ ${check.name}`);
+  } else if (check.required) {
+    console.error(`  ❌ ${check.name} - MISSING (required)`);
+    allPassed = false;
+  }
+}
+
+if (!allPassed) process.exit(1);
+console.log('✅ HTML validation PASSED');
+EOF
 
       - name: Validate external dependencies
         run: |
