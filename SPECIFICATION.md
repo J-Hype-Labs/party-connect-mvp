@@ -20,7 +20,7 @@
 - 코드에 존재하는 UI: 헤더/히어로 슬라이더, 파티/후기 목록, 지역·요일·카테고리 필터, 파티 상세/신청 폼, 찜, 관리자 대시보드·파티/신청/후기 관리, 로그인 UI, 알림, 후기 작성, 마이페이지, 지도 안내 모달.
 - 데이터는 주로 `localStorage` 및 목업에 의존. **서버 동기화·실제 OAuth·실제 지도·다중 사용자 공유·방문 검증·업체 청구 기능은 완료로 간주하지 말 것.** 코드에서 실제 API 연동 여부 확인.
 - 2026-11-04 수정: JSX 오류 4곳(`e52c0cc`), 모달 `z-60` → `z-[60]` 7곳(`5261ada`). 재발 방지 테스트가 아직 필요.
-- **2026-11-05 P0 검증 완료**: GitHub Actions CI 파이프라인 구축, JSX 문법 검증 자동화(Python 기반), HTML 구조 검증, 외부 의존성 검증, 배포 검증(`dfef3f0`). CI 통과 및 운영 URL HTTP 200 검증 완료.
+- **2026-11-05 P0 검증 완료**: GitHub Actions CI 파이프라인 구축, JSX 문법 검증 자동화(@babel/parser + Python), HTML 구조 검증, 외부 의존성 검증, Playwright E2E 필수 실행, 배포 검증(`f5e7849`). CI 통과, Pages 배포 성공, 운영 URL HTTP 200 검증 완료.
 
 ## 3. 디자인 및 반응형 기준
 
@@ -35,13 +35,18 @@
 
 ### P0. 배포 신뢰성/회귀방지 (검증 완료 ✅ 2026-11-05)
 1. 저장소·README·명세와 `index.html`의 실제 구현 차이를 확인해 체크리스트 작성.
-2. **JSX 문법 검증 자동화**: Python 기반 괄호 균형 검사로 `index.html`의 `<script type="text/babel">` 부분 검증. 문법 오류 시 CI 실패. 로컬에서 `@babel/parser` 기반 검증 스크립트도 구비(`scripts/validate-jsx.js`).
-3. **브라우저 스모크 테스트**: Playwright 테스트 코드 작성 완료(`tests/app.spec.js`, `playwright.config.js`). CI 환경에서 브라우저 설치/실행 제약으로 현재는 non-blocking으로 구성. 로컬 실행 가능.
-4. **GitHub Actions 게이트**: 문법 검사 + HTML 구조 + 외부 의존성 + 배포 설정을 통과한 뒤에만 배포 확인 진행. 운영 URL HTTP 200 및 정적 콘텐츠 렌더링 검증 완료.
+2. **JSX 문법 검증 자동화**: `@babel/parser`(Node.js) + Python 괄호 균형 검사로 `index.html`의 `<script type="text/babel">` 부분 검증. 문법 오류 시 CI 실패.
+3. **브라우저 스모크 테스트**: Playwright E2E 테스트 필수 실행(Chromium). 로컬 서버에서 기본 로드, 요소 탐색, 필수 기능(루트/한국어/히어로/필터) 검증 통과.
+4. **GitHub Actions 게이트**: Validate → E2E → Deploy-Check 순차 실행, 실패 시 배포 차단. 운영 URL HTTP 200 및 정적/동적 콘텐츠 렌더링 검증 완료.
 5. `README.md`의 이전 소유자 `hustlinjh` API 링크를 `J-Hype-Labs`로 수정. 로컬 `file:///Users/...` 경로와 과거 배포 지침 제거 완료.
 6. 작업 후 모든 모달의 z-index/포커스/스크롤 및 320/390/768/1280px 회귀 테스트. 실패하면 후속 기능 개발 중지.
 
-**P0 완료 기준 (충족 ✅):** JSX 파싱 PASS, HTML 구조 PASS, 외부 의존성 PASS, Actions 성공, 운영 URL에서 `#root` 렌더 확인, HTTP 200 응답 확인. Playwright 테스트는 코드에 구현되어 있으나 CI에서 non-blocking 실행.
+**P0 완료 기준 (충족 ✅):** 
+- JSX @babel/parser PASS, Python 괄호 균형 PASS
+- HTML 구조 PASS, 외부 CDN 의존성 PASS, 배포 설정 PASS
+- Playwright E2E 3단계(기본 로드/요소 탐색/필수 기능) PASS
+- GitHub Actions Validate + E2E + Deploy-Check 전체 PASS
+- Pages 배포 성공, 운영 URL HTTP 200, `#root` 렌더링, 한국어 콘텐츠 확인
 
 ### P1. MVP 실사용 흐름 정리 (다음 작업)
 1. 파티 상세→무료 신청→필수 동의→신청 확인→마이페이지 내역의 사용자 흐름 정리.
