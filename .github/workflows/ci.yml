@@ -114,6 +114,32 @@ jobs:
           echo ""
           echo "=== End HTML ==="
 
+      - name: Debug - run simple Playwright script
+        run: |
+          node << 'EOF'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            try {
+              await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+              await page.waitForSelector('#root', { timeout: 30000 });
+              await page.waitForTimeout(5000);
+              const title = await page.title();
+              console.log('Page title:', title);
+              const rootVisible = await page.locator('#root').isVisible();
+              console.log('Root visible:', rootVisible);
+              const koreanText = await page.locator('text=파티커넥트').first().isVisible();
+              console.log('Korean text visible:', koreanText);
+            } catch (e) {
+              console.error('Error:', e.message);
+              process.exit(1);
+            } finally {
+              await browser.close();
+            }
+          })();
+          EOF
+
       - name: Run E2E tests against local server (verbose)
         run: npx playwright test --reporter=line
         env:
