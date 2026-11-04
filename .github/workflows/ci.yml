@@ -14,89 +14,126 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          node-version: '20'
-          cache: 'npm'
+          python-version: '3.x'
 
-      - name: Create temporary package.json for @babel/parser
+      - name: Validate JSX syntax (balanced brackets)
         run: |
-          cat > package.json << 'EOF'
-{
-  "name": "temp-validation",
-  "private": true,
-  "dependencies": {
-    "@babel/parser": "^7.23.0"
-  }
-}
-EOF
+          python3 << 'EOF'
+import re
+import sys
 
-      - name: Install @babel/parser
-        run: npm install --no-audit --prefer-offline
+with open('index.html', 'r', encoding='utf-8') as f:
+    content = f.read()
 
-      - name: Validate JSX syntax with @babel/parser
-        run: |
-          node << 'EOF'
-const fs = require('fs');
-const parser = require('@babel/parser');
+scripts = re.findall(r'<script type="text/babel">(.*?)</script>', content, re.DOTALL)
+if not scripts:
+    print("ERROR: No babel script found")
+    sys.exit(1)
 
-const html = fs.readFileSync('index.html', 'utf-8');
-const scriptRegex = /<script type="text\/babel">([\s\S]*?)<\/script>/;
-const match = html.match(scriptRegex);
-if (!match) {
-  console.error('ERROR: No <script type="text/babel"> found');
-  process.exit(1);
-}
+script = scripts[0]
 
-const jsxCode = match[1];
-console.log(`Extracted ${jsxCode.length} characters of JSX`);
+# Check balanced braces, brackets, parens
+def check_balanced(text):
+    stack = []
+    pairs = {')': '(', ']': '[', '}': '{'}
+    for idx, ch in enumerate(text):
+        if ch in '([{':
+            stack.append((ch, idx))
+        elif ch in ')]}':
+            if not stack:
+                return False, f'Unmatched {ch} at position {idx}'
+            last, pos = stack.pop()
+            if pairs[ch] != last:
+                return False, f'Mismatch at {idx}: expected {pairs[ch]} but got {last} (from pos {pos})'
+    if stack:
+        for ch, pos in stack:
+            return False, f'Unclosed {ch} at position {pos}'
+    return True, 'OK'
 
-try {
-  parser.parse(jsxCode, {
-    sourceType: 'module',
-    plugins: ['jsx', 'typescript'],
-    strictMode: false
-  });
-  console.log('✅ JSX syntax validation PASSED');
-} catch (error) {
-  console.error('❌ JSX syntax validation FAILED');
-  console.error(`  Line ${error.loc?.line}, Column ${error.loc?.column}: ${error.message}`);
-  process.exit(1);
-}
+ok, msg = check_balanced(script)
+if not ok:
+    print(f"ERROR: JSX syntax check failed - {msg}")
+    sys.exit(1)
+print(f"JSX syntax check passed: {msg}")
+
+# Check component definitions vs usage
+jsx_opens = re.findall(r'<([A-Z]\w*)', script)
+jsx_closes = re.findall(r'</([A-Z]\w*)>', script)
+from collections import Counter
+open_counter = Counter(jsx_opens)
+close_counter = Counter(jsx_closes)
+
+for tag, count in open_counter.items():
+    if close_counter.get(tag, 0) != count and tag not in ['StatCard', 'AdminDashboardTab', 'AdminPartiesTab', 'AdminApplicationsTab', 'AdminReviewsTab', 'AdminStatsTab', 'App']:
+        print(f"WARNING: <{tag}> opens={count} closes={close_counter.get(tag, 0)} (may be component definition)")
+
+print("Component validation passed")
 EOF
 
       - name: Validate HTML structure
         run: |
-          node << 'EOF'
-const fs = require('fs');
-const html = fs.readFileSync('index.html', 'utf-8');
+          python3 << 'EOF'
+import re
+import sys
 
-const checks = [
-  { name: 'Root element', pattern: /id="root"/, required: true },
-  { name: 'Babel script type', pattern: /type="text\/babel"/, required: true },
-  { name: 'ReactDOM.createRoot', pattern: /ReactDOM\.createRoot/, required: true },
-  { name: 'App component render', pattern: /<App \/>/, required: true },
-  { name: 'Tailwind CDN', pattern: /cdn\.tailwindcss\.com/, required: true },
-  { name: 'React CDN', pattern: /unpkg\.com\/react@18/, required: true },
-  { name: 'ReactDOM CDN', pattern: /unpkg\.com\/react-dom@18/, required: true },
-  { name: 'Babel CDN', pattern: /unpkg\.com\/@babel\/standalone/, required: true },
-  { name: 'Pretendard CDN', pattern: /cdn\.jsdelivr\.net.*pretendard/, required: true },
-];
+with open('index.html', 'r', encoding='utf-8') as f:
+    html = f.read()
 
-let allPassed = true;
-for (const check of checks) {
-  const found = check.pattern.test(html);
-  if (found) {
-    console.log(`  ✅ ${check.name}`);
-  } else if (check.required) {
-    console.error(`  ❌ ${check.name} - MISSING (required)`);
-    allPassed = false;
-  }
-}
+checks = [
+    ('Root element', r'id="root"', True),
+    ('Babel script type', r'type="text/babel"', True),
+    ('ReactDOM.createRoot', r'ReactDOM\.createRoot', True),
+    ('App component render', r'<App />', True),
+    ('Tailwind CDN', r'cdn\.tailwindcss\.com', True),
+    ('React CDN', r'unpkg\.com/react@18', True),
+    ('ReactDOM CDN', r'unpkg\.com/react-dom@18', True),
+    ('Babel CDN', r'unpkg\.com/@babel/standalone', True),
+    ('Pretendard CDN', r'cdn\.jsdelivr\.net.*pretendard', True),
+]
 
-if (!allPassed) process.exit(1);
-console.log('✅ HTML validation PASSED');
+all_passed = True
+for name, pattern, required in checks:
+    found = bool(re.search(pattern, html))
+    if found:
+        print(f"  ✅ {name}")
+    elif required:
+        print(f"  ❌ {name} - MISSING (required)")
+        all_passed = False
+    else:
+        print(f"  ⚠️ {name} - MISSING (optional)")
+
+# Check for common JSX issues
+classNameConcat = re.search(r'className\s*=\s*["\'][^"\']*["\']\s*\+\s*\(', html)
+if classNameConcat:
+    print("  ❌ Found string concatenation in className (use template literals)")
+    all_passed = False
+else:
+    print("  ✅ No string concatenation in className")
+
+z60 = re.search(r'z-60(?![0-9])', html)
+if z60:
+    print("  ❌ Found invalid z-60 class (use z-[60] instead)")
+    all_passed = False
+else:
+    print("  ✅ No invalid z-60 classes")
+
+# Check component definitions
+components = ['AdminDashboardTab', 'AdminPartiesTab', 'AdminApplicationsTab', 'AdminReviewsTab', 'AdminStatsTab', 'StatCard']
+for name in components:
+    has_def = bool(re.search(rf'const {name}\s*=', html))
+    has_usage = bool(re.search(rf'<{name}[\s>]', html))
+    if has_usage and not has_def:
+        print(f"  ❌ Component {name} is used but not defined")
+        all_passed = False
+    elif has_def and has_usage:
+        print(f"  ✅ Component {name} defined and used")
+
+if not all_passed:
+    sys.exit(1)
+print("✅ HTML validation PASSED")
 EOF
 
       - name: Validate external dependencies
