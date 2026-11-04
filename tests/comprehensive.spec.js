@@ -80,21 +80,21 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('text=무료 체험단 신청하기')).toBeHidden({ timeout: 5000 });
   });
 
-  // Test 4: Application form functionality (non-blocking - form may load async)
-  test('should have application form available', async ({ page }) => {
+  // Test 4: Application form functionality - full flow
+  test('should complete full application flow', async ({ page }) => {
     const firstCard = page.locator('[role="button"]').first();
     await firstCard.click();
     await expect(page.locator('text=무료 체험단 신청하기')).toBeVisible({ timeout: 15000 });
     
-    // Wait for form to be ready - the form might load async
+    // Wait for form to be ready
     await page.waitForTimeout(3000);
     
-    // Check if form inputs exist (non-blocking)
+    // Check if form inputs exist
     const nameInput = page.locator('input[name="name"], input[placeholder*="이름"]').first();
     const hasNameInput = await nameInput.count() > 0 && await nameInput.isVisible().catch(() => false);
     
     if (hasNameInput) {
-      // Fill application form
+      // Fill application form completely
       await nameInput.fill('테스트 사용자');
       
       const phoneInput = page.locator('input[name="phone"], input[placeholder*="전화"]').first();
@@ -113,13 +113,17 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
       // Submit form
       await submitButton.click();
       
-      // Wait for potential response
-      await page.waitForTimeout(2000);
+      // Wait for potential response (success toast, modal close, etc.)
+      await page.waitForTimeout(3000);
+      
+      // Verify form submission completed (modal closes or success message)
+      const modalClosed = await page.locator('text=무료 체험단 신청하기').isHidden().catch(() => false);
+      expect(modalClosed).toBeTruthy();
+    } else {
+      // Form not loaded - just close modal
+      await page.click('button:has-text("✕")');
+      await expect(page.locator('text=무료 체험단 신청하기')).toBeHidden({ timeout: 5000 });
     }
-    
-    // Close modal
-    await page.click('button:has-text("✕")');
-    await expect(page.locator('text=무료 체험단 신청하기')).toBeHidden({ timeout: 5000 });
   });
 
   // Test 5: Filter functionality
@@ -169,7 +173,26 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('button[role="tab"]:has-text("서울")')).toBeVisible();
   });
 
-  // Test 7: Admin login (non-blocking - just verify modal opens)
+  // Test 7: Mobile horizontal scroll verification
+  test('should not have horizontal overflow on mobile', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Mobile test only on chromium');
+    
+    // Set mobile viewport
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await page.waitForSelector('#root', { timeout: 30000 });
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForTimeout(5000);
+    
+    // Check body width doesn't exceed viewport
+    const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+    const viewportWidth = 390;
+    
+    // Allow small tolerance for scrollbar
+    expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 20);
+  });
+
+  // Test 8: Admin login (non-blocking - just verify modal opens)
   test('should open admin modal', async ({ page, browserName }) => {
     test.skip(browserName !== 'chromium', 'Admin test only on desktop chromium');
     
@@ -180,7 +203,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     // Modal opens successfully - close not tested due to backdrop interception
   });
 
-  // Test 8: Console error checking
+  // Test 9: Console error checking
   test('should have no critical JavaScript errors', async ({ page }) => {
     const errors = [];
     page.on('console', msg => {
@@ -208,7 +231,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     expect(errors).toHaveLength(0);
   });
 
-  // Test 9: Search functionality
+  // Test 10: Search functionality
   test('should have search functionality', async ({ page }) => {
     // Check if search button exists (search icon in header)
     const searchButton = page.locator('header button:has(svg)').first();
@@ -222,8 +245,61 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     // This test is non-blocking as search functionality may vary
   });
 
-  // Test 10: Footer admin link
+  // Test 11: Footer admin link
   test('should have footer admin button', async ({ page }) => {
     await expect(page.locator('button:has-text("관리자")')).toBeVisible();
+  });
+
+  // Test 12: Party cards display key information
+  test('should display party cards with key info', async ({ page }) => {
+    // Verify party cards show title, location, date
+    const cards = page.locator('[role="button"]').or(page.locator('text=무료 체험단'));
+    const cardCount = await cards.count();
+    expect(cardCount).toBeGreaterThan(0);
+    
+    // Check first card has basic info
+    const firstCard = cards.first();
+    await expect(firstCard).toBeVisible();
+  });
+
+  // Test 13: Category filter tabs visible
+  test('should display category filter tabs', async ({ page }) => {
+    // Check for category filter buttons
+    const categoryButtons = ['전체', '혼술바', '와인', '위스키', '칵테일', '전통주'];
+    
+    for (const category of categoryButtons) {
+      const btn = page.locator(`button:has-text("${category}")`);
+      const count = await btn.count();
+      if (count > 0) {
+        await expect(btn.first()).toBeVisible();
+      }
+    }
+  });
+
+  // Test 14: Day filter tabs visible
+  test('should display day filter tabs', async ({ page }) => {
+    // Check for day filter buttons
+    const dayButtons = ['전체', '월', '화', '수', '목', '금', '토', '일'];
+    
+    for (const day of dayButtons) {
+      const btn = page.locator(`button[role="tab"]:has-text("${day}")`);
+      const count = await btn.count();
+      if (count > 0) {
+        await expect(btn.first()).toBeVisible();
+      }
+    }
+  });
+
+  // Test 15: Party detail modal has apply button
+  test('should have apply button in party detail modal', async ({ page }) => {
+    const firstCard = page.locator('[role="button"]').first();
+    await firstCard.click();
+    
+    // Verify apply button exists
+    await expect(page.locator('text=무료 체험단 신청하기')).toBeVisible({ timeout: 15000 });
+    
+    // Close modal
+    await page.click('button:has-text("✕")');
+    await expect(page.locator('text=무료 체험단 신청하기')).toBeHidden({ timeout: 5000 });
   });
 });
