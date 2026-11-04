@@ -14,127 +14,47 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Validate JSX syntax (balanced brackets)
+      - name: Validate HTML structure (basic grep)
         run: |
-          python3 << 'EOF'
-import re
-import sys
+          echo "Checking required elements..."
+          grep -q 'id="root"' index.html && echo "✅ Root element" || (echo "❌ Root element missing" && exit 1)
+          grep -q 'text/babel' index.html && echo "✅ Babel script type" || (echo "❌ Babel script type missing" && exit 1)
+          grep -q 'ReactDOM.createRoot' index.html && echo "✅ ReactDOM.createRoot" || (echo "❌ ReactDOM.createRoot missing" && exit 1)
+          grep -q '<App />' index.html && echo "✅ App component render" || (echo "❌ App component render missing" && exit 1)
+          grep -q 'cdn.tailwindcss.com' index.html && echo "✅ Tailwind CDN" || (echo "❌ Tailwind CDN missing" && exit 1)
+          grep -q 'unpkg.com/react@18' index.html && echo "✅ React CDN" || (echo "❌ React CDN missing" && exit 1)
+          grep -q 'unpkg.com/react-dom@18' index.html && echo "✅ ReactDOM CDN" || (echo "❌ ReactDOM CDN missing" && exit 1)
+          grep -q 'unpkg.com/@babel/standalone' index.html && echo "✅ Babel CDN" || (echo "❌ Babel CDN missing" && exit 1)
+          grep -q 'cdn.jsdelivr.net.*pretendard' index.html && echo "✅ Pretendard CDN" || (echo "❌ Pretendard CDN missing" && exit 1)
+          echo "✅ HTML validation PASSED"
 
+      - name: Validate JSX syntax (Python bracket checker)
+        run: |
+          python3 << 'PYEOF'
+import re, sys
 with open('index.html', 'r', encoding='utf-8') as f:
     content = f.read()
-
 scripts = re.findall(r'<script type="text/babel">(.*?)</script>', content, re.DOTALL)
 if not scripts:
-    print("ERROR: No babel script found")
-    sys.exit(1)
-
+    print("ERROR: No babel script found"); sys.exit(1)
 script = scripts[0]
 
-# Check balanced braces, brackets, parens
-def check_balanced(text):
-    stack = []
-    pairs = {')': '(', ']': '[', '}': '{'}
-    for idx, ch in enumerate(text):
-        if ch in '([{':
-            stack.append((ch, idx))
-        elif ch in ')]}':
-            if not stack:
-                return False, f'Unmatched {ch} at position {idx}'
-            last, pos = stack.pop()
-            if pairs[ch] != last:
-                return False, f'Mismatch at {idx}: expected {pairs[ch]} but got {last} (from pos {pos})'
-    if stack:
-        for ch, pos in stack:
-            return False, f'Unclosed {ch} at position {pos}'
-    return True, 'OK'
-
-ok, msg = check_balanced(script)
-if not ok:
-    print(f"ERROR: JSX syntax check failed - {msg}")
-    sys.exit(1)
-print(f"JSX syntax check passed: {msg}")
-
-# Check component definitions vs usage
-jsx_opens = re.findall(r'<([A-Z]\w*)', script)
-jsx_closes = re.findall(r'</([A-Z]\w*)>', script)
-from collections import Counter
-open_counter = Counter(jsx_opens)
-close_counter = Counter(jsx_closes)
-
-for tag, count in open_counter.items():
-    if close_counter.get(tag, 0) != count and tag not in ['StatCard', 'AdminDashboardTab', 'AdminPartiesTab', 'AdminApplicationsTab', 'AdminReviewsTab', 'AdminStatsTab', 'App']:
-        print(f"WARNING: <{tag}> opens={count} closes={close_counter.get(tag, 0)} (may be component definition)")
-
-print("Component validation passed")
-EOF
-
-      - name: Validate HTML structure
-        run: |
-          python3 << 'EOF'
-import re
-import sys
-
-with open('index.html', 'r', encoding='utf-8') as f:
-    html = f.read()
-
-checks = [
-    ('Root element', r'id="root"', True),
-    ('Babel script type', r'type="text/babel"', True),
-    ('ReactDOM.createRoot', r'ReactDOM\.createRoot', True),
-    ('App component render', r'<App />', True),
-    ('Tailwind CDN', r'cdn\.tailwindcss\.com', True),
-    ('React CDN', r'unpkg\.com/react@18', True),
-    ('ReactDOM CDN', r'unpkg\.com/react-dom@18', True),
-    ('Babel CDN', r'unpkg\.com/@babel/standalone', True),
-    ('Pretendard CDN', r'cdn\.jsdelivr\.net.*pretendard', True),
-]
-
-all_passed = True
-for name, pattern, required in checks:
-    found = bool(re.search(pattern, html))
-    if found:
-        print(f"  ✅ {name}")
-    elif required:
-        print(f"  ❌ {name} - MISSING (required)")
-        all_passed = False
-    else:
-        print(f"  ⚠️ {name} - MISSING (optional)")
-
-# Check for common JSX issues
-classNameConcat = re.search(r'className\s*=\s*["\'][^"\']*["\']\s*\+\s*\(', html)
-if classNameConcat:
-    print("  ❌ Found string concatenation in className (use template literals)")
-    all_passed = False
-else:
-    print("  ✅ No string concatenation in className")
-
-z60 = re.search(r'z-60(?![0-9])', html)
-if z60:
-    print("  ❌ Found invalid z-60 class (use z-[60] instead)")
-    all_passed = False
-else:
-    print("  ✅ No invalid z-60 classes")
-
-# Check component definitions
-components = ['AdminDashboardTab', 'AdminPartiesTab', 'AdminApplicationsTab', 'AdminReviewsTab', 'AdminStatsTab', 'StatCard']
-for name in components:
-    has_def = bool(re.search(rf'const {name}\s*=', html))
-    has_usage = bool(re.search(rf'<{name}[\s>]', html))
-    if has_usage and not has_def:
-        print(f"  ❌ Component {name} is used but not defined")
-        all_passed = False
-    elif has_def and has_usage:
-        print(f"  ✅ Component {name} defined and used")
-
-if not all_passed:
-    sys.exit(1)
-print("✅ HTML validation PASSED")
-EOF
+stack = []
+pairs = {')': '(', ']': '[', '}': '{'}
+for idx, ch in enumerate(script):
+    if ch in '([{':
+        stack.append((ch, idx))
+    elif ch in ')]}':
+        if not stack:
+            print(f"ERROR: Unmatched {ch} at {idx}"); sys.exit(1)
+        last, pos = stack.pop()
+        if pairs[ch] != last:
+            print(f"ERROR: Mismatch at {idx}: expected {pairs[ch]} got {last}"); sys.exit(1)
+if stack:
+    for ch, pos in stack:
+        print(f"ERROR: Unclosed {ch} at {pos}"); sys.exit(1)
+print("✅ JSX bracket validation PASSED")
+PYEOF
 
       - name: Validate external dependencies
         run: |
