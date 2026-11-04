@@ -114,8 +114,8 @@ jobs:
           echo ""
           echo "=== End HTML ==="
 
-      - name: Run E2E tests against local server
-        run: npm run test:e2e
+      - name: Run E2E tests against local server (verbose)
+        run: npx playwright test --reporter=line
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 

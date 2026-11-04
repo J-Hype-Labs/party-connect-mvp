@@ -21,7 +21,6 @@ test.describe('PartyConnect MVP - Core Functionality', () => {
   });
 
   test('should have filter buttons', async ({ page }) => {
-    // Use more flexible selectors
     const regionBtn = page.locator('button').filter({ hasText: '지역 선택' });
     await expect(regionBtn).toBeVisible();
     
@@ -33,7 +32,6 @@ test.describe('PartyConnect MVP - Core Functionality', () => {
   });
 
   test('should have party cards', async ({ page }) => {
-    // Look for clickable elements that might be party cards
     const cards = page.locator('[role="button"]').or(page.locator('text=무료 체험단'));
     const count = await cards.count();
     expect(count).toBeGreaterThan(0);
