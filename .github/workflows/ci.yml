@@ -126,31 +126,12 @@ EOF
 
       - name: Wait for GitHub Pages deployment
         run: |
-          echo "Waiting for GitHub Pages deployment to complete..."
-          for i in {1..12}; do
-            # Check if the pages deployment workflow has completed
-            RUNS=$(curl -s "https://api.github.com/repos/${{ github.repository }}/actions/runs?branch=main&per_page=5" | python3 -c "
-import sys, json
-try:
-    data = json.load(sys.stdin)
-    for run in data.get('workflow_runs', []):
-        if 'pages' in run.get('name', '').lower() and run.get('head_sha') == '${{ github.sha }}':
-            print(run.get('conclusion', 'unknown'))
-            break
-" 2>/dev/null || echo "unknown")
-            
-            if echo "$RUNS" | grep -q "success"; then
-              echo "GitHub Pages deployment completed successfully"
-              exit 0
-            elif echo "$RUNS" | grep -q "failure"; then
-              echo "GitHub Pages deployment failed"
-              exit 1
-            fi
-            
-            echo "Waiting for Pages deployment... (attempt $i/12)"
+          echo "Waiting for GitHub Pages deployment to complete (up to 5 minutes)..."
+          for i in {1..20}; do
+            echo "Waiting for Pages deployment... (attempt $i/20)"
             sleep 15
           done
-          echo "WARNING: Pages deployment status unknown, proceeding to URL check"
+          echo "Proceeding to URL check"
 
       - name: Verify deployment URL accessible
         run: |
