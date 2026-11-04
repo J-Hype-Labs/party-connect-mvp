@@ -2541,7 +2541,7 @@
           {/* ================= ADMIN DASHBOARD MODAL ================= */}
           {isAdminOpen && !isAdminAuthenticated && (
             <div
-              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              className="animate-fade-in fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
               onClick={closeAdmin}
             >
               <div
@@ -2589,7 +2589,7 @@
           )}
           {isAdminOpen && isAdminAuthenticated && (
             <div
-              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              className="animate-fade-in fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
               onClick={closeAdmin}
             >
               <div
@@ -2695,7 +2695,7 @@
           {/* ================= LOGIN MODAL ================= */}
           {isLoginModalOpen && (
             <div
-              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              className="animate-fade-in fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
               onClick={() => setIsLoginModalOpen(false)}
             >
               <div
@@ -2761,7 +2761,7 @@
           {/* ================= NOTIFICATION CENTER ================= */}
           {isNotificationOpen && (
             <div
-              className="animate-fade-in fixed inset-0 z-60 flex items-start justify-end bg-black/60 p-4 backdrop-blur-sm"
+              className="animate-fade-in fixed inset-0 z-[60] flex items-start justify-end bg-black/60 p-4 backdrop-blur-sm"
               onClick={() => setIsNotificationOpen(false)}
             >
               <div
@@ -2827,7 +2827,7 @@
           {/* ================= REVIEW WRITE MODAL ================= */}
           {isReviewWriteOpen && reviewWriteParty && (
             <div
-              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              className="animate-fade-in fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
               onClick={() => setIsReviewWriteOpen(false)}
             >
               <div
@@ -2906,7 +2906,7 @@
           {/* ================= MY PAGE MODAL ================= */}
           {isMyPageOpen && currentUser && (
             <div
-              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              className="animate-fade-in fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
               onClick={closeMyPage}
             >
               <div
@@ -3015,7 +3015,7 @@
           {/* ================= MAP MODAL ================= */}
           {isMapOpen && mapParty && (
             <div
-              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              className="animate-fade-in fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
               onClick={() => setIsMapOpen(false)}
             >
               <div
