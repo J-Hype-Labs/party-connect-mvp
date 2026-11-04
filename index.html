@@ -540,6 +540,52 @@
       });
       const [editingReviewId, setEditingReviewId] = useState(null);
 
+      // ===== Phase 2: User & Social Features State =====
+      // User authentication
+      const [currentUser, setCurrentUser] = useState(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem("partyconnect:user") || "null");
+          return saved;
+        } catch (e) {
+          return null;
+        }
+      });
+      const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+      const [loginMethod, setLoginMethod] = useState(null); // 'kakao', 'naver', 'email'
+
+      // Notifications
+      const [notifications, setNotifications] = useState(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem("partyconnect:notifications") || "[]");
+          return Array.isArray(saved) ? saved : [];
+        } catch (e) {
+          return [];
+        }
+      });
+      const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+      const [unreadCount, setUnreadCount] = useState(0);
+
+      // Review writing
+      const [isReviewWriteOpen, setIsReviewWriteOpen] = useState(false);
+      const [reviewWriteParty, setReviewWriteParty] = useState(null);
+      const [reviewWriteForm, setReviewWriteForm] = useState({
+        rating: 5,
+        comment: "",
+        photos: [],
+        tags: []
+      });
+
+      // My Page
+      const [isMyPageOpen, setIsMyPageOpen] = useState(false);
+      const [myPageTab, setMyPageTab] = useState("applications"); // applications, wishlist, reviews, settings
+
+      // Map
+      const [isMapOpen, setIsMapOpen] = useState(false);
+      const [mapParty, setMapParty] = useState(null);
+
+      // UI/UX Pro Max: Motion preferences
+      const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
       // Banner Auto-play
       useEffect(() => {
         if (isBannerPaused) return;
@@ -907,6 +953,154 @@
           return acc;
         }, {}),
       });
+
+      // ===== Phase 2: User & Social Functions =====
+      // User auth
+      const handleSocialLogin = (provider) => {
+        const mockUser = {
+          id: `user_${Date.now()}`,
+          name: provider === 'kakao' ? '카카오유저' : '네이버유저',
+          avatar: provider === 'kakao' ? '🟡' : '🟢',
+          provider,
+          joinedAt: new Date().toISOString(),
+          preferences: { regions: [], categories: [] }
+        };
+        setCurrentUser(mockUser);
+        localStorage.setItem("partyconnect:user", JSON.stringify(mockUser));
+        setIsLoginModalOpen(false);
+        setLoginMethod(null);
+        showToast(`${provider === 'kakao' ? '카카오' : '네이버'} 로그인 완료`);
+        addNotification({
+          type: 'welcome',
+          title: '환영합니다!',
+          message: '파티커넥트 멤버가 되신 것을 환영합니다.',
+          read: false
+        });
+      };
+
+      const handleLogout = () => {
+        setCurrentUser(null);
+        localStorage.removeItem("partyconnect:user");
+        showToast("로그아웃 되었습니다.");
+      };
+
+      const openLoginModal = (method = null) => {
+        setLoginMethod(method);
+        setIsLoginModalOpen(true);
+      };
+
+      // Notifications
+      const addNotification = (notif) => {
+        const newNotif = {
+          id: `notif_${Date.now()}`,
+          ...notif,
+          createdAt: new Date().toISOString(),
+          read: false
+        };
+        setNotifications((prev) => [newNotif, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+      };
+
+      const markAsRead = (notifId) => {
+        setNotifications((prev) => prev.map((n) => n.id === notifId ? { ...n, read: true } : n));
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      };
+
+      const markAllAsRead = () => {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        setUnreadCount(0);
+      };
+
+      const deleteNotification = (notifId) => {
+        setNotifications((prev) => prev.filter((n) => n.id !== notifId));
+      };
+
+      // Review writing
+      const openReviewWrite = (party) => {
+        setReviewWriteParty(party);
+        setReviewWriteForm({ rating: 5, comment: "", photos: [], tags: [] });
+        setIsReviewWriteOpen(true);
+        setActivePartyDetail(null);
+      };
+
+      const submitReview = (e) => {
+        e.preventDefault();
+        if (!reviewWriteParty || !currentUser) return;
+        
+        if (reviewWriteForm.comment.trim().length < 10) {
+          showToast("후기는 10자 이상 작성해 주세요.");
+          return;
+        }
+
+        const newReview = {
+          id: `review_${Date.now()}`,
+          avatar: currentUser.avatar || "👤",
+          avatarBg: "bg-rose-100 text-rose-700",
+          name: currentUser.name,
+          time: "방금 전",
+          venue: reviewWriteParty.venue,
+          address: reviewWriteParty.address,
+          comment: reviewWriteForm.comment.trim(),
+          rating: reviewWriteForm.rating,
+          photos: reviewWriteForm.photos,
+          tags: reviewWriteForm.tags,
+          userId: currentUser.id
+        };
+
+        setReviews((prev) => [newReview, ...prev]);
+        setIsReviewWriteOpen(false);
+        setReviewWriteParty(null);
+        showToast("후기가 등록되었습니다!");
+        addNotification({
+          type: 'review',
+          title: '후기 작성 완료',
+          message: `"${reviewWriteParty.title}" 후기가 등록되었습니다.`,
+          read: false
+        });
+      };
+
+      // My Page
+      const openMyPage = () => {
+        if (!currentUser) {
+          openLoginModal();
+          return;
+        }
+        setMyPageTab("applications");
+        setIsMyPageOpen(true);
+      };
+
+      const closeMyPage = () => {
+        setIsMyPageOpen(false);
+      };
+
+      // Map
+      const openMap = (party) => {
+        setMapParty(party);
+        setIsMapOpen(true);
+      };
+
+      // Persist notifications
+      useEffect(() => {
+        try {
+          localStorage.setItem("partyconnect:notifications", JSON.stringify(notifications));
+        } catch (e) {}
+      }, [notifications]);
+
+      // Persist user
+      useEffect(() => {
+        if (currentUser) {
+          localStorage.setItem("partyconnect:user", JSON.stringify(currentUser));
+        }
+      }, [currentUser]);
+
+      // Reduced motion detection
+      useEffect(() => {
+        const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        setPrefersReducedMotion(mediaQuery.matches);
+        const handler = (e) => setPrefersReducedMotion(e.matches);
+        mediaQuery.addEventListener('change', handler);
+        return () => mediaQuery.removeEventListener('change', handler);
+      }, []);
 
       // ===== Admin Tab Components =====
       const AdminDashboardTab = ({ parties, applications, reviews, wishlist }) => {
@@ -1524,13 +1718,44 @@
               </div>
 
               {/* Header Right Actions */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {/* Notification Bell */}
                 <button
-                  onClick={() => showToast("로그인 서비스는 현재 준비 중입니다.")}
-                  className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 sm:text-sm"
+                  onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                  className="relative p-2 rounded-full text-zinc-600 hover:bg-zinc-100 transition"
+                  aria-label="알림"
                 >
-                  로그인
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-[10px] font-bold flex items-center justify-center text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </button>
+
+                {/* User Menu / Login */}
+                {currentUser ? (
+                  <div className="relative">
+                    <button
+                      onClick={openMyPage}
+                      className="flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-1.5 transition hover:bg-zinc-200"
+                    >
+                      <span className="text-lg">{currentUser.avatar}</span>
+                      <span className="text-xs font-semibold text-zinc-900 hidden sm:inline">{currentUser.name}</span>
+                      <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    {/* Dropdown handled by MyPage modal */}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => openLoginModal()}
+                    className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 sm:text-sm"
+                  >
+                    로그인
+                  </button>
+                )}
               </div>
             </div>
           </header>
@@ -2122,7 +2347,7 @@
                         </p>
                       )}
 
-                      <div className="mt-6 flex gap-3">
+                      <div className="mt-6 flex gap-2">
                         <button
                           type="button"
                           onClick={(event) => toggleWishlist(event, activePartyDetail.id)}
@@ -2134,6 +2359,13 @@
                           }`}
                         >
                           {wishlist.has(activePartyDetail.id) ? "❤️ 찜완료" : "🤍 찜하기"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openMap(activePartyDetail)}
+                          className="flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition"
+                        >
+                          🗺️ 지도
                         </button>
                         <button
                           type="button"
@@ -2154,6 +2386,15 @@
                               : "무료 체험단 신청하기"}
                         </button>
                       </div>
+                      {currentUser && hasApplied(activePartyDetail.id) && !reviews.some(r => r.userId === currentUser.id && r.venue === activePartyDetail.venue) && (
+                        <button
+                          type="button"
+                          onClick={() => openReviewWrite(activePartyDetail)}
+                          className="mt-3 w-full rounded-xl bg-amber-500 py-2.5 text-xs font-bold text-white hover:bg-amber-600 transition"
+                        >
+                          ✍️ 후기 작성하기
+                        </button>
+                      )}
                     </>
                   )}
 
@@ -2446,6 +2687,378 @@
                   >
                     닫기
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= LOGIN MODAL ================= */}
+          {isLoginModalOpen && (
+            <div
+              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              onClick={() => setIsLoginModalOpen(false)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="login-modal-title"
+                onClick={(e) => e.stopPropagation()}
+                className="animate-slide-up relative w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden"
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 id="login-modal-title" className="text-lg font-bold text-zinc-900">로그인 / 회원가입</h3>
+                    <button
+                      onClick={() => setIsLoginModalOpen(false)}
+                      className="text-zinc-400 hover:text-zinc-700"
+                    >✕</button>
+                  </div>
+
+                  {!loginMethod ? (
+                    <div className="space-y-3">
+                      <p className="text-center text-xs text-zinc-500 mb-4">간편 로그인으로 시작하세요</p>
+                      <button
+                        onClick={() => handleSocialLogin('kakao')}
+                        className="w-full flex items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 hover:bg-zinc-50 transition"
+                      >
+                        <span className="text-2xl">🟡</span>
+                        <span className="font-semibold text-zinc-900">카카오로 계속하기</span>
+                      </button>
+                      <button
+                        onClick={() => handleSocialLogin('naver')}
+                        className="w-full flex items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 hover:bg-zinc-50 transition"
+                      >
+                        <span className="text-2xl">🟢</span>
+                        <span className="font-semibold text-zinc-900">네이버로 계속하기</span>
+                      </button>
+                      <div className="relative my-4">
+                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-200" /></div>
+                        <div className="relative flex justify-center text-xs text-zinc-400"><span className="bg-white px-2">또는</span></div>
+                      </div>
+                      <button
+                        onClick={() => setLoginMethod('email')}
+                        className="w-full rounded-xl bg-zinc-900 py-3 text-xs font-bold text-white hover:bg-zinc-800"
+                      >
+                        이메일로 로그인
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-center text-xs text-zinc-500">이메일 로그인은 준비 중입니다</p>
+                      <button
+                        onClick={() => setLoginMethod(null)}
+                        className="w-full rounded-lg border border-zinc-200 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                      >
+                        뒤로 가기
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= NOTIFICATION CENTER ================= */}
+          {isNotificationOpen && (
+            <div
+              className="animate-fade-in fixed inset-0 z-60 flex items-start justify-end bg-black/60 p-4 backdrop-blur-sm"
+              onClick={() => setIsNotificationOpen(false)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="notification-title"
+                onClick={(e) => e.stopPropagation()}
+                className="animate-slide-up relative w-full max-w-md max-h-[80vh] rounded-2xl bg-white shadow-2xl flex flex-col"
+              >
+                <div className="flex items-center justify-between border-b border-zinc-100 p-4">
+                  <h3 id="notification-title" className="text-base font-bold text-zinc-900">알림</h3>
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-xs text-rose-600 font-semibold hover:underline"
+                      >
+                        모두 읽음
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setIsNotificationOpen(false)}
+                      className="size-7 rounded-full text-zinc-400 hover:bg-zinc-100"
+                    >✕</button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                  {notifications.length === 0 ? (
+                    <div className="text-center py-8 text-zinc-500">
+                      <div className="text-3xl mb-2">🔔</div>
+                      <p className="text-sm">새 알림이 없습니다</p>
+                    </div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={`p-3 rounded-xl border transition ${notif.read ? 'bg-white border-zinc-100' : 'bg-rose-50 border-rose-100'}"}
+                        onClick={() => !notif.read && markAsRead(notif.id)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`flex size-8 items-center justify-center rounded-full ${notif.type === 'welcome' ? 'bg-emerald-100 text-emerald-600' : notif.type === 'review' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}"}
+                          >
+                            {notif.type === 'welcome' ? '✨' : notif.type === 'review' ? '⭐' : '📢'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-zinc-900">{notif.title}</p>
+                            <p className="text-xs text-zinc-600 mt-0.5 line-clamp-2">{notif.message}</p>
+                            <p className="text-[10px] text-zinc-400 mt-1">{new Date(notif.createdAt).toLocaleString()}</p>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteNotification(notif.id); }}
+                            className="text-zinc-400 hover:text-zinc-700"
+                          >✕</button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= REVIEW WRITE MODAL ================= */}
+          {isReviewWriteOpen && reviewWriteParty && (
+            <div
+              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              onClick={() => setIsReviewWriteOpen(false)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="review-write-title"
+                onClick={(e) => e.stopPropagation()}
+                className="animate-slide-up relative w-full max-w-md max-h-[90vh] rounded-2xl bg-white shadow-2xl overflow-y-auto"
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 id="review-write-title" className="text-base font-bold text-zinc-900">후기 작성</h3>
+                    <button
+                      onClick={() => setIsReviewWriteOpen(false)}
+                      className="text-zinc-400 hover:text-zinc-700"
+                    >✕</button>
+                  </div>
+                  <p className="text-xs text-zinc-500 mb-4">{reviewWriteParty.title}</p>
+                  <form onSubmit={submitReview} className="space-y-4">
+                    <div>
+                      <label className="text-xs font-bold text-zinc-700">별점</label>
+                      <div className="mt-2 flex gap-1">
+                        {[5,4,3,2,1].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReviewWriteForm((prev) => ({ ...prev, rating: star }))}
+                            className={`text-3xl transition ${reviewWriteForm.rating >= star ? 'text-amber-400' : 'text-zinc-200'}"}
+                          >
+                            ★
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-zinc-700">후기 내용 <span className="text-rose-600">*</span></label>
+                      <textarea
+                        value={reviewWriteForm.comment}
+                        onChange={(e) => setReviewWriteForm((prev) => ({ ...prev, comment: e.target.value }))}
+                        placeholder="어떤 점이 좋았나요? 분위기, 서비스, 메뉴 등 자유롭게 적어주세요 (10자 이상)"
+                        rows={4}
+                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-zinc-700">태그 (콤마로 구분)</label>
+                      <input
+                        value={reviewWriteForm.tags.join(', ')}
+                        onChange={(e) => setReviewWriteForm((prev) => ({ ...prev, tags: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
+                        placeholder="친절함, 분위기굿, 재방문의사, 가성비"
+                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100"
+                      />
+                    </div>
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsReviewWriteOpen(false)}
+                        className="flex-1 rounded-lg border border-zinc-200 bg-white py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 rounded-lg bg-rose-600 py-2.5 text-xs font-bold text-white hover:bg-rose-700"
+                      >
+                        등록하기
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= MY PAGE MODAL ================= */}
+          {isMyPageOpen && currentUser && (
+            <div
+              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              onClick={closeMyPage}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="mypage-title"
+                onClick={(e) => e.stopPropagation()}
+                className="animate-slide-up relative w-full max-w-lg max-h-[90vh] rounded-2xl bg-white shadow-2xl overflow-y-auto"
+              >
+                <div className="p-4 border-b border-zinc-100">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{currentUser.avatar}</span>
+                    <div>
+                      <p className="font-bold text-zinc-900">{currentUser.name}</p>
+                      <p className="text-xs text-zinc-500">멤버 가입: {new Date(currentUser.joinedAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="border-b border-zinc-100">
+                  <div className="flex overflow-x-auto no-scrollbar">
+                    {['applications', 'wishlist', 'reviews', 'settings'].map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setMyPageTab(tab)}
+                        className={`shrink-0 px-4 py-2 text-xs font-bold border-b-2 transition ${myPageTab === tab ? 'border-rose-600 text-rose-600' : 'border-transparent text-zinc-500 hover:text-zinc-900'}"}
+                      >
+                        {tab === 'applications' ? '내 신청' : tab === 'wishlist' ? '찜한 파티' : tab === 'reviews' ? '내 후기' : '설정'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-4">
+                  {myPageTab === 'applications' && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-bold text-zinc-900">체험단 신청 내역 ({applications.filter(a => a.userId === currentUser.id).length}건)</h4>
+                      {applications.filter(a => a.userId === currentUser.id).length === 0 ? (
+                        <p className="text-center py-8 text-zinc-500 text-sm">신청 내역이 없습니다</p>
+                      ) : (
+                        applications.filter(a => a.userId === currentUser.id).map((app) => (
+                          <div key={app.id} className="rounded-lg border border-zinc-200 p-3">
+                            <p className="font-semibold text-zinc-900">{app.partyTitle}</p>
+                            <p className="text-xs text-zinc-500">{app.venue} · {app.day}요일</p>
+                            <p className="text-xs text-zinc-400 mt-1">신청일: {new Date(app.appliedAt).toLocaleString()}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                  {myPageTab === 'wishlist' && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-bold text-zinc-900">찜한 파티 ({Array.from(wishlist).length}개)</h4>
+                      {Array.from(wishlist).length === 0 ? (
+                        <p className="text-center py-8 text-zinc-500 text-sm">찜한 파티가 없습니다</p>
+                      ) : (
+                        Array.from(wishlist).map((partyId) => {
+                          const party = parties.find(p => p.id === partyId);
+                          return party ? (
+                            <div key={party.id} className="rounded-lg border border-zinc-200 p-3">
+                              <p className="font-semibold text-zinc-900">{party.title}</p>
+                              <p className="text-xs text-zinc-500">{party.region} · {party.category}</p>
+                            </div>
+                          ) : null;
+                        })
+                      )}
+                    </div>
+                  )}
+                  {myPageTab === 'reviews' && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-bold text-zinc-900">내가 쓴 후기 ({reviews.filter(r => r.userId === currentUser.id).length}개)</h4>
+                      {reviews.filter(r => r.userId === currentUser.id).length === 0 ? (
+                        <p className="text-center py-8 text-zinc-500 text-sm">작성한 후기가 없습니다</p>
+                      ) : (
+                        reviews.filter(r => r.userId === currentUser.id).map((review) => (
+                          <div key={review.id} className="rounded-lg border border-zinc-200 p-3">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-amber-500 font-bold">★ {review.rating}.0</span>
+                              <span className="text-xs text-zinc-500">{review.venue}</span>
+                            </div>
+                            <p className="text-xs text-zinc-700 line-clamp-2">{review.comment}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                  {myPageTab === 'settings' && (
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-zinc-900">설정</h4>
+                      <div className="rounded-xl border border-zinc-200 p-4 space-y-3">
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left text-rose-600 font-semibold hover:underline"
+                        >
+                          로그아웃
+                        </button>
+                        <div className="pt-2 border-t border-zinc-100">
+                          <p className="text-xs text-zinc-500">계정 삭제는 고객센터로 문의해 주세요.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================= MAP MODAL ================= */}
+          {isMapOpen && mapParty && (
+            <div
+              className="animate-fade-in fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+              onClick={() => setIsMapOpen(false)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="map-title"
+                onClick={(e) => e.stopPropagation()}
+                className="animate-slide-up relative w-full max-w-lg max-h-[80vh] rounded-2xl bg-white shadow-2xl overflow-hidden"
+              >
+                <div className="flex items-center justify-between border-b border-zinc-100 p-3">
+                  <h3 id="map-title" className="text-sm font-bold text-zinc-900">위치 안내</h3>
+                  <button
+                    onClick={() => setIsMapOpen(false)}
+                    className="size-7 rounded-full text-zinc-400 hover:bg-zinc-100"
+                  >✕</button>
+                </div>
+                <div className="p-4 space-y-3">
+                  <div className="rounded-xl bg-zinc-100 aspect-[4/3] flex items-center justify-center">
+                    <div className="text-center text-zinc-500">
+                      <div className="text-4xl mb-2">🗺️</div>
+                      <p className="text-sm font-medium">카카오맵 연동 준비 중</p>
+                      <p className="text-xs text-zinc-400 mt-1">{mapParty.venue}<br/>{mapParty.address}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-zinc-50 p-3 text-xs space-y-1">
+                    <p><strong>장소:</strong> {mapParty.venue}</p>
+                    <p><strong>주소:</strong> {mapParty.address}</p>
+                    <p><strong>일정:</strong> 매주 {mapParty.days.join(', ')}요일</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(mapParty.address); showToast('주소가 복사되었습니다'); }}
+                      className="flex-1 rounded-lg border border-zinc-200 bg-white py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                    >
+                      주소 복사
+                    </button>
+                    <button
+                      onClick={() => { window.open(`https://map.kakao.com/link/search/${encodeURIComponent(mapParty.venue)}`, '_blank'); }}
+                      className="flex-1 rounded-lg bg-rose-600 py-2 text-xs font-bold text-white hover:bg-rose-700"
+                    >
+                      카카오맵에서 보기
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
