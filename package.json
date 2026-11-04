@@ -1,0 +1,19 @@
+{
+  "name": "party-connect-mvp",
+  "version": "1.0.0",
+  "description": "파티커넥트 MVP - 2030 오프라인 소셜링 파티 예약 플랫폼",
+  "private": true,
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0",
+    "validate": "node validate.js"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/J-Hype-Labs/party-connect-mvp.git"
+  },
+  "homepage": "https://j-hype-labs.github.io/party-connect-mvp/"
+}
