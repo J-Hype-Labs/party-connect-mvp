@@ -97,7 +97,15 @@ jobs:
           python3 -m http.server 3000 &
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
-          sleep 5
+          # Wait for server to be ready
+          for i in {1..30}; do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ | grep -q "200"; then
+              echo "Local server ready"
+              break
+            fi
+            echo "Waiting for local server... ($i/30)"
+            sleep 2
+          done
 
       - name: Run E2E tests against local server
         run: npm run test:e2e
