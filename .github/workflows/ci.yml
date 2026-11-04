@@ -97,6 +97,7 @@ jobs:
           python3 -m http.server 3000 &
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          # Wait for server to be ready
           for i in {1..30}; do
             if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ | grep -q "200"; then
               echo "Local server ready"
@@ -106,143 +107,10 @@ jobs:
             sleep 2
           done
 
-      - name: Debug - show local server content
-        run: |
-          echo "=== Local server HTML (first 5000 chars) ==="
-          curl -s http://localhost:3000/ | head -c 5000
-          echo ""
-          echo "=== End HTML ==="
-
-      - name: Run Playwright E2E test - Basic load
-        run: |
-          node << 'EOF'
-          const { chromium } = require('playwright');
-          (async () => {
-            const browser = await chromium.launch();
-            const page = await browser.newPage();
-            try {
-              await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-              await page.waitForSelector('#root', { timeout: 30000 });
-              await page.waitForTimeout(5000);
-              
-              const rootVisible = await page.locator('#root').isVisible();
-              console.log('Root visible:', rootVisible);
-              if (!rootVisible) throw new Error('Root not visible');
-              
-              const koreanText = await page.locator('text=파티커넥트').first().isVisible();
-              console.log('Korean text visible:', koreanText);
-              if (!koreanText) throw new Error('Korean text not visible');
-              
-              console.log('✅ Basic load test passed');
-            } catch (e) {
-              console.error('❌ Basic load test failed:', e.message);
-              process.exit(1);
-            } finally {
-              await browser.close();
-            }
-          })();
-          EOF
-
-      - name: Run Playwright E2E test - Discover UI elements
-        run: |
-          node << 'EOF'
-          const { chromium } = require('playwright');
-          (async () => {
-            const browser = await chromium.launch();
-            const page = await browser.newPage();
-            try {
-              await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-              await page.waitForSelector('#root', { timeout: 30000 });
-              await page.waitForTimeout(5000);
-              
-              // Get all button texts
-              const buttons = await page.locator('button').all();
-              console.log('=== BUTTONS FOUND ===');
-              for (const btn of buttons) {
-                const text = await btn.textContent().catch(() => '');
-                if (text.trim()) console.log('  Button:', text.trim().substring(0, 50));
-              }
-              
-              // Get all section texts
-              const sections = await page.locator('section').all();
-              console.log('=== SECTIONS FOUND ===');
-              for (const sec of sections) {
-                const text = await sec.textContent().catch(() => '');
-                if (text.trim()) console.log('  Section:', text.trim().substring(0, 100));
-              }
-              
-              // Get all text containing Korean keywords
-              const koreanElements = await page.locator('text=파티커넥트, text=지역, text=전체, text=혼술, text=소개팅, text=소셜, text=파티, text=체험단, text=후기, text=관리자').all();
-              console.log('=== KOREAN ELEMENTS FOUND ===');
-              for (const el of koreanElements) {
-                const text = await el.textContent().catch(() => '');
-                if (text.trim()) console.log('  Korean:', text.trim().substring(0, 100));
-              }
-              
-              // Count elements with role=button
-              const roleButtons = await page.locator('[role="button"]').count();
-              console.log('Elements with role=button:', roleButtons);
-              
-              // Count card-like elements
-              const cards = await page.locator('.card, article, [class*="card"]').count();
-              console.log('Card-like elements:', cards);
-              
-              // Check for any visible text content
-              const bodyText = await page.locator('body').textContent();
-              console.log('=== BODY TEXT (first 500 chars) ===');
-              console.log(bodyText.substring(0, 500));
-              
-              console.log('✅ Discovery test completed');
-            } catch (e) {
-              console.error('❌ Discovery test failed:', e.message);
-              process.exit(1);
-            } finally {
-              await browser.close();
-            }
-          })();
-          EOF
-
-      - name: Run Playwright E2E test - Verify essential functionality
-        run: |
-          node << 'EOF'
-          const { chromium } = require('playwright');
-          (async () => {
-            const browser = await chromium.launch();
-            const page = await browser.newPage();
-            try {
-              await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-              await page.waitForSelector('#root', { timeout: 30000 });
-              await page.waitForTimeout(5000);
-              
-              // Essential: root element must be visible
-              const rootVisible = await page.locator('#root').isVisible();
-              console.log('Root element visible:', rootVisible);
-              if (!rootVisible) throw new Error('Root element not visible');
-              
-              // Essential: Korean content must be present
-              const koreanVisible = await page.locator('text=파티커넥트').first().isVisible();
-              console.log('Korean content visible:', koreanVisible);
-              if (!koreanVisible) throw new Error('Korean content not visible');
-              
-              // Essential: Hero banner section should exist
-              const sectionCount = await page.locator('section').count();
-              console.log('Hero banner sections found:', sectionCount);
-              if (sectionCount === 0) throw new Error('No hero banner sections found');
-              
-              // Essential: Filter buttons should exist (even if minimal)
-              const filterBtns = await page.locator('button:has-text("지역"), button:has-text("지역 선택")').count();
-              console.log('Region filter buttons found:', filterBtns);
-              if (filterBtns === 0) throw new Error('No region filter buttons found');
-              
-              console.log('✅ Essential functionality test passed');
-            } catch (e) {
-              console.error('❌ Essential functionality test failed:', e.message);
-              process.exit(1);
-            } finally {
-              await browser.close();
-            }
-          })();
-          EOF
+      - name: Run comprehensive E2E tests
+        run: npm run test:e2e:full
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
 
       - name: Stop local server
         if: always()
