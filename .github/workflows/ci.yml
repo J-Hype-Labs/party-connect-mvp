@@ -79,7 +79,7 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E tests
+      - name: Run E2E tests against live URL
         run: npm run test:e2e
         env:
           PLAYWRIGHT_BASE_URL: https://j-hype-labs.github.io/party-connect-mvp/
