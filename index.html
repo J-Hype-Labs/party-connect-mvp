@@ -2798,11 +2798,11 @@
                     notifications.map((notif) => (
                       <div
                         key={notif.id}
-                        className={`p-3 rounded-xl border transition ${notif.read ? 'bg-white border-zinc-100' : 'bg-rose-50 border-rose-100'}"}
+                        className={`p-3 rounded-xl border transition ${notif.read ? 'bg-white border-zinc-100' : 'bg-rose-50 border-rose-100'}`}
                         onClick={() => !notif.read && markAsRead(notif.id)}
                       >
                         <div className="flex items-start gap-3">
-                          <div className={`flex size-8 items-center justify-center rounded-full ${notif.type === 'welcome' ? 'bg-emerald-100 text-emerald-600' : notif.type === 'review' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}"}
+                          <div className={`flex size-8 items-center justify-center rounded-full ${notif.type === 'welcome' ? 'bg-emerald-100 text-emerald-600' : notif.type === 'review' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}
                           >
                             {notif.type === 'welcome' ? '✨' : notif.type === 'review' ? '⭐' : '📢'}
                           </div>
@@ -2855,7 +2855,7 @@
                             key={star}
                             type="button"
                             onClick={() => setReviewWriteForm((prev) => ({ ...prev, rating: star }))}
-                            className={`text-3xl transition ${reviewWriteForm.rating >= star ? 'text-amber-400' : 'text-zinc-200'}"}
+                            className={`text-3xl transition ${reviewWriteForm.rating >= star ? 'text-amber-400' : 'text-zinc-200'}`}
                           >
                             ★
                           </button>
@@ -2931,7 +2931,7 @@
                       <button
                         key={tab}
                         onClick={() => setMyPageTab(tab)}
-                        className={`shrink-0 px-4 py-2 text-xs font-bold border-b-2 transition ${myPageTab === tab ? 'border-rose-600 text-rose-600' : 'border-transparent text-zinc-500 hover:text-zinc-900'}"}
+                        className={`shrink-0 px-4 py-2 text-xs font-bold border-b-2 transition ${myPageTab === tab ? 'border-rose-600 text-rose-600' : 'border-transparent text-zinc-500 hover:text-zinc-900'}`}
                       >
                         {tab === 'applications' ? '내 신청' : tab === 'wishlist' ? '찜한 파티' : tab === 'reviews' ? '내 후기' : '설정'}
                       </button>
