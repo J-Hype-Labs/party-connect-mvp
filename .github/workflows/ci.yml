@@ -124,19 +124,46 @@ EOF
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Wait for GitHub Pages deployment
+        run: |
+          echo "Waiting for GitHub Pages deployment to complete..."
+          for i in {1..12}; do
+            # Check if the pages deployment workflow has completed
+            RUNS=$(curl -s "https://api.github.com/repos/${{ github.repository }}/actions/runs?branch=main&per_page=5" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    for run in data.get('workflow_runs', []):
+        if 'pages' in run.get('name', '').lower() and run.get('head_sha') == '${{ github.sha }}':
+            print(run.get('conclusion', 'unknown'))
+            break
+" 2>/dev/null || echo "unknown")
+            
+            if echo "$RUNS" | grep -q "success"; then
+              echo "GitHub Pages deployment completed successfully"
+              exit 0
+            elif echo "$RUNS" | grep -q "failure"; then
+              echo "GitHub Pages deployment failed"
+              exit 1
+            fi
+            
+            echo "Waiting for Pages deployment... (attempt $i/12)"
+            sleep 15
+          done
+          echo "WARNING: Pages deployment status unknown, proceeding to URL check"
+
       - name: Verify deployment URL accessible
         run: |
-          sleep 30  # Wait for GitHub Pages to build
-          for i in {1..6}; do
+          for i in {1..12}; do
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://j-hype-labs.github.io/party-connect-mvp/ || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               echo "Deployment verified: HTTP 200"
               exit 0
             fi
-            echo "Waiting for deployment... (attempt $i/6, got $HTTP_CODE)"
-            sleep 10
+            echo "Waiting for deployment... (attempt $i/12, got $HTTP_CODE)"
+            sleep 15
           done
-          echo "ERROR: Deployment not accessible after 60 seconds"
+          echo "ERROR: Deployment not accessible after 3 minutes"
           exit 1
 
       - name: Verify content rendered
