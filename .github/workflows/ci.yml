@@ -114,36 +114,125 @@ jobs:
           echo ""
           echo "=== End HTML ==="
 
-      - name: Debug - run simple Playwright script
+      - name: Run Playwright E2E tests (inline)
         run: |
           node << 'EOF'
           const { chromium } = require('playwright');
           (async () => {
             const browser = await chromium.launch();
             const page = await browser.newPage();
+            let failed = false;
+            
             try {
+              console.log('Test 1: Load page and check root element');
               await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded', timeout: 30000 });
               await page.waitForSelector('#root', { timeout: 30000 });
               await page.waitForTimeout(5000);
-              const title = await page.title();
-              console.log('Page title:', title);
+              
               const rootVisible = await page.locator('#root').isVisible();
-              console.log('Root visible:', rootVisible);
+              console.log('  Root visible:', rootVisible);
+              if (!rootVisible) { console.error('  FAIL: Root not visible'); failed = true; }
+              
               const koreanText = await page.locator('text=파티커넥트').first().isVisible();
-              console.log('Korean text visible:', koreanText);
+              console.log('  Korean text visible:', koreanText);
+              if (!koreanText) { console.error('  FAIL: Korean text not visible'); failed = true; }
+              
+              console.log('Test 2: Check hero banner section');
+              const sectionVisible = await page.locator('section').first().isVisible();
+              console.log('  Section visible:', sectionVisible);
+              if (!sectionVisible) { console.error('  FAIL: Section not visible'); failed = true; }
+              
+              console.log('Test 3: Check filter buttons');
+              const regionBtn = await page.locator('button').filter({ hasText: '지역 선택' }).isVisible();
+              console.log('  Region button visible:', regionBtn);
+              if (!regionBtn) { console.error('  FAIL: Region button not visible'); failed = true; }
+              
+              const allDayBtn = await page.locator('button').filter({ hasText: '전체' }).isVisible();
+              console.log('  All day button visible:', allDayBtn);
+              if (!allDayBtn) { console.error('  FAIL: All day button not visible'); failed = true; }
+              
+              const categoryBtn = await page.locator('button').filter({ hasText: '혼술바' }).isVisible();
+              console.log('  Category button visible:', categoryBtn);
+              if (!categoryBtn) { console.error('  FAIL: Category button not visible'); failed = true; }
+              
+              console.log('Test 4: Check party cards');
+              const cards = page.locator('[role="button"]').or(page.locator('text=무료 체험단'));
+              const cardCount = await cards.count();
+              console.log('  Card count:', cardCount);
+              if (cardCount === 0) { console.error('  FAIL: No cards found'); failed = true; }
+              
+              const firstCardVisible = await cards.first().isVisible();
+              console.log('  First card visible:', firstCardVisible);
+              if (!firstCardVisible) { console.error('  FAIL: First card not visible'); failed = true; }
+              
+              console.log('Test 5: Open region modal');
+              await page.locator('button').filter({ hasText: '지역 선택' }).click();
+              await page.waitForTimeout(1000);
+              const modalVisible = await page.locator('text=지역 선택').isVisible();
+              console.log('  Modal visible:', modalVisible);
+              if (!modalVisible) { console.error('  FAIL: Modal not visible'); failed = true; }
+              
+              const seoulVisible = await page.locator('text=서울').isVisible();
+              console.log('  Seoul visible:', seoulVisible);
+              if (!seoulVisible) { console.error('  FAIL: Seoul not visible'); failed = true; }
+              
+              await page.keyboard.press('Escape');
+              await page.waitForTimeout(500);
+              const modalHidden = await page.locator('text=지역 선택').isHidden();
+              console.log('  Modal hidden after ESC:', modalHidden);
+              if (!modalHidden) { console.error('  FAIL: Modal not hidden'); failed = true; }
+              
+              console.log('Test 6: Check reviews section');
+              const reviewsVisible = await page.locator('text=파티커넥트 멤버 실제후기').isVisible();
+              console.log('  Reviews visible:', reviewsVisible);
+              if (!reviewsVisible) { console.error('  FAIL: Reviews not visible'); failed = true; }
+              
+              console.log('Test 7: Check admin link');
+              const adminVisible = await page.locator('button').filter({ hasText: '관리자' }).isVisible();
+              console.log('  Admin link visible:', adminVisible);
+              if (!adminVisible) { console.error('  FAIL: Admin link not visible'); failed = true; }
+              
+              console.log('Test 8: Mobile viewport test');
+              await page.setViewportSize({ width: 390, height: 844 });
+              await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
+              await page.waitForTimeout(3000);
+              
+              const mobileRoot = await page.locator('#root').isVisible();
+              console.log('  Mobile root visible:', mobileRoot);
+              if (!mobileRoot) { console.error('  FAIL: Mobile root not visible'); failed = true; }
+              
+              const mobileKorean = await page.locator('text=파티커넥트').first().isVisible();
+              console.log('  Mobile Korean text visible:', mobileKorean);
+              if (!mobileKorean) { console.error('  FAIL: Mobile Korean text not visible'); failed = true; }
+              
+              const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+              const viewportWidth = await page.evaluate(() => window.innerWidth);
+              const noHorizontalScroll = bodyWidth <= viewportWidth + 1;
+              console.log('  Body width:', bodyWidth, 'Viewport width:', viewportWidth, 'No horizontal scroll:', noHorizontalScroll);
+              if (!noHorizontalScroll) { console.error('  FAIL: Horizontal scroll detected'); failed = true; }
+              
+              console.log('Test 9: Open region modal on mobile');
+              await page.locator('button').filter({ hasText: '지역 선택' }).click();
+              await page.waitForTimeout(1000);
+              const mobileModal = await page.locator('text=지역 선택').isVisible();
+              console.log('  Mobile modal visible:', mobileModal);
+              if (!mobileModal) { console.error('  FAIL: Mobile modal not visible'); failed = true; }
+              
             } catch (e) {
-              console.error('Error:', e.message);
-              process.exit(1);
+              console.error('Test error:', e.message);
+              failed = true;
             } finally {
               await browser.close();
             }
+            
+            if (failed) {
+              console.error('\\n❌ Some tests failed');
+              process.exit(1);
+            } else {
+              console.log('\\n✅ All tests passed');
+            }
           })();
           EOF
-
-      - name: Run E2E tests against local server (verbose)
-        run: npx playwright test --reporter=line
-        env:
-          PLAYWRIGHT_BASE_URL: http://localhost:3000
 
       - name: Stop local server
         if: always()
