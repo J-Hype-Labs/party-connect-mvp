@@ -97,7 +97,6 @@ jobs:
           python3 -m http.server 3000 &
           SERVER_PID=$!
           echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
-          # Wait for server to be ready
           for i in {1..30}; do
             if curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/ | grep -q "200"; then
               echo "Local server ready"
@@ -114,122 +113,187 @@ jobs:
           echo ""
           echo "=== End HTML ==="
 
-      - name: Run Playwright E2E tests (inline)
+      - name: Run Playwright E2E test - Basic load
         run: |
           node << 'EOF'
           const { chromium } = require('playwright');
           (async () => {
             const browser = await chromium.launch();
             const page = await browser.newPage();
-            let failed = false;
-            
             try {
-              console.log('Test 1: Load page and check root element');
               await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded', timeout: 30000 });
               await page.waitForSelector('#root', { timeout: 30000 });
               await page.waitForTimeout(5000);
               
               const rootVisible = await page.locator('#root').isVisible();
-              console.log('  Root visible:', rootVisible);
-              if (!rootVisible) { console.error('  FAIL: Root not visible'); failed = true; }
+              console.log('Root visible:', rootVisible);
+              if (!rootVisible) throw new Error('Root not visible');
               
               const koreanText = await page.locator('text=파티커넥트').first().isVisible();
-              console.log('  Korean text visible:', koreanText);
-              if (!koreanText) { console.error('  FAIL: Korean text not visible'); failed = true; }
+              console.log('Korean text visible:', koreanText);
+              if (!koreanText) throw new Error('Korean text not visible');
               
-              console.log('Test 2: Check hero banner section');
+              console.log('✅ Basic load test passed');
+            } catch (e) {
+              console.error('❌ Basic load test failed:', e.message);
+              process.exit(1);
+            } finally {
+              await browser.close();
+            }
+          })();
+          EOF
+
+      - name: Run Playwright E2E test - UI elements
+        run: |
+          node << 'EOF'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            try {
+              await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+              await page.waitForSelector('#root', { timeout: 30000 });
+              await page.waitForTimeout(5000);
+              
+              // Hero banner
               const sectionVisible = await page.locator('section').first().isVisible();
-              console.log('  Section visible:', sectionVisible);
-              if (!sectionVisible) { console.error('  FAIL: Section not visible'); failed = true; }
+              console.log('Hero section visible:', sectionVisible);
+              if (!sectionVisible) throw new Error('Hero section not visible');
               
-              console.log('Test 3: Check filter buttons');
+              // Filter buttons
               const regionBtn = await page.locator('button').filter({ hasText: '지역 선택' }).isVisible();
-              console.log('  Region button visible:', regionBtn);
-              if (!regionBtn) { console.error('  FAIL: Region button not visible'); failed = true; }
+              console.log('Region button visible:', regionBtn);
+              if (!regionBtn) throw new Error('Region button not visible');
               
               const allDayBtn = await page.locator('button').filter({ hasText: '전체' }).isVisible();
-              console.log('  All day button visible:', allDayBtn);
-              if (!allDayBtn) { console.error('  FAIL: All day button not visible'); failed = true; }
+              console.log('All day button visible:', allDayBtn);
+              if (!allDayBtn) throw new Error('All day button not visible');
               
               const categoryBtn = await page.locator('button').filter({ hasText: '혼술바' }).isVisible();
-              console.log('  Category button visible:', categoryBtn);
-              if (!categoryBtn) { console.error('  FAIL: Category button not visible'); failed = true; }
+              console.log('Category button visible:', categoryBtn);
+              if (!categoryBtn) throw new Error('Category button not visible');
               
-              console.log('Test 4: Check party cards');
+              // Party cards
               const cards = page.locator('[role="button"]').or(page.locator('text=무료 체험단'));
               const cardCount = await cards.count();
-              console.log('  Card count:', cardCount);
-              if (cardCount === 0) { console.error('  FAIL: No cards found'); failed = true; }
+              console.log('Card count:', cardCount);
+              if (cardCount === 0) throw new Error('No cards found');
               
-              const firstCardVisible = await cards.first().isVisible();
-              console.log('  First card visible:', firstCardVisible);
-              if (!firstCardVisible) { console.error('  FAIL: First card not visible'); failed = true; }
+              // Reviews
+              const reviewsVisible = await page.locator('text=파티커넥트 멤버 실제후기').isVisible();
+              console.log('Reviews visible:', reviewsVisible);
+              if (!reviewsVisible) throw new Error('Reviews not visible');
               
-              console.log('Test 5: Open region modal');
+              // Admin link
+              const adminVisible = await page.locator('button').filter({ hasText: '관리자' }).isVisible();
+              console.log('Admin link visible:', adminVisible);
+              if (!adminVisible) throw new Error('Admin link not visible');
+              
+              console.log('✅ UI elements test passed');
+            } catch (e) {
+              console.error('❌ UI elements test failed:', e.message);
+              process.exit(1);
+            } finally {
+              await browser.close();
+            }
+          })();
+          EOF
+
+      - name: Run Playwright E2E test - Modal interactions
+        run: |
+          node << 'EOF'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            try {
+              await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+              await page.waitForSelector('#root', { timeout: 30000 });
+              await page.waitForTimeout(5000);
+              
+              // Open region modal
               await page.locator('button').filter({ hasText: '지역 선택' }).click();
               await page.waitForTimeout(1000);
               const modalVisible = await page.locator('text=지역 선택').isVisible();
-              console.log('  Modal visible:', modalVisible);
-              if (!modalVisible) { console.error('  FAIL: Modal not visible'); failed = true; }
+              console.log('Region modal visible:', modalVisible);
+              if (!modalVisible) throw new Error('Region modal not visible');
               
               const seoulVisible = await page.locator('text=서울').isVisible();
-              console.log('  Seoul visible:', seoulVisible);
-              if (!seoulVisible) { console.error('  FAIL: Seoul not visible'); failed = true; }
+              console.log('Seoul visible:', seoulVisible);
+              if (!seoulVisible) throw new Error('Seoul not visible');
               
+              // Close modal with ESC
               await page.keyboard.press('Escape');
               await page.waitForTimeout(500);
               const modalHidden = await page.locator('text=지역 선택').isHidden();
-              console.log('  Modal hidden after ESC:', modalHidden);
-              if (!modalHidden) { console.error('  FAIL: Modal not hidden'); failed = true; }
+              console.log('Modal hidden after ESC:', modalHidden);
+              if (!modalHidden) throw new Error('Modal not hidden after ESC');
               
-              console.log('Test 6: Check reviews section');
-              const reviewsVisible = await page.locator('text=파티커넥트 멤버 실제후기').isVisible();
-              console.log('  Reviews visible:', reviewsVisible);
-              if (!reviewsVisible) { console.error('  FAIL: Reviews not visible'); failed = true; }
+              // Open party detail modal
+              const firstCard = page.locator('[role="button"]').first();
+              await firstCard.click();
+              await page.waitForTimeout(2000);
+              const detailModal = await page.locator('text=무료 체험단 신청하기').isVisible();
+              console.log('Detail modal visible:', detailModal);
+              if (!detailModal) throw new Error('Detail modal not visible');
               
-              console.log('Test 7: Check admin link');
-              const adminVisible = await page.locator('button').filter({ hasText: '관리자' }).isVisible();
-              console.log('  Admin link visible:', adminVisible);
-              if (!adminVisible) { console.error('  FAIL: Admin link not visible'); failed = true; }
+              // Close detail modal with ESC
+              await page.keyboard.press('Escape');
+              await page.waitForTimeout(500);
+              const detailHidden = await page.locator('text=무료 체험단 신청하기').isHidden();
+              console.log('Detail modal hidden after ESC:', detailHidden);
+              if (!detailHidden) throw new Error('Detail modal not hidden after ESC');
               
-              console.log('Test 8: Mobile viewport test');
+              console.log('✅ Modal interactions test passed');
+            } catch (e) {
+              console.error('❌ Modal interactions test failed:', e.message);
+              process.exit(1);
+            } finally {
+              await browser.close();
+            }
+          })();
+          EOF
+
+      - name: Run Playwright E2E test - Mobile viewport
+        run: |
+          node << 'EOF'
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            try {
               await page.setViewportSize({ width: 390, height: 844 });
-              await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
+              await page.goto('http://localhost:3000/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+              await page.waitForSelector('#root', { timeout: 30000 });
               await page.waitForTimeout(3000);
               
               const mobileRoot = await page.locator('#root').isVisible();
-              console.log('  Mobile root visible:', mobileRoot);
-              if (!mobileRoot) { console.error('  FAIL: Mobile root not visible'); failed = true; }
+              console.log('Mobile root visible:', mobileRoot);
+              if (!mobileRoot) throw new Error('Mobile root not visible');
               
               const mobileKorean = await page.locator('text=파티커넥트').first().isVisible();
-              console.log('  Mobile Korean text visible:', mobileKorean);
-              if (!mobileKorean) { console.error('  FAIL: Mobile Korean text not visible'); failed = true; }
+              console.log('Mobile Korean text visible:', mobileKorean);
+              if (!mobileKorean) throw new Error('Mobile Korean text not visible');
               
               const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
               const viewportWidth = await page.evaluate(() => window.innerWidth);
               const noHorizontalScroll = bodyWidth <= viewportWidth + 1;
-              console.log('  Body width:', bodyWidth, 'Viewport width:', viewportWidth, 'No horizontal scroll:', noHorizontalScroll);
-              if (!noHorizontalScroll) { console.error('  FAIL: Horizontal scroll detected'); failed = true; }
+              console.log('Body width:', bodyWidth, 'Viewport width:', viewportWidth, 'No horizontal scroll:', noHorizontalScroll);
+              if (!noHorizontalScroll) throw new Error('Horizontal scroll detected');
               
-              console.log('Test 9: Open region modal on mobile');
+              // Mobile region modal
               await page.locator('button').filter({ hasText: '지역 선택' }).click();
               await page.waitForTimeout(1000);
               const mobileModal = await page.locator('text=지역 선택').isVisible();
-              console.log('  Mobile modal visible:', mobileModal);
-              if (!mobileModal) { console.error('  FAIL: Mobile modal not visible'); failed = true; }
+              console.log('Mobile modal visible:', mobileModal);
+              if (!mobileModal) throw new Error('Mobile modal not visible');
               
+              console.log('✅ Mobile viewport test passed');
             } catch (e) {
-              console.error('Test error:', e.message);
-              failed = true;
+              console.error('❌ Mobile viewport test failed:', e.message);
+              process.exit(1);
             } finally {
               await browser.close();
-            }
-            
-            if (failed) {
-              console.error('\\n❌ Some tests failed');
-              process.exit(1);
-            } else {
-              console.log('\\n✅ All tests passed');
             }
           })();
           EOF
