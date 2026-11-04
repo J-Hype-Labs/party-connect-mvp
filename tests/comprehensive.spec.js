@@ -80,50 +80,19 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('text=무료 체험단 신청하기')).toBeHidden({ timeout: 5000 });
   });
 
-  // Test 4: Application form functionality - full flow
+  // Test 4: Application flow. Missing form is a failure, not a pass.
   test('should complete full application flow', async ({ page }) => {
-    const firstCard = page.locator('[role="button"]').first();
-    await firstCard.click();
-    await expect(page.locator('text=무료 체험단 신청하기')).toBeVisible({ timeout: 15000 });
-    
-    // Wait for form to be ready
-    await page.waitForTimeout(3000);
-    
-    // Check if form inputs exist
-    const nameInput = page.locator('input[name="name"], input[placeholder*="이름"]').first();
-    const hasNameInput = await nameInput.count() > 0 && await nameInput.isVisible().catch(() => false);
-    
-    if (hasNameInput) {
-      // Fill application form completely
-      await nameInput.fill('테스트 사용자');
-      
-      const phoneInput = page.locator('input[name="phone"], input[placeholder*="전화"]').first();
-      await phoneInput.fill('01012345678');
-      
-      const daySelect = page.locator('select[name="day"]').first();
-      await daySelect.selectOption('금');
-      
-      const agreeCheckbox = page.locator('input[name="agree"]').first();
-      await agreeCheckbox.check();
-      
-      // Verify form validation - submit button should be enabled
-      const submitButton = page.locator('button[type="submit"]').or(page.locator('button:has-text("신청")')).first();
-      await expect(submitButton).toBeEnabled();
-      
-      // Submit form
-      await submitButton.click();
-      
-      // Wait for potential response (success toast, modal close, etc.)
-      await page.waitForTimeout(3000);
-      
-      // Verify form submission completed (modal closes or success message)
-      const modalClosed = await page.locator('text=무료 체험단 신청하기').isHidden().catch(() => false);
-      expect(modalClosed).toBeTruthy();
-    } else {
-      // Form not loaded - just close modal
-      await page.click('button:has-text("✕")');
-      await expect(page.locator('text=무료 체험단 신청하기')).toBeHidden({ timeout: 5000 });
-    }
+    await page.locator('[role="button"]').first().click();
+    await expect(page.getByRole('button', { name: '무료 체험단 신청하기' })).toBeVisible();
+    await page.getByRole('button', { name: '무료 체험단 신청하기' }).click();
+    await expect(page.locator('#applicant-name')).toBeVisible();
+    await page.locator('#applicant-name').fill('테스트 사용자');
+    await page.locator('#applicant-phone').fill('01012345678');
+    await expect(page.locator('#applicant-day')).toBeVisible();
+    await page.locator('#applicant-day').selectOption({ index: 0 });
+    await page.locator('form input[type="checkbox"]').check();
+    await page.getByRole('button', { name: '신청 접수하기' }).click();
+    await expect(page.getByText('신청이 접수되었습니다!')).toBeVisible();
   });
 
   // Test 5: Filter functionality
@@ -231,18 +200,11 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     expect(errors).toHaveLength(0);
   });
 
-  // Test 10: Search functionality
-  test('should have search functionality', async ({ page }) => {
-    // Check if search button exists (search icon in header)
+  // Test 10: Search entry point only. Search results remain unverified.
+  test('should expose clickable search entry point', async ({ page }) => {
     const searchButton = page.locator('header button:has(svg)').first();
     await expect(searchButton).toBeVisible();
-    
-    // Try clicking search (if available)
     await searchButton.click();
-    await page.waitForTimeout(1000);
-    
-    // Verify search input or modal appears
-    // This test is non-blocking as search functionality may vary
   });
 
   // Test 11: Footer admin link
