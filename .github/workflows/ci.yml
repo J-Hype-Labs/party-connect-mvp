@@ -107,6 +107,13 @@ jobs:
             sleep 2
           done
 
+      - name: Debug - show local server content
+        run: |
+          echo "=== Local server HTML (first 2000 chars) ==="
+          curl -s http://localhost:3000/ | head -c 2000
+          echo ""
+          echo "=== End HTML ==="
+
       - name: Run E2E tests against local server
         run: npm run test:e2e
         env:
