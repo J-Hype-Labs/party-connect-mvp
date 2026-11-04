@@ -22,6 +22,7 @@
 - **Frontend**: React 18, Tailwind CSS, Lucide Icons, Pretendard
 - **Design Intelligence**: UI/UX Pro Max
 - **Deployment**: GitHub Pages (main 브랜치 push 시 자동 배포)
+- **CI/CD**: GitHub Actions (JSX 문법 검증, HTML 구조 검증, 외부 의존성 검증, 배포 검증)
 
 ## 🚀 로컬 실행 방법
 ```bash
@@ -35,4 +36,17 @@ python3 -m http.server 3000
 
 - 배포 URL: https://j-hype-labs.github.io/party-connect-mvp/
 - 개발용 파일(`*.png`, `SPECIFICATION.md`, `start.sh`, `.agents`)은 `_config.yml`의 `exclude` 설정으로 배포에서 제외됩니다.
-- 배포 상태 확인: `https://api.github.com/repos/hustlinjh/party-connect-mvp/pages/builds/latest`
+- 배포 상태 확인: `https://api.github.com/repos/J-Hype-Labs/party-connect-mvp/pages/builds/latest`
+
+## 🧪 CI/CD 파이프라인
+```yaml
+# .github/workflows/ci.yml
+```
+- **Validate Job**: HTML 구조 검증, JSX 문법 검증(괄호 균형), 외부 CDN 의존성 확인, 배포 설정 검증
+- **Deploy-Check Job** (non-blocking): GitHub Pages 배포 대기, 라이브 URL 접근성 확인, 콘텐츠 렌더링 검증
+
+## 📋 주요 변경 이력
+- **2026-11-04**: P0 배포 안정화 및 회귀 방지 - GitHub Actions CI/CD 파이프라인 추가, JSX 문법 검증 자동화, 배포 검증 자동화
+- **2026-11-04**: 관리자 대시보드 구현 (파티/신청/후기 관리, 통계)
+- **2026-11-04**: Phase 2 사용자/소셜 기능 추가 (소셜 로그인, 알림센터, 후기 작성, 마이페이지, 지도 모달)
+- **2026-11-03**: MVP 핵심 기능 완성 (필터링, 찜하기, 상세 모달, 후기 시스템)
