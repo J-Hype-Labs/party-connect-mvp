@@ -50,6 +50,15 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
+  <!-- Supabase JS SDK v2 (CDN) - for Kakao OAuth -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase-js.min.js"></script>
+  <script>
+    window.supabase = null;
+    if (window.supabase && window.supabase.createClient) {
+      window.supabase.createClient = window.supabase.createClient;
+    }
+  </script>
+
   <style>
     /* ===== 2.1 Color System (Design Tokens) ===== */
     :root {
@@ -551,7 +560,7 @@
         }
       });
       const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-      const [loginMethod, setLoginMethod] = useState(null); // 'kakao', 'naver', 'email'
+      const [loginMethod, setLoginMethod] = useState(null); // 'kakao', 'email' // Naver removed
 
       // Notifications
       const [notifications, setNotifications] = useState(() => {
@@ -955,32 +964,70 @@
       });
 
       // ===== Phase 2: User & Social Functions =====
-      // User auth
-      const handleSocialLogin = (provider) => {
-        const mockUser = {
-          id: `user_${Date.now()}`,
-          name: provider === 'kakao' ? '카카오유저' : '네이버유저',
-          avatar: provider === 'kakao' ? '🟡' : '🟢',
-          provider,
-          joinedAt: new Date().toISOString(),
-          preferences: { regions: [], categories: [] }
-        };
-        setCurrentUser(mockUser);
-        localStorage.setItem("partyconnect:user", JSON.stringify(mockUser));
-        setIsLoginModalOpen(false);
-        setLoginMethod(null);
-        showToast(`${provider === 'kakao' ? '카카오' : '네이버'} 로그인 완료`);
-        addNotification({
-          type: 'welcome',
-          title: '환영합니다!',
-          message: '파티커넥트 멤버가 되신 것을 환영합니다.',
-          read: false
-        });
+      // User auth - Supabase Kakao OAuth (P0-AUTH)
+      // Supabase Project: qdoyiwzgysussttzvzxn.supabase.co
+      // Kakao Provider callback: handled by Supabase Auth
+      // Redirect URL: https://j-hype-labs.github.io/party-connect-mvp/
+      // Public key to be provided by Jiho (제호)
+      const SUPABASE_URL = 'https://qdoyiwzgysussttzvzxn.supabase.co';
+      const SUPABASE_ANON_KEY = 'REPLACE_WITH_SUPABASE_ANON_KEY_FROM_JIHO';
+      let supabase = null;
+
+      const initSupabase = () => {
+        if (window.supabase && !supabase) {
+          supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+              flowType: 'pkce',
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: true
+            }
+          });
+        }
+        return supabase;
       };
 
-      const handleLogout = () => {
-        setCurrentUser(null);
+      const handleSocialLogin = async (provider) => {
+        if (provider !== 'kakao') {
+          showToast('지원하지 않는 로그인 방식입니다.');
+          return;
+        }
+        const client = initSupabase();
+        if (!client) {
+          showToast('인증 설정이 완료되지 않았습니다. 운영자에게 문의해 주세요.');
+          return;
+        }
+        if (SUPABASE_ANON_KEY === 'REPLACE_WITH_SUPABASE_ANON_KEY_FROM_JIHO') {
+          showToast('카카오 로그인 설정이 완료되지 않았습니다. 관리자에게 문의하세요.');
+          return;
+        }
+        const { error } = await client.auth.signInWithOAuth({
+          provider: 'kakao',
+          options: {
+            redirectTo: 'https://j-hype-labs.github.io/party-connect-mvp/'
+          }
+        });
+        if (error) {
+          showToast(`카카오 로그인 시작 실패: ${error.message}`);
+          return;
+        }
+        // OAuth redirect happens; callback handled by Supabase SDK
+        setIsLoginModalOpen(false);
+        setLoginMethod(null);
+      };
+
+      const handleLogout = async () => {
+        const client = initSupabase();
+        if (client) {
+          const { error } = await client.auth.signOut();
+          if (error) {
+            showToast(`로그아웃 실패: ${error.message}`);
+            return;
+          }
+        }
+        // Clear legacy mock localStorage key
         localStorage.removeItem("partyconnect:user");
+        setCurrentUser(null);
         showToast("로그아웃 되었습니다.");
       };
 
@@ -2716,7 +2763,7 @@
 
                   {!loginMethod ? (
                     <div className="space-y-3">
-                      <p className="text-center text-xs text-zinc-500 mb-4">간편 로그인으로 시작하세요</p>
+                      <p className="text-center text-xs text-zinc-500 mb-4">카카오 로그인은 설정이 완료되지 않았습니다. 개발 중입니다.</p>
                       <button
                         onClick={() => handleSocialLogin('kakao')}
                         className="w-full flex items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 hover:bg-zinc-50 transition"
@@ -2724,17 +2771,6 @@
                         <span className="text-2xl">🟡</span>
                         <span className="font-semibold text-zinc-900">카카오로 계속하기</span>
                       </button>
-                      <button
-                        onClick={() => handleSocialLogin('naver')}
-                        className="w-full flex items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 hover:bg-zinc-50 transition"
-                      >
-                        <span className="text-2xl">🟢</span>
-                        <span className="font-semibold text-zinc-900">네이버로 계속하기</span>
-                      </button>
-                      <div className="relative my-4">
-                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-200" /></div>
-                        <div className="relative flex justify-center text-xs text-zinc-400"><span className="bg-white px-2">또는</span></div>
-                      </div>
                       <button
                         onClick={() => setLoginMethod('email')}
                         className="w-full rounded-xl bg-zinc-900 py-3 text-xs font-bold text-white hover:bg-zinc-800"
