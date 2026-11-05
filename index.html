@@ -52,12 +52,6 @@
 
   <!-- Supabase JS SDK v2 (CDN) - for Kakao OAuth -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    window.supabase = null;
-    if (window.supabase && window.supabase.createClient) {
-      window.supabase.createClient = window.supabase.createClient;
-    }
-  </script>
 
   <style>
     /* ===== 2.1 Color System (Design Tokens) ===== */
@@ -551,44 +545,33 @@
 
       // ===== Phase 2: User & Social Features State =====
       // User authentication
-      const [currentUser, setCurrentUser] = useState(() => {
-        const supabase = initSupabase();
-        return supabase ? {
-          id: supabase.auth.user()?.id,
-          name: supabase.auth.user()?.user_metadata?.full_name || '익명',
-          avatar: supabase.auth.user()?.user_metadata?.avatar_url || '👤',
-          provider: supabase.auth.user()?.user_metadata?.provider || null,
-          email: supabase.auth.user()?.user_metadata?.email || null
-        } : null;
-      });
+      const [currentUser, setCurrentUser] = useState(null);
 
-      // Initialize session listener for auth state changes
+      // Auth state must come from Supabase sessions, never a fabricated local user.
       useEffect(() => {
-        const supabase = initSupabase();
-        if (supabase) {
-          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (session) {
-              // User signed in
-              setCurrentUser({
-                id: session.user.id,
-                name: session.user.user_metadata?.full_name || session.user.email,
-                avatar: session.user.user_metadata?.avatar_url || '👤',
-                provider: session.user.user_metadata?.provider,
-                email: session.user.email
-              });
-            } else {
-              // User signed out
-              setCurrentUser(null);
-              localStorage.removeItem("partyconnect:user");
-            }
-          });
-        }
-        return () => {
-          // Cleanup subscription on unmount
-          if (supabase) {
-            supabase.auth.onAuthStateChange?.();
-          }
-        }
+        const client = initSupabase();
+        if (!client || SUPABASE_ANON_KEY.startsWith('REPLACE_WITH_')) return;
+        let active = true;
+        const applySession = (session) => {
+          if (!active) return;
+          const user = session?.user;
+          setCurrentUser(user ? {
+            id: user.id,
+            name: user.user_metadata?.full_name || user.email || '회원',
+            avatar: user.user_metadata?.avatar_url || '👤',
+            provider: user.app_metadata?.provider || 'kakao',
+            email: user.email,
+            joinedAt: user.created_at
+          } : null);
+        };
+        const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+          applySession(session);
+        });
+        client.auth.getSession().then(({ data, error }) => {
+          if (error) console.error('Auth session restore failed:', error.message);
+          else applySession(data.session);
+        }).catch((error) => console.error('Auth session restore failed:', error));
+        return () => { active = false; subscription.unsubscribe(); };
       }, []);
 
       const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -1050,6 +1033,10 @@
 
       const handleLogout = async () => {
         const client = initSupabase();
+        if (!client || SUPABASE_ANON_KEY.startsWith('REPLACE_WITH_')) {
+          showToast('인증 설정이 완료되지 않았습니다.');
+          return;
+        }
         if (client) {
           const { error } = await client.auth.signOut();
           if (error) {
@@ -1165,12 +1152,8 @@
         } catch (e) {}
       }, [notifications]);
 
-      // Persist user
-      useEffect(() => {
-        if (currentUser) {
-          localStorage.setItem("partyconnect:user", JSON.stringify(currentUser));
-        }
-      }, [currentUser]);
+      // Remove any legacy mock user on startup; Supabase manages its own session.
+      useEffect(() => { localStorage.removeItem("partyconnect:user"); }, []);
 
       // Reduced motion detection
       useEffect(() => {
