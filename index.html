@@ -51,7 +51,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Supabase JS SDK v2 (CDN) - for Kakao OAuth -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase-js.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     window.supabase = null;
     if (window.supabase && window.supabase.createClient) {
@@ -552,13 +552,45 @@
       // ===== Phase 2: User & Social Features State =====
       // User authentication
       const [currentUser, setCurrentUser] = useState(() => {
-        try {
-          const saved = JSON.parse(localStorage.getItem("partyconnect:user") || "null");
-          return saved;
-        } catch (e) {
-          return null;
-        }
+        const supabase = initSupabase();
+        return supabase ? {
+          id: supabase.auth.user()?.id,
+          name: supabase.auth.user()?.user_metadata?.full_name || '익명',
+          avatar: supabase.auth.user()?.user_metadata?.avatar_url || '👤',
+          provider: supabase.auth.user()?.user_metadata?.provider || null,
+          email: supabase.auth.user()?.user_metadata?.email || null
+        } : null;
       });
+
+      // Initialize session listener for auth state changes
+      useEffect(() => {
+        const supabase = initSupabase();
+        if (supabase) {
+          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (session) {
+              // User signed in
+              setCurrentUser({
+                id: session.user.id,
+                name: session.user.user_metadata?.full_name || session.user.email,
+                avatar: session.user.user_metadata?.avatar_url || '👤',
+                provider: session.user.user_metadata?.provider,
+                email: session.user.email
+              });
+            } else {
+              // User signed out
+              setCurrentUser(null);
+              localStorage.removeItem("partyconnect:user");
+            }
+          });
+        }
+        return () => {
+          // Cleanup subscription on unmount
+          if (supabase) {
+            supabase.auth.onAuthStateChange?.();
+          }
+        }
+      }, []);
+
       const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
       const [loginMethod, setLoginMethod] = useState(null); // 'kakao', 'email' // Naver removed
 
