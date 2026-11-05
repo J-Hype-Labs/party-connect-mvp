@@ -43,11 +43,11 @@ python3 -m http.server 3000
 # .github/workflows/ci.yml
 ```
 - **Validate Job**: HTML 구조 검증, JSX 문법 검증(@babel/parser + Python 괄호 균형), 외부 CDN 의존성 확인, 배포 설정 검증
-- **E2E Browser Tests**: Playwright Chromium 로컬 서버 테스트 (기본 로드, 요소 탐색, 필수 기능 검증)
+- **E2E Browser Tests**: Playwright Chromium + Mobile Chrome + WebKit 로컬 서버 테스트 (기본 로드, 요소 탐색, 필수 기능 검증)
 - **Deploy-Check Job**: GitHub Pages 배포 대기, 라이브 URL 접근성 확인(HTTP 200), 콘텐츠 렌더링 검증
 
 ## 📋 주요 변경 이력
-- **2026-11-05**: P0 배포 안정화 완료 - GitHub Actions CI 파이프라인 통과(최종 검증: `f5e7849`), JSX 문법 검증 자동화(@babel/parser), Playwright E2E 필수 실행, 운영 URL HTTP 200 확인, Pages 배포 성공
+- **2026-11-05**: P0 배포 안정화 완료 - GitHub Actions CI 파이프라인 통과(PR #1: `0856818`), JSX 문법 검증 자동화(@babel/parser), Playwright E2E 필수 실행(Chromium 15/15, Mobile Chrome 15/15), 운영 URL HTTP 200 확인, Pages 배포 성공
 - **2026-11-04**: 관리자 대시보드 구현 (파티/신청/후기 관리, 통계)
 - **2026-11-04**: Phase 2 사용자/소셜 기능 추가 (소셜 로그인, 알림센터, 후기 작성, 마이페이지, 지도 모달)
 - **2026-11-03**: MVP 핵심 기능 완성 (필터링, 찜하기, 상세 모달, 후기 시스템)
@@ -61,12 +61,34 @@ python3 -m http.server 3000
 | HTML 구조 (필수 요소) | grep | ✅ PASS | root, babel, ReactDOM, App, CDNs |
 | 외부 CDN 의존성 | curl | ✅ PASS | 5개 CDN 모두 200/302 응답 |
 | 배포 설정 | file check | ✅ PASS | _config.yml, .gitignore, .nojekyll |
-| Playwright E2E - 기본 로드 | Chromium | ✅ PASS | Run ID: 41914627073 |
+| Playwright E2E - 기본 로드 | Chromium | ✅ PASS | Run ID: 41935871955 |
 | Playwright E2E - 요소 탐색 | Chromium | ✅ PASS | 버튼/섹션/한국어 텍스트 확인 |
 | Playwright E2E - 필수 기능 | Chromium | ✅ PASS | 루트/한국어/히어로/필터 버튼 |
-| GitHub Actions Validate | ubuntu-latest | ✅ PASS | 전체 검증 통과 |
-| GitHub Pages 배포 | Pages workflow | ✅ PASS | Run ID: 41914627088 |
+| Playwright E2E - 신청 플로우 | Chromium | ✅ PASS | 폼 입력→제출→완료 메시지 |
+| Playwright E2E - 모달/필터 | Chromium | ✅ PASS | 열기/닫기/ESC/배경클릭/탭 |
+| Playwright E2E - 모바일(390px) | Mobile Chrome | ✅ PASS | 15/15 테스트 통과 |
+| Playwright E2E - 가로스크롤 | Mobile Chrome | ✅ PASS | body.scrollWidth ≤ 410px |
+| Playwright E2E - JS 에러 검사 | Chromium | ✅ PASS | 크리티컬 에러 0개 |
+| GitHub Actions Validate | ubuntu-latest | ✅ PASS | 전체 검증 통과 (9s) |
+| GitHub Actions E2E | ubuntu-latest | ✅ PASS | Chromium 전체 통과 (11m32s) |
+| GitHub Pages 배포 | Pages workflow | ✅ PASS | main 브랜치 배포 성공 |
 | 운영 URL 접근성 | curl | ✅ PASS | HTTP 200 |
 | 운영 URL 콘텐츠 | curl + grep | ✅ PASS | #root, text/babel, 파티커넥트 |
 
-**최종 검증 커밋**: `f5e7849` - CI 통과, Pages 배포 성공, 운영 URL 검증 완료
+**최종 검증 커밋 (PR #1)**: `0856818` (HEAD of `fix/p0-assert-real-flows`) - CI Validate + E2E 통과
+**main 브랜치 최신 검증 커밋**: `74e95b8` - CI 전체 통과, Pages 배포 성공(Run 41932326156)
+
+---
+
+### ⚠️ 검증 범위 한계 (반드시 인지)
+| 항목 | 현재 상태 |
+|------|-----------|
+| 지역 필터 결과 변화 | **미검증** (탭 선택 UI만 확인) |
+| 관리자 로그인/CRUD | **미검증** (모달 진입만 확인) |
+| 검색어 입력/결과 | **미검증** (진입점 버튼만 확인) |
+| 파티 카드 필드 상세 | **미검증** (카드 존재/가시성만 확인) |
+| 카테고리/요일 필터 결과 | **미검증** (탭 버튼 존재만 확인) |
+| 찜/후기/마이페이지/지도/알림/소셜로그인 | **미검증** (UI 존재 여부만) |
+| WebKit(Safari) 개별 PASS/FAIL | **분리 집계 필요** (CI에 WebKit 설치됨, skip 분리 필요) |
+| 320/768/1280px 해상도 | **미검증** (390px만 검증) |
+| 동일 SHA Pages 배포 검증 | **부분 검증** (CI와 Pages의 SHA 대조 별도 확인 필요) |
