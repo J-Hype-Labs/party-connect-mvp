@@ -1,94 +1,96 @@
 # Party Connect (파티커넥트) MVP
 
-🔗 **라이브 데모:** https://j-hype-labs.github.io/party-connect-mvp/
+**상태: 프론트엔드 프로토타입 / 실서비스 인증·백엔드 미연동**
 
-[lumiconnect.cloud](https://www.lumiconnect.cloud) 서비스를 벤치마킹하여 제작한 2030 오프라인 소셜링 파티 & 혼술바 예약 플랫폼 MVP입니다.
+- 라이브 데모: https://j-hype-labs.github.io/party-connect-mvp/
+- 저장소: https://github.com/J-Hype-Labs/party-connect-mvp
+- 통합 개발 명세: [SPECIFICATION.md](./SPECIFICATION.md)
+- 인증·백엔드 실서비스 전환 명세: [AUTHENTICATION_AND_BACKEND_SPEC.md](./AUTHENTICATION_AND_BACKEND_SPEC.md)
 
-## ✨ 주요 기능
-- **히어로 프로모션 배너**: 자동 슬라이드, 일시정지/재생 컨트롤
-- **다차원 실시간 필터링**:
-  - 지역 선택 모달 (서울 17개 구역, 경기/인천, 지방 세부 지역)
-  - 요일별 필터 (월~일)
-  - 카테고리 필터 (혼술바, 소개팅, 소셜파티)
-- **실시간 인터랙션**:
-  - 찜하기 (❤️ 하트 토글 및 토스트 알림) — `localStorage`에 저장되어 새로고침 후에도 유지
-  - 파티 상세 모달 (일정·정원·주소·남은 자리, 이미지 갤러리)
-  - 무료 체험단 신청 폼 (이름·연락처·요일·개인정보 동의, 유효성 검사, 접수 완료 화면)
-- **후기**: 검증된 실제후기 그리드, 전체보기/접기 토글
-- **접근성/UX**: ESC·배경 클릭으로 모달 닫기, 모달 열림 시 스크롤 잠금, ARIA 속성, 키보드 탐색
-- **반응형 디자인**: 모바일 및 데스크톱 맞춤형 UI/UX (Pretendard 폰트 + Tailwind CSS)
+2030 오프라인 소셜링 파티 및 무료 체험단 매칭 서비스의 프론트엔드 MVP다. 현재 화면과 일부 상호작용은 브라우저 안에서 동작하지만, 실제 회원 인증·공용 데이터베이스·서버 권한 관리가 연결된 운영 서비스는 아니다.
 
-## 🛠️ 기술 스택
-- **Frontend**: React 18, Tailwind CSS, Lucide Icons, Pretendard
-- **Design Intelligence**: UI/UX Pro Max
-- **Deployment**: GitHub Pages (main 브랜치 push 시 자동 배포)
-- **CI/CD**: GitHub Actions (JSX 문법 검증, HTML 구조 검증, 외부 의존성 검증, 배포 검증, Playwright E2E)
+## 현재 구현 범위
 
-## 🚀 로컬 실행 방법
+### 브라우저에서 동작하는 기능
+
+- 파티 목록 및 샘플 데이터 표시
+- 지역·요일·카테고리 필터링
+- 파티 상세 모달과 신청 폼 입력 검증
+- 신청 데이터를 현재 브라우저 상태와 `localStorage`에 저장하고 완료 화면 표시
+- 찜, 알림, 후기 작성 등 일부 상호작용
+- 관리자 화면의 파티·후기 관리 UI 및 브라우저 내 상태 변경
+- 반응형 화면과 모달 상호작용
+
+위 기능의 동작은 브라우저 로컬 범위다. 다른 사용자·브라우저·기기와 공유되는 서버 데이터가 아니며, 실제 운영 데이터의 저장·전송·동기화를 의미하지 않는다.
+
+### 인증 및 백엔드 상태
+
+| 기능 | 현재 상태 | 실서비스 판정 |
+|---|---|---|
+| 카카오 로그인 | 임의의 mock 사용자 생성 | 실제 OAuth 미연동 |
+| 네이버 로그인 | 임의의 mock 사용자 생성 | 실제 OAuth 미연동 |
+| 이메일 로그인 | 준비 중 안내만 표시 | 미구현 |
+| 사용자 세션 | localStorage 사용자 객체 복원 | 서버 세션 미연동 |
+| 로그아웃 | 마이페이지 설정에서 localStorage 상태 삭제 | 서버 세션 무효화 미연동 |
+| 신청·찜·알림·후기 | 브라우저 상태 및 localStorage 중심 | 공용 DB 미연동 |
+| 관리자 인증 | 클라이언트 코드에서 비밀번호 비교 | 안전한 서버 인증 아님 |
+| 관리자 CRUD | 브라우저 상태 및 localStorage 변경 | 서버 DB CRUD 미연동 |
+| 지도 | 주소 표시 및 외부 카카오맵 검색 링크 | 지도 SDK/API 미연동 |
+| 방문 확인·정산 | 운영 정책 및 서버 처리 미구현 | 미구현 |
+
+**보안 주의:** 공개된 프론트엔드 소스에 관리자 비밀번호가 하드코딩된 상태가 확인되었다. 해당 값은 유출된 것으로 간주하고 폐기해야 한다. 서버 측 인증·권한 관리가 완료되기 전까지 관리자 기능에 실제 운영 데이터나 고객 개인정보를 입력하지 않는다.
+
+코드에 Supabase Storage 이미지 URL이 포함되어 있으나, 이는 이미지 자산 제공을 위한 URL이다. 앱의 Supabase Auth·DB 연동이 완료되었다는 뜻이 아니다.
+
+현재 코드의 세부 감사, OAuth 요구사항, DB 후보 비교, 개인정보·보안 기준, 단계별 전환 계획은 [인증·백엔드 실서비스 전환 명세](./AUTHENTICATION_AND_BACKEND_SPEC.md)를 기준으로 한다.
+
+## 기술 스택
+
+- Frontend: React 18 UMD, ReactDOM, Tailwind CSS CDN, Babel Standalone, Lucide, Pretendard
+- Hosting: GitHub Pages
+- CI: GitHub Actions
+- Browser tests: Playwright
+
+## 로컬 실행
+
+Python 정적 서버를 실행한다.
+
 ```bash
-# 로컬 파이썬 웹서버 실행
 python3 -m http.server 3000
 ```
-브라우저에서 `http://localhost:3000`으로 접속합니다.
 
-## 📦 배포
-`main` 브랜치에 push하면 GitHub Pages에 자동으로 반영됩니다.
+브라우저에서 `http://localhost:3000`으로 접속한다.
 
-- 배포 URL: https://j-hype-labs.github.io/party-connect-mvp/
-- 개발용 파일(`*.png`, `SPECIFICATION.md`, `start.sh`, `.agents`)은 `_config.yml`의 `exclude` 설정으로 배포에서 제외됩니다.
-- 배포 상태 확인: `https://api.github.com/repos/J-Hype-Labs/party-connect-mvp/pages/builds/latest`
+## 배포
 
-## 🧪 CI/CD 파이프라인
-```yaml
-# .github/workflows/ci.yml
-```
-- **Validate Job**: HTML 구조 검증, JSX 문법 검증(@babel/parser + Python 괄호 균형), 외부 CDN 의존성 확인, 배포 설정 검증
-- **E2E Browser Tests**: Playwright Chromium + Mobile Chrome + WebKit 로컬 서버 테스트 (기본 로드, 요소 탐색, 필수 기능 검증)
-- **Deploy-Check Job**: GitHub Pages 배포 대기, 라이브 URL 접근성 확인(HTTP 200), 콘텐츠 렌더링 검증
+`main` 브랜치 변경은 저장소의 GitHub Pages 배포 설정에 따라 반영된다.
 
-## 📋 주요 변경 이력
-- **2026-11-05**: P0 배포 안정화 완료 - GitHub Actions CI 파이프라인 통과(PR #1: `0856818`), JSX 문법 검증 자동화(@babel/parser), Playwright E2E 필수 실행(Chromium 15/15, Mobile Chrome 15/15), 운영 URL HTTP 200 확인, Pages 배포 성공
-- **2026-11-04**: 관리자 대시보드 구현 (파티/신청/후기 관리, 통계)
-- **2026-11-04**: Phase 2 사용자/소셜 기능 추가 (소셜 로그인, 알림센터, 후기 작성, 마이페이지, 지도 모달)
-- **2026-11-03**: MVP 핵심 기능 완성 (필터링, 찜하기, 상세 모달, 후기 시스템)
+- 운영 URL: https://j-hype-labs.github.io/party-connect-mvp/
+- 정적 페이지 배포 성공은 OAuth·DB·서버 기능의 배포 또는 정상 동작을 의미하지 않는다.
+- 배포 후에는 실제 브라우저에서 렌더링과 핵심 흐름을 별도로 검증한다.
 
-## ✅ P0 검증 결과 요약 (2026-11-05)
+## CI / E2E 검증 범위
 
-| 검증 항목 | 도구 | 결과 | 비고 |
-|-----------|------|------|------|
-| JSX 문법 (@babel/parser) | Node.js | ✅ PASS | `npm run validate:jsx` |
-| JSX 문법 (괄호 균형) | Python | ✅ PASS | `scripts/validate-jsx-ci.py` |
-| HTML 구조 (필수 요소) | grep | ✅ PASS | root, babel, ReactDOM, App, CDNs |
-| 외부 CDN 의존성 | curl | ✅ PASS | 5개 CDN 모두 200/302 응답 |
-| 배포 설정 | file check | ✅ PASS | _config.yml, .gitignore, .nojekyll |
-| Playwright E2E - 기본 로드 | Chromium | ✅ PASS | Run ID: 41935871955 |
-| Playwright E2E - 요소 탐색 | Chromium | ✅ PASS | 버튼/섹션/한국어 텍스트 확인 |
-| Playwright E2E - 필수 기능 | Chromium | ✅ PASS | 루트/한국어/히어로/필터 버튼 |
-| Playwright E2E - 신청 플로우 | Chromium | ✅ PASS | 폼 입력→제출→완료 메시지 |
-| Playwright E2E - 모달/필터 | Chromium | ✅ PASS | 열기/닫기/ESC/배경클릭/탭 |
-| Playwright E2E - 모바일(390px) | Mobile Chrome | ✅ PASS | 15/15 테스트 통과 |
-| Playwright E2E - 가로스크롤 | Mobile Chrome | ✅ PASS | body.scrollWidth ≤ 410px |
-| Playwright E2E - JS 에러 검사 | Chromium | ✅ PASS | 크리티컬 에러 0개 |
-| GitHub Actions Validate | ubuntu-latest | ✅ PASS | 전체 검증 통과 (9s) |
-| GitHub Actions E2E | ubuntu-latest | ✅ PASS | Chromium 전체 통과 (11m32s) |
-| GitHub Pages 배포 | Pages workflow | ✅ PASS | main 브랜치 배포 성공 |
-| 운영 URL 접근성 | curl | ✅ PASS | HTTP 200 |
-| 운영 URL 콘텐츠 | curl + grep | ✅ PASS | #root, text/babel, 파티커넥트 |
+GitHub Actions는 HTML/JSX 구조 및 브라우저 UI 흐름을 검사한다. Playwright의 PASS/FAIL/SKIP 수는 해당 실행의 실제 결과를 기준으로 보고한다.
 
-**최종 검증 커밋 (PR #1)**: `0856818` (HEAD of `fix/p0-assert-real-flows`) - CI Validate + E2E 통과
-**main 브랜치 최신 검증 커밋**: `74e95b8` - CI 전체 통과, Pages 배포 성공(Run 41932326156)
+테스트가 증명하는 것은 테스트가 직접 실행하고 검증한 프론트엔드 동작뿐이다. 현재 E2E 통과를 다음 기능의 완료 증거로 사용하지 않는다.
 
----
+- 카카오·네이버 실제 OAuth 및 서버 세션
+- 이메일 인증
+- 서버 DB 저장 및 다른 기기 간 동기화
+- 서버 측 관리자 인증 및 권한 검증
+- 실제 개인정보의 안전한 수집·보관·삭제
+- 실제 방문 확인, 후기 자격 검증 및 정산
+- 운영 보안·백업·장애 복구
 
-### ⚠️ 검증 범위 한계 (반드시 인지)
-| 항목 | 현재 상태 |
-|------|-----------|
-| 지역 필터 결과 변화 | **미검증** (탭 선택 UI만 확인) |
-| 관리자 로그인/CRUD | **미검증** (모달 진입만 확인) |
-| 검색어 입력/결과 | **미검증** (진입점 버튼만 확인) |
-| 파티 카드 필드 상세 | **미검증** (카드 존재/가시성만 확인) |
-| 카테고리/요일 필터 결과 | **미검증** (탭 버튼 존재만 확인) |
-| 찜/후기/마이페이지/지도/알림/소셜로그인 | **미검증** (UI 존재 여부만) |
-| WebKit(Safari) 개별 PASS/FAIL | **분리 집계 필요** (CI에 WebKit 설치됨, skip 분리 필요) |
-| 320/768/1280px 해상도 | **미검증** (390px만 검증) |
-| 동일 SHA Pages 배포 검증 | **부분 검증** (CI와 Pages의 SHA 대조 별도 확인 필요) |
+테스트 명령, CI 실행 ID, 커밋 SHA, 실제 PASS/FAIL/SKIP은 해당 GitHub Actions 실행 결과와 함께 기록한다. 오래된 실행 결과를 현재 코드의 검증 결과로 재사용하지 않는다.
+
+## 개발 원칙
+
+1. 기존 UI와 동작을 보존하면서 단계적으로 개선한다.
+2. UI Only, Frontend Functional, Backend Integrated, Production Ready를 구분한다.
+3. 실제 서버 연동이 없으면 '로그인 완료', '접수 완료', '저장 완료' 문구만으로 실서비스 기능이라고 보고하지 않는다.
+4. 테스트에서 기능 부재를 조건부 skip 또는 우회로 감추지 않는다.
+5. 비밀값은 공개 HTML/JS나 빌드 결과에 포함하지 않는다.
+6. 실사용자 개인정보는 보안·동의·보관·파기 기준이 준비되기 전까지 수집하지 않는다.
+7. 백엔드 기술 선택과 운영 정책은 대표 승인 후 진행한다.
