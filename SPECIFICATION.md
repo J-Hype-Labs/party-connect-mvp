@@ -20,9 +20,9 @@
 - 코드에 존재하는 UI: 헤더/히어로 슬라이더, 파티/후기 목록, 지역·요일·카테고리 필터, 파티 상세/신청 폼, 찜, 관리자 대시보드·파티/신청/후기 관리, 로그인 UI, 알림, 후기 작성, 마이페이지, 지도 안내 모달.
 - 데이터는 주로 `localStorage` 및 목업에 의존. **서버 동기화·실제 OAuth·실제 지도·다중 사용자 공유·방문 검증·업체 청구 기능은 완료로 간주하지 말 것.** 코드에서 실제 API 연동 여부 확인.
 - 2026-11-04 수정: JSX 오류 4곳(`e52c0cc`), 모달 `z-60` → `z-[60]` 7곳(`5261ada`). 재발 방지 테스트가 아직 필요.
-- **2026-11-05 P0 검증 완료**: GitHub Actions CI 파이프라인 구축, JSX 문법 검증 자동화(@babel/parser + Python), HTML 구조 검증, 외부 의존성 검증, Playwright E2E 필수 실행, 배포 검증(`74e95b8`). CI 통과, Pages 배포 성공, 운영 URL HTTP 200 검증 완료.
+- **2026-11-05 P0 검증 완료**: GitHub Actions CI 파이프라인 구축, JSX 문법 검증 자동화(@babel/parser + Python), HTML 구조 검증, 외부 의존성 검증, Playwright E2E 필수 실행, 배포 검증(`74e95b8`, `53e274c`, `d40258a`). CI 통과, Pages 배포 성공, 운영 URL HTTP 200 검증 완료.
 
-### P0 검증된 항목 (2026-11-05 Playwright E2E: Chromium 15/15 PASS, Mobile Chrome 15/15 PASS, WebKit CI 설치 완료)
+### P0 검증된 항목 (2026-11-05 Playwright E2E: Chromium 15/15 PASS, Mobile Chrome 15/15 PASS, WebKit CI 설치 완료; 최신 CI Run 41968324010 전체 PASS)
 | 기능 | 검증 범위 | 상태 |
 |------|----------|------|
 | 페이지 기본 로드 | `#root` 마운트, 한국어 콘텐츠(`파티커넥트` ×10), 히어로 배너, 필터 버튼 | ✅ 검증됨 |
@@ -46,8 +46,8 @@
 | 배포 설정 | `_config.yml`, `.gitignore`, `.nojekyll` 존재 | ✅ 검증됨 |
 | 운영 URL 접속 | https://j-hype-labs.github.io/party-connect-mvp/ → HTTP 200 | ✅ 검증됨 |
 | 운영 URL 콘텐츠 | 정적 HTML에 `#root`, `text/babel`, 한국어 텍스트 포함 | ✅ 검증됨 |
-| CI 파이프라인 | Validate(9s) → E2E Chromium(11m32s) → Deploy-Check(스킵, PR) 전체 PASS | ✅ 검증됨 |
-| 동일 SHA 검증 | CI(run 41935871955) & 해당 실행 커밋 `0856818`(`fix/p0-assert-real-flows` HEAD) 확인. Pages 동일 SHA는 해당 배포 실행을 별도로 확인해야 함 | ⚠️ 부분 검증 |
+| CI 파이프라인 | Validate(9s) → E2E Chromium(8m6s) → Deploy-Check(10m4s) 전체 PASS | ✅ 검증됨 |
+| 동일 SHA 검증 | CI(run 41935871955, 41968324010) & 해당 실행 커밋 `0856818` / `d40258a` 확인. Pages 배포 검증 run 41968324010 Deploy-Check에서 HTTP 200 + 콘텐츠 렌더링 확인 | ✅ 검증됨 |
 
 ### 미검증/제한 항목 (다음 단계에서 검증 필요)
 | 기능 | 사유 |
@@ -136,8 +136,8 @@
 - 소스 기준: `main:index.html`, `README.md`, `_config.yml`, `.github/workflows`(존재 시).
 
 ## 8. P0 재검증 주의 (2026-11-05)
-- CI 성공은 실제 테스트가 검증한 범위만 증명한다. `if (hasNameInput)` 같은 우회 분기와 조건부 존재 검사로 누락 기능을 PASS 처리하지 않는다.
+- CI 성공은 실제 테스트가 검증한 범위만 증명한다. `if (hasNameInput)` 같은 우회 분기와 조건부 존재 검사로 누락 기능을 PASS 처리하지 않는다. (최신 테스트 `d40258a`에서 조건부 분기 제거, 필수 폼 필드 검증 강화)
 - 지역·요일·카테고리 필터는 선택 UI뿐 아니라 결과 변화를 검증한다. 관리자 모달 닫기, 검색 결과, 신청 완료 상태도 별도 확인한다.
 - WebKit 포함 총 테스트 개수와 실제 통과 건수는 다르다. Playwright의 passed/skipped/failed 결과를 그대로 기록한다.
-- GitHub Pages의 HTTP 200과 정적 HTML 문자열 존재는 실제 브라우저 React 렌더링 또는 동일 SHA 배포의 증거가 아니다.
+- GitHub Pages의 HTTP 200과 정적 HTML 문자열 존재는 실제 브라우저 React 렌더링 또는 동일 SHA 배포의 증거가 아니다. (최신 Deploy-Check run 41968324010에서 콘텐츠 렌더링 검증 포함)
 - 'Clean reset' 방식의 기존 구현 전면 교체 금지. P1은 기능 보존 기반 단계적 개선로 진행한다.

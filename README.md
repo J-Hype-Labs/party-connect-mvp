@@ -47,7 +47,7 @@ python3 -m http.server 3000
 - **Deploy-Check Job**: GitHub Pages 배포 대기, 라이브 URL 접근성 확인(HTTP 200), 콘텐츠 렌더링 검증
 
 ## 📋 주요 변경 이력
-- **2026-11-05**: P0 배포 안정화 완료 - GitHub Actions CI 파이프라인 통과(PR #1: `0856818`), JSX 문법 검증 자동화(@babel/parser), Playwright E2E 필수 실행(Chromium 15/15, Mobile Chrome 15/15), 운영 URL HTTP 200 확인, Pages 배포 성공
+- **2026-11-05**: P0 배포 안정화 완료 - GitHub Actions CI 파이프라인 통과(PR #1: `0856818`, main: `d40258a`), JSX 문법 검증 자동화(@babel/parser), Playwright E2E 필수 실행(Chromium 15/15, Mobile Chrome 15/15), 운영 URL HTTP 200 확인, Pages 배포 성공(CI Run 41968324010 전체 PASS)
 - **2026-11-04**: 관리자 대시보드 구현 (파티/신청/후기 관리, 통계)
 - **2026-11-04**: Phase 2 사용자/소셜 기능 추가 (소셜 로그인, 알림센터, 후기 작성, 마이페이지, 지도 모달)
 - **2026-11-03**: MVP 핵심 기능 완성 (필터링, 찜하기, 상세 모달, 후기 시스템)
@@ -69,14 +69,14 @@ python3 -m http.server 3000
 | Playwright E2E - 모바일(390px) | Mobile Chrome | ✅ PASS | 15/15 테스트 통과 |
 | Playwright E2E - 가로스크롤 | Mobile Chrome | ✅ PASS | body.scrollWidth ≤ 410px |
 | Playwright E2E - JS 에러 검사 | Chromium | ✅ PASS | 크리티컬 에러 0개 |
-| GitHub Actions Validate | ubuntu-latest | ✅ PASS | 전체 검증 통과 (9s) |
-| GitHub Actions E2E | ubuntu-latest | ✅ PASS | Chromium 전체 통과 (11m32s) |
-| GitHub Pages 배포 | Pages workflow | ✅ PASS | main 브랜치 배포 성공 |
+| GitHub Actions Validate | ubuntu-latest | ✅ PASS | 전체 검증 통과 (10s) |
+| GitHub Actions E2E | ubuntu-latest | ✅ PASS | Chromium 전체 통과 (8m6s) |
+| GitHub Pages 배포 | Pages workflow | ✅ PASS | main 브랜치 배포 성공 (Run 41968324010 Deploy-Check 검증)
 | 운영 URL 접근성 | curl | ✅ PASS | HTTP 200 |
 | 운영 URL 콘텐츠 | curl + grep | ✅ PASS | #root, text/babel, 파티커넥트 |
 
 **최종 검증 커밋 (PR #1)**: `0856818` (HEAD of `fix/p0-assert-real-flows`) - CI Validate + E2E 통과
-**main 브랜치 최신 검증 커밋**: `74e95b8` - CI 전체 통과, Pages 배포 성공(Run 41932326156)
+**main 브랜치 최신 검증 커밋**: `d40258a` - CI 전체 통과(Validate + E2E + Deploy-Check), Pages 배포 성공(Run 41968324010)
 
 ---
 
