@@ -18,7 +18,7 @@
 - **접근성/UX**: ESC·배경 클릭으로 모달 닫기, 모달 열림 시 스크롤 잠금, ARIA 속성, 키보드 탐색
 - **반응형 디자인**: 모바일 및 데스크톱 맞춤형 UI/UX (Pretendard 폰트 + Tailwind CSS)
 
-## 🛠️ 기술 스택
+## 🔐 인증 구현 우선순위 (P0)\n\n- 실제 카카오 OAuth 로그인, Auth 사용자 생성/조회, 세션 복원, 로그아웃을 운영 URL에서 검증한다.\n- 네이버 로그인 UI와 mock 분기는 제거한다.\n- 구현 상세와 제호 DB 연동 계약은 [KAKAO_LOGIN_IMPLEMENTATION_SPEC.md](./KAKAO_LOGIN_IMPLEMENTATION_SPEC.md)를 따른다.\n- Kakao Client Secret 및 Supabase service_role key를 공개 프론트엔드에 포함하지 않는다.\n\n## 🛠️ 기술 스택
 - **Frontend**: React 18, Tailwind CSS, Lucide Icons, Pretendard
 - **Design Intelligence**: UI/UX Pro Max
 - **Deployment**: GitHub Pages (main 브랜치 push 시 자동 배포)
@@ -49,7 +49,7 @@ python3 -m http.server 3000
 ## 📋 주요 변경 이력
 - **2026-11-05**: P0 배포 안정화 완료 - GitHub Actions CI 파이프라인 통과(PR #1: `0856818`, main: `d40258a`), JSX 문법 검증 자동화(@babel/parser), Playwright E2E 필수 실행(Chromium 15/15, Mobile Chrome 15/15), 운영 URL HTTP 200 확인, Pages 배포 성공(CI Run 41968324010 전체 PASS)
 - **2026-11-04**: 관리자 대시보드 구현 (파티/신청/후기 관리, 통계)
-- **2026-11-04**: Phase 2 사용자/소셜 기능 추가 (소셜 로그인, 알림센터, 후기 작성, 마이페이지, 지도 모달)
+- **2026-11-04**: Phase 2 사용자 기능 UI 추가 (mock 소셜 로그인 UI, 알림센터, 후기 작성, 마이페이지, 지도 모달; 실제 OAuth 미연동)
 - **2026-11-03**: MVP 핵심 기능 완성 (필터링, 찜하기, 상세 모달, 후기 시스템)
 
 ## ✅ P0 검증 결과 요약 (2026-11-05)
