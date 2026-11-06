@@ -6,7 +6,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     // Wait for React to mount and load initial data
     await page.waitForSelector('#root', { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(5000);
+    await expect(page.locator('button:has-text("지역 선택")')).toBeVisible({ timeout: 30000 });
   });
 
   // Test 1: Basic application loading and core functionality
@@ -99,23 +99,22 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await page.click('button[role="tab"]:has-text("서울")');
     
     // Wait for filter to apply
-    await page.waitForTimeout(2000);
+    await expect(page.locator('button[role="tab"]:has-text("서울")')).toBeVisible();
     
     // Close region modal
     await page.keyboard.press('Escape');
     await expect(page.locator('#region-modal-title')).toBeHidden();
   });
 
-  // Test 6: Mobile responsiveness (chromium only)
-  test('should render correctly on mobile', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'Mobile test only on chromium');
+  // Test 6: Mobile responsiveness across all configured browser projects
+  test('should render correctly on mobile', async ({ page }) => {
     
     // Set mobile viewport
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await page.waitForSelector('#root', { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(5000);
+    await expect(page.locator('button:has-text("지역 선택")')).toBeVisible({ timeout: 30000 });
     
     // Verify root element is visible
     await expect(page.locator('#root')).toBeVisible();
@@ -133,15 +132,14 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   });
 
   // Test 7: Mobile horizontal scroll verification
-  test('should not have horizontal overflow on mobile', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'Mobile test only on chromium');
+  test('should not have horizontal overflow on mobile', async ({ page }) => {
     
     // Set mobile viewport
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await page.waitForSelector('#root', { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(5000);
+    await expect(page.locator('button:has-text("지역 선택")')).toBeVisible({ timeout: 30000 });
     
     // Check body width doesn't exceed viewport
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
@@ -152,8 +150,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   });
 
   // Test 8: Admin login (non-blocking - just verify modal opens)
-  test('should open admin modal', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'Admin test only on desktop chromium');
+  test('should open admin modal', async ({ page }) => {
     
     // Open admin modal
     await page.click('button:has-text("관리자")');
@@ -181,7 +178,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await page.reload();
     await page.waitForSelector('#root', { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(5000);
+    await expect(page.locator('button:has-text("지역 선택")')).toBeVisible({ timeout: 30000 });
 
     if (errors.length > 0) {
       console.log('Critical JavaScript errors found:', errors);
