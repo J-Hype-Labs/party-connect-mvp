@@ -173,7 +173,12 @@
 
       // PARTYLINK integration
       const { live, client, api, toAppUser } = PARTYLINK;
+      // Live mode: parties state from server, demo mode: from PARTY_LIST
+      const [parties, setParties] = React.useState(live ? [] : PARTY_LIST);
+      const [partiesLoading, setPartiesLoading] = React.useState(live);
+      const [partiesError, setPartiesError] = React.useState(null);
       const [isLoginModalOpen, setIsLoginModalOpen] = React.useState(false);
+      const [isMyPageOpen, setIsMyPageOpen] = React.useState(false);
       const [notifications, setNotifications] = React.useState(() => {
         try {
           const saved = JSON.parse(localStorage.getItem('partyconnect:notifications') || '[]');
@@ -224,17 +229,46 @@
       // 실서비스 모드: 파티 목록 / 내 신청 내역 불러오기
       const refreshParties = async () => {
         if (!live) return;
+        setPartiesLoading(true);
+        setPartiesError(null);
         try {
-          setParties(await api("parties"));
+          const data = await api("parties");
+          // Normalize server data to UI schema
+          setParties(normalizeServerParties(data));
+          setPartiesError(null);
         } catch (err) {
-          showToast(err.message);
+          setPartiesError(err.message);
+          showToast("파티 목록을 불러오지 못했습니다: " + err.message);
+        } finally {
+          setPartiesLoading(false);
         }
+      };
+
+      const normalizeServerParties = (serverData) => {
+        // Expected server response: { parties: [...] } or [...]
+        const list = Array.isArray(serverData) ? serverData : (serverData.parties || []);
+        return list.map(p => ({
+          id: p.id ?? p.partyId,
+          title: p.title,
+          region: p.region ?? p.subRegion,
+          category: p.category,
+          days: Array.isArray(p.days) ? p.days : (p.day ? [p.day] : []),
+          recruit: p.recruit ?? p.capacity ?? 10,
+          currentRecruit: p.currentRecruit ?? p.appliedCount ?? 0,
+          venue: p.venue,
+          address: p.address ?? '',
+          desc: p.description ?? p.desc ?? '',
+          images: Array.isArray(p.images) && p.images.length > 0 ? p.images : ["https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=600&q=80"],
+          badges: Array.isArray(p.badges) ? p.badges : [],
+          isFeatured: p.isFeatured ?? false
+        }));
       };
 
       const refreshMyApplications = async () => {
         if (!live) return;
         try {
-          setApplications(await api("applications"));
+          const data = await api("applications");
+          setApplications(Array.isArray(data) ? data : (data.applications || []));
         } catch (err) {
           if (err.status !== 401) showToast(err.message);
         }
@@ -286,8 +320,12 @@
       };
 
       // 소셜 로그인은 카카오만 지원합니다.
-      const handleSocialLogin = () => {
+      const handleSocialLogin = (provider) => {
         if (live) {
+          if (provider !== 'kakao') {
+            showToast('현재 카카오 로그인만 지원합니다.');
+            return;
+          }
           try { sessionStorage.setItem("partylink:loginPending", "1"); } catch (e) {}
           client.auth
             .signInWithOAuth({
@@ -297,6 +335,10 @@
             .then(({ error }) => {
               if (error) showToast("카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
             });
+          return;
+        }
+        if (provider !== 'kakao') {
+          showToast('데모 모드에서는 카카오 로그인만 가능합니다.');
           return;
         }
         const mockUser = {
@@ -309,7 +351,7 @@
         setCurrentUser(mockUser);
         localStorage.setItem('partyconnect:user', JSON.stringify(mockUser));
         setIsLoginModalOpen(false);
-        showToast(`${provider === 'kakao' ? '카카오' : '네이버'} 로그인 완료`);
+        showToast('카카오 로그인 완료 (데모 모드)');
         addNotification({ type: 'welcome', title: '환영합니다!', message: '파티커넥트 멤버가 되신 것을 환영합니다.', read: false });
       };
 
@@ -325,9 +367,14 @@
 
       const openLoginModal = () => setIsLoginModalOpen(true);
 
+      const openMap = (party) => {
+        const addr = encodeURIComponent(party.address || party.venue);
+        window.open(`https://map.kakao.com/link/search/${addr}`, '_blank');
+      };
+
       const openMyPage = () => {
         if (!currentUser) { openLoginModal(); return; }
-        showToast('마이페이지 준비 중입니다.');
+        setIsMyPageOpen(true);
       };
 
       const openPartyDetail = (party) => {
@@ -420,7 +467,8 @@
       };
 
       const filteredParties = React.useMemo(() => {
-        return PARTY_LIST.filter(party => {
+        const source = parties && parties.length > 0 ? parties : PARTY_LIST;
+        return source.filter(party => {
           if (selectedRegion !== '전체 지역' && selectedRegion !== '전체') {
             if (!party.region.includes(selectedRegion)) return false;
           }
@@ -660,7 +708,7 @@
                       </div>
                     </div>
                     <div className="flex gap-3 pt-2 border-t border-zinc-200">
-                      <button onClick={e => { e.stopPropagation(); setApplyStep('form'); }} disabled={isFull || hasApplied} className="flex-1 py-3 text-sm font-bold rounded-xl transition min-h-[48px] ${isFull || hasApplied ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed' : 'bg-rose-600 text-white hover:bg-rose-700'}">{hasApplied ? '신청 완료' : isFull ? '모집 마감' : '파티 신청하기'}</button>
+                      <button onClick={e => { e.stopPropagation(); setApplyStep('form'); }} disabled={isFull || hasApplied} className={`flex-1 py-3 text-sm font-bold rounded-xl transition min-h-[48px] ${isFull || hasApplied ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed' : 'bg-rose-600 text-white hover:bg-rose-700'}`}>{hasApplied ? '신청 완료' : isFull ? '모집 마감' : '파티 신청하기'}</button>
                       <button onClick={e => { e.stopPropagation(); openMap(party); }} className="px-4 py-3 text-sm font-bold text-zinc-700 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition min-h-[48px]">지도 보기</button>
                     </div>
                   </div>
@@ -691,7 +739,7 @@
                 <div className="flex flex-col items-center justify-center p-12 text-center">
                   <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4"><svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div>
                   <h3 className="text-lg font-bold text-zinc-900">신청이 접수되었습니다!</h3>
-                  <p className="mt-2 text-sm text-zinc-500">파티 신청이 완료되었습니다. (데모 모드 - 실제 서버 연동 시 알림 발송)</p>
+                  <p className="mt-2 text-sm text-zinc-500">{live ? '실제 서버에 신청이 접수되었습니다. 알림을 기다려 주세요.' : '파티 신청이 완료되었습니다. (데모 모드 - 실제 서버 연동 시 알림 발송)'}</p>
                   <button onClick={closePartyDetail} className="mt-6 w-full max-w-xs py-3 text-sm font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition min-h-[48px]">확인</button>
                 </div>
               )}
@@ -709,9 +757,71 @@
               <div className="text-center mb-6"><span className="text-xl font-extrabold tracking-tighter text-zinc-950">PARTY<span className="text-rose-600">connect</span></span><p className="mt-2 text-sm text-zinc-500">로그인하여 파티 신청 및 마이페이지를 이용하세요.</p></div>
               <div className="space-y-3">
                 <button onClick={() => handleSocialLogin('kakao')} className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition min-h-[48px]"><svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24C14.52 17.16 12.96 16.68 12 16.68s-2.52.48-3.48 1.02c-.36.24-.78.12-1.02-.24-.48-.48-.6-1.32-.24-1.92.48-.72 1.32-1.08 2.16-1.08.72 0 1.44.36 1.92 1.02.48.6.6 1.44.24 1.92zm1.56-5.28c-.72-.36-1.56-.48-2.28-.48-.96 0-1.8.36-2.4 1.08-.6.6-.84 1.44-.72 2.16.12.72.48 1.32 1.08 1.8.72.48 1.56.6 2.4.6.84 0 1.68-.24 2.28-.72.6-.48.84-1.32.72-2.16-.12-.72-.48-1.32-1.08-1.8-.48-.6-1.32-.84-2.16-.72zm-2.52-3.12c-1.2 0-2.16.6-2.76 1.56-.6.96-.6 2.16 0 3.12.6.96 1.56 1.56 2.76 1.56 1.08 0 2.04-.48 2.64-1.32.6-.72.84-1.68.6-2.76-.24-1.08-.84-1.92-1.8-2.52-.72-.48-1.56-.72-2.64-.72zm3.12 9.36c-.6 0-1.08-.36-1.32-.96-.24-.48-.12-1.08.24-1.44.48-.36 1.08-.6 1.8-.6.72 0 1.32.24 1.8.6.36.36.6.96.36 1.44-.24.48-.84.72-1.68.72z"/></svg><span className="font-medium text-zinc-900">카카오로 시작하기</span></button>
-                <button onClick={() => handleSocialLogin('naver')} className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition min-h-[48px]"><span className="w-6 h-6 bg-green-600 rounded-lg flex items-center justify-center" aria-hidden="true"><svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm6.3 7.5h-4.2v4.2h-2.1V12h4.2v-2.1h2.1v2.1h4.2v2.1h-4.2v4.2h-2.1v-4.2H12V9.9h6.3v-2.4z"/></svg></span><span className="font-medium text-zinc-900">네이버로 시작하기</span></button>
               </div>
-              <p className="mt-4 text-center text-xs text-zinc-400">데모 모드: 실제 OAuth 연동 시 카카오/네이버 로그인으로 전환됩니다.</p>
+              <p className="mt-4 text-center text-xs text-zinc-400">데모 모드: 실제 서비스에서는 카카오 로그인으로 연동됩니다.</p>
+            </div>
+          </div>
+        );
+      };
+
+      const MyPageModal = () => {
+        if (!isMyPageOpen) return null;
+        const myApplications = applications.filter(a => !currentUser || a.userId === currentUser.id);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="마이페이지" onClick={() => setIsMyPageOpen(false)}>
+            <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b border-zinc-200">
+                <h2 className="text-lg font-bold text-zinc-900">마이페이지</h2>
+                <button onClick={() => setIsMyPageOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기"><svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+              </div>
+              <div className="p-4 border-b border-zinc-200">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl" aria-hidden="true">{currentUser?.avatar || '🟡'}</span>
+                  <div>
+                    <p className="font-semibold text-zinc-900">{currentUser?.name || '사용자'}</p>
+                    <p className="text-sm text-zinc-500">{currentUser?.provider === 'kakao' ? '카카오' : '데모'} 로그인</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                {myApplications.length === 0 ? (
+                  <div className="text-center py-12 text-zinc-500">
+                    <svg className="mx-auto w-12 h-12 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                    <p className="mt-3 text-sm">신청 내역이 없습니다.</p>
+                    <p className="text-xs mt-1">파티를 탐색하고 신청해 보세요.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {myApplications.map(app => (
+                      <div key={app.id} className="bg-white border border-zinc-200 rounded-xl p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-zinc-900 truncate">{app.partyTitle}</h3>
+                            <p className="text-sm text-zinc-500 mt-1">{app.venue} · {app.day}요일</p>
+                            <p className="text-xs text-zinc-400 mt-1">신청일: {new Date(app.appliedAt).toLocaleDateString('ko-KR')}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${app.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : app.status === 'cancelled' ? 'bg-zinc-100 text-zinc-500' : 'bg-amber-100 text-amber-700'}`}>
+                              {app.status === 'approved' ? '승인됨' : app.status === 'cancelled' ? '취소됨' : '대기중'}
+                            </span>
+                            {app.status === 'pending' && (
+                              <button onClick={() => handleMyApplicationCancel(app)} className="px-3 py-1.5 text-xs font-medium text-rose-600 hover:text-rose-700 transition">취소</button>
+                            )}
+                            {app.status === 'approved' && app.visitCode && (
+                              <span className="px-2 py-1 text-xs font-mono bg-zinc-100 text-zinc-700 rounded" title="방문 코드">{app.visitCode}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {live && currentUser && (
+                <div className="p-4 bg-zinc-50 border-t border-zinc-200 text-center">
+                  <button onClick={handleLogout} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition">로그아웃</button>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -801,6 +911,7 @@
 
           <PartyDetailModal />
           <LoginModal />
+          <MyPageModal />
           <Toast />
         </>
       );

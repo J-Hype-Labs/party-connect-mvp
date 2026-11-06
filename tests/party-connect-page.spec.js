@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('PartyConnect Page - Dedicated Party Discovery', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/party-connect/');
+    await page.goto('/party-connect-mvp/party-connect/');
     await page.waitForSelector('#root', { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
@@ -55,8 +55,8 @@ test.describe('PartyConnect Page - Dedicated Party Discovery', () => {
     const applyBtn = modal.getByRole('button', { name: '파티 신청하기' });
     await expect(applyBtn).toBeVisible({ timeout: 5000 });
     
-    // Close modal with close button (in the modal)
-    await modal.locator('button[aria-label="닫기"]').click({ force: true });
+    // Close modal with close button (in the modal) - no force
+    await modal.locator('button[aria-label="닫기"]').click();
     await expect(modal).toBeHidden({ timeout: 5000 });
   });
 

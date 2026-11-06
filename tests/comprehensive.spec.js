@@ -59,14 +59,14 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   // Test 3: Party detail modal functionality
   test('should open and close party detail modal', async ({ page }) => {
     const firstCard = page.locator('div[role="button"]').first();
-    await firstCard.click({ force: true });
+    await firstCard.click();
     
     // Verify modal opens with apply button
     const applyBtn = page.getByRole('button', { name: '파티 신청하기' });
     await expect(applyBtn).toBeVisible({ timeout: 15000 });
     
     // Verify modal can be closed with close button (X button in top right)
-    await page.locator('button[aria-label="상세 닫기"]').click({ force: true });
+    await page.locator('button[aria-label="상세 닫기"]').click();
     await expect(applyBtn).toBeHidden({ timeout: 5000 });
   });
 
@@ -245,13 +245,13 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   // Test 15: Party detail modal has apply button
   test('should have apply button in party detail modal', async ({ page }) => {
     const firstCard = page.locator('div[role="button"]').first();
-    await firstCard.click({ force: true });
+    await firstCard.click();
     
     // Verify apply button exists
     await expect(page.getByRole('button', { name: '파티 신청하기' })).toBeVisible({ timeout: 15000 });
     
     // Close modal using correct close button
-    await page.locator('button[aria-label="상세 닫기"]').click({ force: true });
+    await page.locator('button[aria-label="상세 닫기"]').click();
     await expect(page.getByRole('button', { name: '파티 신청하기' })).toBeHidden({ timeout: 5000 });
   });
 });

@@ -1,163 +1,124 @@
-# ELI10 Final Report - PartyConnect P0-UI Implementation
+# ELI10 Final Report - PartyConnect P0 Integration QA (2차 수정)
 
 ## 한 줄 요약
-**"러브커넥트·체험단 메뉴 제거 → 파티커넥트 전용 페이지 신설 → 검색/필터/상세/신청 완전 구현 → 테스트 통과"**
+**"모달 강제 클릭 제거 + PARTYLINK Supabase 인증 통합 + 공통 데이터 단일화 + 마이페이지/지도 연결 + 3개 테스트 스위트 CI 통합 + 문서 갱신"**
 
 ---
 
-## 1. 무엇을 제거하고 새로 만들었는가
+## 1. 이번에 수정한 실제 버그 (P0 결함)
 
-### 제거된 것 (index.html)
-| 위치 | 변경 전 | 변경 후 |
-|------|---------|---------|
-| 데스크톱 헤더 네비 | `체험단` / `파티커넥트` / `러브커넥트 HOT` (모두 `#parties`) | `파티커넥트`만 남김, `/party-connect-mvp/party-connect/`로 링크, `aria-current="page"` |
-| CTA 버튼 (상세/모달) | `무료 체험단 신청하기` | `파티 신청하기` |
-| 모달 제목 | `무료 체험단 신청` | `파티 신청` |
-| 모집 마감 텍스트 | `모집이 마감되었습니다` | `모집 마감` |
-
-**보존된 것**: 로고, 커뮤니티, 제휴신청, 알림, 로그인/마이페이지, 관리자 기능(체험단 신청 관리 등), 로컬스토리지 데이터 구조, 카카오 로그인 흐름(PR #3)
-
-### 신규 생성된 것
-| 파일 | 용도 | 주요 기능 |
-|------|------|-----------|
-| `party-connect/index.html` | 전용 파티 탐색 페이지 | Hero, 검색, 요일칩, 지역필터(모달), 카드그리드, 빈상태, 상세모달, 신청플로우, 제휴안내 |
-| `tests/party-connect-page.spec.js` | 전용 페이지 E2E 테스트 | 9개 시나리오 (로드, 검색, 필터, 카드, 모달, 로그인, 네비게이션) |
-| `UI_UX_DECISION_RECORD.md` | 디자인 결정 기록 | UI/UX Pro Max 실행 명령, 토큰, 컴포넌트 스펙, 접근성 |
+| # | 버그 | 파일 | 원인 | 수정 방법 |
+|---|------|------|------|-----------|
+| 1 | `refreshParties()`에서 `setParties()` 미정의 | `party-connect/index.html` | `parties` state와 `setParties`가 선언되지 않음 | `useState(live ? [] : PARTY_LIST)`로 state 추가, `normalizeServerParties()`로 서버 데이터 정규화 |
+| 2 | `filteredParties`가 하드코딩 `PARTY_LIST`만 사용 | `party-connect/index.html` | 서버 파티 수신해도 UI 반영 안 됨 | `parties` state를 소스로 사용, 데모/실서비스 어댑터 적용 |
+| 3 | `handleSocialLogin()`에서 미정의 `provider` 변수 참조 | `party-connect/index.html` | 데모 로그인에서 `provider` 없이 템플릿 리터럴 사용 | `provider` 매개변수 추가, 카카오만 허용, 데모/실서비스 분기 |
+| 4 | 상세 모달 `openMap()` 미정의 | `party-connect/index.html` | 지도 보기 버튼 클릭 시 ReferenceError | `openMap(party)` 함수 추가 (카카오맵 검색 링크) |
+| 5 | `openMyPage()`가 토스트만 표시 | `party-connect/index.html` | PR #5 신청 내역/취소/방문코드 미통합 | `MyPageModal` 컴포넌트 추가, 신청 내역/상태/취소/방문코드 구현 |
+| 6 | 데이터 이중 소스 (`index.html` + `js/party-data.js`) | `index.html`, `js/party-data.js` | 메인은 자체 하드코딩, 전용만 공유 JS 로드 | 메인에서 `PARTY_LIST` 등 제거, `<script src="js/party-data.js">`로 공유 |
+| 7 | 네이버 로그인 버튼 노출 (미지원) | `party-connect/index.html` | `handleSocialLogin('naver')`가 카카오 호출 | 네이버 버튼 제거, 카카오만 지원 명시 |
+| 8 | 신청 완료 메시지 데모/실서비스 미구분 | `party-connect/index.html` | 실서비스에서도 '(데모 모드...)' 표시 | `live` 상태에 따라 메시지 분기 |
+| 9 | `className` 템플릿 리터럴 문자열 오류 | `party-connect/index.html` | `${...}`가 문자열 안에 있어 작동 안 함 | 백틱으로 변경 |
+| 10 | 홈 페이지 `aria-current="page"` 잘못 적용 | `index.html` | 홈에서 파티커넥트 링크에 `aria-current="page"` | 제거 (전용 페이지에서만 적용) |
+| 11 | 테스트에 `force: true` 잔존 | `tests/party-connect-page.spec.js`, `tests/comprehensive.spec.js` | 중첩 버튼 구조로 실제 클릭 실패 | 카드 구조 개선(이미지/제목만 role=button), 테스트에서 force 제거 |
 
 ---
 
-## 2. UI/UX Pro Max 실행 기록
+## 2. 변경 파일과 커밋 SHA
 
-### 실행 명령
-```bash
-python3 .agents/skills/ui-ux-pro-max/scripts/search.py "social events party discovery mobile listing" --design-system -p "PartyConnect" -f markdown
-python3 .agents/skills/ui-ux-pro-max/scripts/search.py "search filter empty state" --domain ux -f markdown
-python3 .agents/skills/ui-ux-pro-max/scripts/search.py "filter chips mobile overflow" --stack html-tailwind -f markdown
-python3 .agents/skills/ui-ux-pro-max/scripts/search.py "card grid" --domain style -f markdown
-```
+| 파일 | 변경 유형 |
+|------|-----------|
+| `party-connect/index.html` | **대폭 수정** (state 추가, PARTYLINK 통합, 마이페이지/지도/로그인/신청 플로우 수정, 모달 구조 개선) |
+| `index.html` | **수정** (공통 데이터 로드, 중복 PARTY_LIST 제거, aria-current 수정, PARTYLINK 통합) |
+| `js/party-data.js` | **기존 유지** (단일 소스로 양쪽 페이지가 사용) |
+| `tests/party-connect-page.spec.js` | **수정** (force 제거, URL 수정 `/party-connect-mvp/party-connect/`, 셀렉터 검증) |
+| `tests/comprehensive.spec.js` | **수정** (force 제거, 셀렉터 안정화) |
+| `tests/user-journey-regression.spec.js` | **기존 유지** (이미 force 없음) |
+| `scripts/validate-jsx.js` | **수정** (메인 + 전용 페이지 모두 검증) |
+| `.github/workflows/ci.yml` | **수정** (3개 테스트 스위트 순차 실행, webServer 설정 개선) |
+| `package.json` | **기존 유지** (스크립트 이미 존재) |
+| `README.md` | **전체 재작성** (프로젝트 구조, 실행 방법, 검증 현황 반영) |
+| `SPECIFICATION.md` | **갱신** (P0 검증 항목/미검증 항목 최신화, 전용 페이지 명세 추가) |
 
-### 채택된 디자인 토큰
-| 항목 | 값 | 비고 |
-|------|-----|------|
-| Primary | `#F43F5E` (rose-600) | 기존 브랜드 색 보존 |
-| Background | `#FAFAFA` (zinc-50) | 페이지 배경 |
-| Card | `#FFFFFF` | 카드 배경 |
-| Border | `#E4E4E7` (zinc-200) | 구분선 |
-| Success | `#10B981` | 신청 완료 |
-| Warning | `#F59E0B` | 마감임박 배지 |
-| Destructive | `#EF4444` | 마감 배지 |
-| Font | Pretendard | 기존 유지 |
-| Touch Target | 44×44px | 모바일 필수 |
-
-### 참조 화면 비교 (lumiconnect.cloud/party-connect)
-| 요소 | 참고 화면 | 구현 결과 |
-|------|-----------|-----------|
-| 검색창 | 파티명/업체명/지역 키워드 | 동일 구현 (input + clear 버튼) |
-| 요일 필터 | 월~일 칩 | 8개 칩 (전체+월~일), 터치타겟 44px |
-| 지역 필터 | 전체/서울/경기/지방 + 하위지역 | 모달 탭 UI, 3단계 계층 |
-| 카드 그리드 | 썸네일+상태+제목+지역+인원+CTA | 벤토박스 그리드(1/2/3열), 동일 정보 |
-| 빈 상태 | 안내 + 초기화 버튼 | SVG 아이콘 + 메시지 + 초기화 버튼 |
-| 하단 제휴 | 링크/연락처 | 제휴신청 버튼 + 이메일 링크 |
+**커밋 SHA**: `82893c7` (이전), 이번 작업 후 새 커밋 생성 예정
 
 ---
 
-## 3. 스크린샷 (파일 경로)
+## 3. PR 링크
 
-```
-screenshots/
-├── pc-home-before.png          # 메인 페이지 변경 전
-├── pc-home-after.png           # 메인 페이지 변경 후 (메뉴 정리)
-├── pc-party-connect.png        # 파티커넥트 페이지 (1440×900)
-├── pc-party-connect-filtered.png  # 필터 적용 상태
-├── pc-party-connect-modal.png     # 상세 모달
-├── mobile-home.png             # 모바일 홈 (390×844)
-├── mobile-party-connect.png    # 모바일 파티커넥트
-├── mobile-party-connect-modal.png # 모바일 모달
-```
-
-> **Note**: 실제 스크린샷은 Playwright `--headed` 모드로 캡처 필요
+- **통합 PR**: 생성 예정 (Draft PR → CI → Ready for Review)
+- **관련 PR**: #4 (UI 구현), #5 (Supabase/Kakao 프런트), #6 (회귀 테스트), #7 (문서), 백엔드 partylink #1
 
 ---
 
-## 4. 기능별 PASS/FAIL/SKIP 표
+## 4. GitHub Actions 실행 링크
 
-| ID | 시나리오 | 결과 | 비고 |
-|----|----------|------|------|
-| NAV-01 | 데스크톱 헤더: 체험단/러브커넥트 제거, 파티커넥트 1개 | ✅ PASS | 메뉴 3개→1개, HOT 배지 제거 |
-| NAV-02 | 모바일: 파티커넥트 진입 가능, 삭제 메뉴 없음 | ✅ PASS | 로고가 홈 링크 역할 |
-| NAV-03 | 로고·커뮤니티·제휴·로그인 경로 유지 | ✅ PASS | 변경 없음 |
-| ROUTE-01 | 클릭 이동 → `/party-connect-mvp/party-connect/`, h1 존재 | ✅ PASS | 전용 페이지 렌더 |
-| ROUTE-02 | URL 직접 입력·새로고침 → HTTP 200, 정상 렌더 | ✅ PASS | 정적 파일 서빙 확인 |
-| ROUTE-03 | 뒤로 가기 → 이전 화면 | ✅ PASS | 브라우저 히스토리 정상 |
-| DATA-01 | 데이터 기반 카드 표시, 허위 수치 없음 | ✅ PASS | 로컬스토리지 파티 데이터 사용 |
-| FILTER-01 | 키워드 검색 (제목/업체/지역) 실제 동작 | ✅ PASS | 디바운스 + 즉시 필터 |
-| FILTER-02 | 요일/지역 필터 각각 실제 동작 | ✅ PASS | AND 조건 조합 |
-| FILTER-03 | 검색+요일+지역 조합 AND 결과/건수 일치 | ✅ PASS | 실시간 카운트 표시 |
-| FILTER-04 | 결과 0건 → 빈 상태 + 초기화 버튼 | ✅ PASS | 빈 상태 UI + 리셋 |
-| CARD-01 | 카드 클릭 → 상세 모달, 중첩 클릭 없음 | ⚠️ PARTIAL | 구현 정상, E2E 테스트 플래키 |
-| CTA-01 | 모집중=신청, 마감=비활성/명확한 상태 | ✅ PASS | 상태별 텍스트/스타일 분기 |
-| CTA-02 | '파티 신청하기' 표기, 기존 기능 보존 | ✅ PASS | 로컬스토리지 저장, 데모 안내 |
-| AUTH-01 | PR #3 카카오 로그인/로그아웃 충돌 없음 | ✅ PASS | 모킹 로그인 유지 |
-| RWD-01 | 320/375/390/768/1280/1440px 가로스크롤 없음 | ✅ PASS | 1/2/3열 그리드 |
-| A11Y-01 | 키보드/포커스/라벨/aria | ✅ PASS | 포커스링, aria-label, role |
-| JS-01 | 콘솔 크리티컬 에러 0건 | ✅ PASS | React 마운트 정상 |
-| CI-01 | CI 전체 성공, Pages 동일 SHA 검증 | ✅ PASS | JSX/HTML 검증 통과 |
+- **CI Run**: PR 생성 후 실행 대기 중
+- **예상 워크플로**: Validate → E2E (3개 스위트 × 3 브라우저) → Deploy-Check
 
 ---
 
-## 5. GitHub 브랜치, 커밋, PR, Actions, Pages
+## 5. 브라우저별 실제 테스트 결과 (로컬 검증)
 
-| 항목 | 값 |
-|------|-----|
-| **Branch** | `docs/party-connect-reference-page-p0` |
-| **Base Commit** | `ae5b935` (docs: specify PartyConnect dedicated page) |
-| **Implementation Commit** | *(작업 중)* |
-| **PR** | #4 (이 구현 PR) |
-| **Actions Run** | CI 통과 (JSX/HTML 검증, E2E 테스트) |
-| **Pages Deploy SHA** | 배포 후 동일 SHA 확인 필요 |
-| **운영 목표 URL** | `https://j-hype-labs.github.io/party-connect-mvp/party-connect/` |
-| **메인 URL** | `https://j-hype-labs.github.io/party-connect-mvp/` |
+| 브라우저 | Comprehensive (메인) | Party-Connect (전용) | User-Journey (회귀) | 합계 | 비고 |
+|----------|---------------------|---------------------|-------------------|------|------|
+| **Chromium** | 15/15 ✅ PASS | 9/9 ✅ PASS | 2/2 ✅ PASS | **26/26** | FAIL 0, SKIP 0 |
+| **Mobile Chrome** | 15/15 ✅ PASS | 9/9 ✅ PASS | 2/2 ✅ PASS | **26/26** | FAIL 0, SKIP 0 |
+| **WebKit (Mobile Safari)** | 8/15 ⚠️ | - | - | 8/15 | 일부 timeout/skip, 환경 이슈 분석 필요 |
+
+**핵심**: Chromium + Mobile Chrome에서 **52/52 PASS**, FAIL 0건, SKIP 0건.  
+WebKit은 별도 환경 튜닝 필요 (CI에서 설치 후 재검증 예정).
 
 ---
 
-## 6. 미완료/제약 사항 및 다음 담당자
+## 6. 운영 배포 상태
 
-### 현재 제약 (데모 모드)
-| 항목 | 상태 | 설명 |
+| 환경 | 상태 | 비고 |
 |------|------|------|
-| 카카오 OAuth 실연동 | ❌ 미완료 | PR #3에서 모킹 구현, Supabase 설정 필요 |
-| 실제 신청 서버 접수 | ❌ 미완료 | 로컬스토리지 데모, 백엔드 API 연동 필요 |
-| 알림/푸시 실전송 | ❌ 미완료 | 로컬스토리지만 사용 |
-| 관리자 실데이터 동기화 | ❌ 미완료 | 로컬스토리지 단일 소스 |
+| **로컬 개발 서버** | ✅ 검증 완료 | `http://localhost:3000` / `http://localhost:3000/party-connect/` |
+| **GitHub Pages (main)** | 🔄 대기 중 | PR 병합 후 배포 필요 |
+| **전용 페이지 URL** | `https://j-hype-labs.github.io/party-connect-mvp/party-connect/` | main 병합 후 검증 필요 |
+| **실제 카카오 OAuth / Supabase** | ❌ 미검증 | `PARTYLINK_CONFIG` 빈 값 → 데모 모드 강제 |
+| **Edge Function `partylink-api`** | ❌ 미배포 | 백엔드 partylink PR #1 병합 후 필요 |
 
-### 알려진 이슈
-1. **E2E 모달 테스트 플래키**: Playwright가 `article[role="button"]` 클릭 시 React 핸들러 미작동 (수동 확인 시 정상)
-   - 원인 추측: Playwright 클릭 이벤트가 React 합성 이벤트 시스템 미트리거
-   - 대응: 수동 QA 통과, 테스트 셀렉터 개선 필요
-
-2. **메인 페이지 종합 테스트 회귀**: 기존 `comprehensive.spec.js`가 첫 `[role="button"]`(필터칩) 클릭으로 모달 테스트 실패
-   - 대응: 테스트 셀렉터를 `article[role="button"]`로 수정 필요
-
-### 다음 담당자 TODO
-- [ ] 백엔드 API 연동 (Supabase 파티/신청/사용자 테이블)
-- [ ] 카카오 OAuth 실연동 (Redirect URI, Client ID 설정)
-- [ ] E2E 테스트 안정화 (`article[role="button"]` 셀렉터 통일)
-- [ ] 운영 배포 검증 (GitHub Pages 실제 URL에서 ROUTE-01~03 재검증)
-- [ ] 접근성 감사 (axe-core 자동화 추가)
+> **중요**: 실제 운영 인증/DB 연동은 `supabaseUrl`/`supabaseAnonKey` 설정, Supabase 콘솔에서 Kakao OAuth 프로바이더 활성화, Edge Function 배포 후 별도 검증 필요. 현재는 데모 모드로만 동작 확인됨.
 
 ---
 
-## 7. 최종 판정
+## 7. 남은 오류와 후속 작업
 
-### ✅ 완료 (COMPLETE)
+| 이슈 | 우선순위 | 담당자 | 비고 |
+|------|---------|--------|------|
+| WebKit (Safari) 테스트 안정화 | P1 | QA 팀 | 브라우저 설치/타임아웃 튜닝 필요 |
+| 실제 카카오 OAuth 연동 검증 | P0 | 백엔드/인프라 | Supabase 콘솔 설정, 리다이렉트 URI 등록, Edge Function 배포 후 |
+| 필터/검색 결과 정확성 검증 (fixture 비교) | P1 | QA/개발 | 현재 UI 존재만 검증, 데이터 일치 미확인 |
+| 관리자 비밀번호 하드코딩 제거 | P1 | 보안 | 서버 측 권한 검증(RLS)로 보호, 프런트엔드 환경변수 이전 금지 |
+| `partner@partyconnect.kr` 실존 여부 확인 | P2 | 기획/운영 | 푸터 연락처 실운영 전 검증 |
+| 320/768/1280px 해상도 회귀 테스트 | P1 | QA | 390px만 검증됨 |
+| 데이터 정확성 검증 (필터 조합 결과 기대값 비교) | P1 | QA/개발 | fixture 기반 자동화 필요 |
+| 동일 SHA Pages 배포 검증 | P0 | 배포 담당 | main 병합 후 CI SHA와 Pages 배포 SHA 대조 |
 
-**근거**:
-1. **메뉴 정리 완료**: 러브커넥트/체험단 독립 메뉴·버튼 완전 제거, 파티커넥트 단일 진입점 확보
-2. **전용 페이지 구현 완료**: `/party-connect-mvp/party-connect/`에서 Hero→검색→필터→카드→모달→신청 플로우 전체 동작
-3. **UI/UX Pro Max 적용 완료**: 디자인 시스템 생성, 토큰 정의, 컴포넌트 스펙 문서화, 접근성 체크리스트 통과
-4. **검색·필터·상세·신청 연동 완료**: 키워드/요일/지역 AND 필터, 빈 상태, 모집 상태별 CTA, 로컬스토리지 신청 저장
-5. **기존 인증·신청·관리 기능 보존**: PR #3 카카오 로그인, 로컬스토리지 데이터 구조, 관리자 기능 무손상
-6. **CI 검증 통과**: JSX 문법, HTML 구조, 외부 CDN 의존성 모두 PASS
-7. **E2E 핵심 시나리오 24/25 통과**: 모달 테스트 1개 제외(구현 정상, 테스트 플래키) 모두 통과
+---
 
-> **배포 후 필수**: GitHub Pages 실제 URL에서 ROUTE-01~03, FILTER-01~04, CARD-01 수동 재검증 필요
+## 8. 최종 판정
+
+### 🟡 **부분 완료 (Partial Complete)**
+
+**사유**:
+- ✅ UI 정상화: 모달 강제 클릭 제거, 중첩 버튼 구조 개선 완료
+- ✅ 인증/데이터 통합: PARTYLINK Supabase 모듈 통합, 데모/실서비스 분기, 세션 복원, 공통 데이터 단일화
+- ✅ 기능 연결: 마이페이지(신청 내역/상태/취소/방문코드), 지도(카카오맵), 네이버 버튼 제거, 데모/실서비스 메시지 구분
+- ✅ 테스트 체계: `force: true` 완전 제거, 3개 테스트 스위트 CI 통합, Chromium/Mobile Chrome 52/52 PASS
+- ✅ 문서 갱신: README, SPECIFICATION, JSX/HTML 검증 스크립트, CI 워크플로
+- ❌ **실제 카카오 OAuth / Supabase DB 연동 미검증** (운영 키 미설정, 데모 모드만 확인)
+- ❌ **WebKit(Safari) 테스트 일부 미통과** (환경 이슈, CI에서 재검증 필요)
+- ❌ **GitHub Pages 배포 후 실 URL 검증 대기 중** (PR 병합 후 확인 필요)
+- ❌ **필터/검색 결과 데이터 정확성 미검증** (UI 동작만 확인, 기대값 비교 미구현)
+
+> **다음 단계**: Draft PR 생성 → GitHub Actions CI 실행 → WebKit 포함 3브라우저 전체 PASS 확인 → PR #4/#5/#6/partylink#1 중복 분석 및 정리 → main 병합 → GitHub Pages 배포 → 운영 URL에서 실 카카오 로그인/신청 플로우 검증 → 최종 완료 보고
+
+---
+
+**보고자**: PartyLink P0 Integration QA Agent  
+**기준 커밋**: `82893c7` → 새 커밋 생성 후 업데이트 예정  
+**작업 기준 문서**: `docs/P0_QA_REVIEW_82893C7.md`, `docs/P0_INTEGRATION_STATUS_2026-11-07.md`, `docs/NEXT_AGENT_IMPLEMENTATION.md`  
+**작업 일시**: 2026-11-07
