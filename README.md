@@ -1,6 +1,14 @@
 # Party Connect (파티커넥트) MVP
 
-🔗 **라이브 데모:** https://j-hype-labs.github.io/party-connect-mvp/
+🔗 **현재 운영 중인 기존 데모:** https://j-hype-labs.github.io/party-connect-mvp/
+
+> **2026-11-07 최신 개발 상태:** 신규 PartyConnect 전용 페이지와 카카오/DB 통합은 각각 미병합 PR에서 진행 중입니다. 아래 2026-11-05 P0 PASS 표는 당시 **기존 main** 기준이며 신규 전용 페이지나 실제 카카오/Supabase 운영 검증을 의미하지 않습니다.
+>
+> - [P0 통합 상태·검증 근거](docs/P0_INTEGRATION_STATUS_2026-11-07.md)
+> - **[최신 `82893c7` 통합 코드 감사 / 차단 결함](docs/P0_QA_REVIEW_82893C7.md)**
+> - [후속 에이전트 실행 계약](docs/NEXT_AGENT_IMPLEMENTATION.md)
+> - [전용 UI 구현 PR #4](https://github.com/J-Hype-Labs/party-connect-mvp/pull/4) / [인증·API PR #5](https://github.com/J-Hype-Labs/party-connect-mvp/pull/5) / [QA PR #6](https://github.com/J-Hype-Labs/party-connect-mvp/pull/6)
+
 
 [lumiconnect.cloud](https://www.lumiconnect.cloud) 서비스를 벤치마킹하여 제작한 2030 오프라인 소셜링 파티 & 혼술바 예약 플랫폼 MVP입니다.
 
@@ -14,7 +22,7 @@
   - 찜하기 (❤️ 하트 토글 및 토스트 알림) — `localStorage`에 저장되어 새로고침 후에도 유지
   - 파티 상세 모달 (일정·정원·주소·남은 자리, 이미지 갤러리)
   - 무료 체험단 신청 폼 (이름·연락처·요일·개인정보 동의, 유효성 검사, 접수 완료 화면)
-- **후기**: 검증된 실제후기 그리드, 전체보기/접기 토글
+- **후기**: 후기 UI 그리드, 전체보기/접기 토글 (실제 사용자 후기 여부는 출처 확인 필요)
 - **접근성/UX**: ESC·배경 클릭으로 모달 닫기, 모달 열림 시 스크롤 잠금, ARIA 속성, 키보드 탐색
 - **반응형 디자인**: 모바일 및 데스크톱 맞춤형 UI/UX (Pretendard 폰트 + Tailwind CSS)
 
