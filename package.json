@@ -8,7 +8,8 @@
     "validate:html": "node scripts/validate-html.js",
     "test:unit": "node scripts/validate-all.js",
     "test:e2e": "playwright test",
-    "test:e2e:full": "npx playwright test tests/comprehensive.spec.js --reporter=html"
+    "test:e2e:full": "npx playwright test tests/comprehensive.spec.js --reporter=html",
+    "test:party-connect": "npx playwright test tests/party-connect-page.spec.js --reporter=list"
   },
   "devDependencies": {
     "@babel/parser": "^7.23.0",

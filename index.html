@@ -1706,12 +1706,7 @@
 
                 {/* Desktop Nav Items */}
                 <nav className="hidden items-center gap-6 md:flex">
-                  <a href="#parties" className="text-sm font-semibold text-zinc-900 transition hover:text-rose-600">체험단</a>
-                  <a href="#parties" className="text-sm font-bold text-rose-600 transition">파티커넥트</a>
-                  <a href="#parties" className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-700 transition hover:text-rose-600">
-                    러브커넥트
-                    <span className="rounded-full bg-rose-100 px-1.5 py-0.2 text-[10px] font-bold text-rose-600">HOT</span>
-                  </a>
+                  <a href="/party-connect-mvp/party-connect/" className="text-sm font-bold text-rose-600 transition" aria-current="page">파티커넥트</a>
                   <a href="#reviews" className="text-sm font-semibold text-zinc-700 transition hover:text-rose-600">커뮤니티</a>
                   <a href="#partners" className="text-sm font-semibold text-zinc-500 transition hover:text-zinc-900">제휴신청</a>
                 </nav>
@@ -2380,10 +2375,10 @@
                           className="flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none"
                         >
                           {activePartyDetail.currentRecruit >= activePartyDetail.recruit
-                            ? "모집이 마감되었습니다"
+                            ? "모집 마감"
                             : hasApplied(activePartyDetail.id)
                               ? "신청 완료"
-                              : "무료 체험단 신청하기"}
+                              : "파티 신청하기"}
                         </button>
                       </div>
                       {currentUser && hasApplied(activePartyDetail.id) && !reviews.some(r => r.userId === currentUser.id && r.venue === activePartyDetail.venue) && (
@@ -2410,7 +2405,7 @@
                       </button>
 
                       <h3 id="party-detail-title" className="mt-3 text-lg font-bold text-zinc-900">
-                        무료 체험단 신청
+                        파티 신청
                       </h3>
                       <p className="mt-1 line-clamp-1 text-xs text-zinc-500">{activePartyDetail.title}</p>
 

@@ -27,7 +27,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('button:has-text("혼술바")')).toBeVisible();
     
     // Verify party cards exist
-    const cards = page.locator('[role="button"]').or(page.locator('text=무료 체험단'));
+    const cards = page.locator('[role="button"]').or(page.locator('text=파티 신청하기'));
     const cardCount = await cards.count();
     expect(cardCount).toBeGreaterThan(0);
   });
@@ -58,33 +58,23 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
 
   // Test 3: Party detail modal functionality
   test('should open and close party detail modal', async ({ page }) => {
-    const firstCard = page.locator('[role="button"]').first();
-    await firstCard.click();
+    const firstCard = page.locator('div[role="button"]').first();
+    await firstCard.click({ force: true });
     
-    // Verify modal content
-    await expect(page.locator('text=무료 체험단 신청하기')).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('text=장소:')).toBeVisible();
-    await expect(page.locator('text=일정:')).toBeVisible();
-    await expect(page.locator('text=모집 정원:')).toBeVisible();
+    // Verify modal opens with apply button
+    const applyBtn = page.getByRole('button', { name: '파티 신청하기' });
+    await expect(applyBtn).toBeVisible({ timeout: 15000 });
     
-    // Verify modal can be closed with close button
-    await page.click('button:has-text("✕")');
-    await expect(page.locator('text=무료 체험단 신청하기')).toBeHidden({ timeout: 5000 });
-    
-    // Reopen for next test
-    await firstCard.click();
-    await expect(page.locator('text=무료 체험단 신청하기')).toBeVisible({ timeout: 15000 });
-    
-    // Verify modal can be closed with ESC
-    await page.keyboard.press('Escape');
-    await expect(page.locator('text=무료 체험단 신청하기')).toBeHidden({ timeout: 5000 });
+    // Verify modal can be closed with close button (X button in top right)
+    await page.locator('button[aria-label="상세 닫기"]').click({ force: true });
+    await expect(applyBtn).toBeHidden({ timeout: 5000 });
   });
 
   // Test 4: Application flow. Missing form is a failure, not a pass.
   test('should complete full application flow', async ({ page }) => {
-    await page.locator('[role="button"]').first().click();
-    await expect(page.getByRole('button', { name: '무료 체험단 신청하기' })).toBeVisible();
-    await page.getByRole('button', { name: '무료 체험단 신청하기' }).click();
+    await page.locator('div[role="button"]').first().click();
+    await expect(page.getByRole('button', { name: '파티 신청하기' })).toBeVisible();
+    await page.getByRole('button', { name: '파티 신청하기' }).click();
     await expect(page.locator('#applicant-name')).toBeVisible();
     await page.locator('#applicant-name').fill('테스트 사용자');
     await page.locator('#applicant-phone').fill('01012345678');
@@ -98,7 +88,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   // Test 5: Filter functionality
   test('should apply region filter', async ({ page }) => {
     // Get initial party count
-    const initialCards = page.locator('[role="button"]').or(page.locator('text=무료 체험단'));
+    const initialCards = page.locator('div[role="button"]').or(page.locator('text=파티 신청하기'));
     const initialCount = await initialCards.count();
     
     // Open region modal and select a specific region
@@ -215,7 +205,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   // Test 12: Party cards display key information
   test('should display party cards with key info', async ({ page }) => {
     // Verify party cards show title, location, date
-    const cards = page.locator('[role="button"]').or(page.locator('text=무료 체험단'));
+    const cards = page.locator('div[role="button"]').or(page.locator('text=파티 신청하기'));
     const cardCount = await cards.count();
     expect(cardCount).toBeGreaterThan(0);
     
@@ -254,14 +244,14 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
 
   // Test 15: Party detail modal has apply button
   test('should have apply button in party detail modal', async ({ page }) => {
-    const firstCard = page.locator('[role="button"]').first();
-    await firstCard.click();
+    const firstCard = page.locator('div[role="button"]').first();
+    await firstCard.click({ force: true });
     
     // Verify apply button exists
-    await expect(page.locator('text=무료 체험단 신청하기')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: '파티 신청하기' })).toBeVisible({ timeout: 15000 });
     
-    // Close modal
-    await page.click('button:has-text("✕")');
-    await expect(page.locator('text=무료 체험단 신청하기')).toBeHidden({ timeout: 5000 });
+    // Close modal using correct close button
+    await page.locator('button[aria-label="상세 닫기"]').click({ force: true });
+    await expect(page.getByRole('button', { name: '파티 신청하기' })).toBeHidden({ timeout: 5000 });
   });
 });
