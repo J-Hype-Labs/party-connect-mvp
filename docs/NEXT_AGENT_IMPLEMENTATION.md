@@ -1,5 +1,8 @@
 # 후속 에이전트 실행 지시: PartyConnect P0 통합/QA/배포
 
+> **2026-11-07 02:14 KST 추가 필독:** [커밋 82893c7 코드 감사 및 차단 결함](./P0_QA_REVIEW_82893C7.md). 이후 작성된 이 감사에서 발견된 운영 모드 `setParties` 미정의, 서버 데이터 미표시, `provider` 미정의, `openMap` 미정의, force 테스트 잔존, 통합 브랜치 PR/CI 부재를 **가장 우선해 해결**한다. 현재 `fix/p0-integration-qa` 코드는 완료 판정 불가.
+
+
 > **먼저 읽기:** [P0 통합 감사](./P0_INTEGRATION_STATUS_2026-11-07.md), `SPECIFICATION.md`, PR #4의 `PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md`, PR #5, #6, `J-Hype-Labs/partylink` PR #1. 이 문서는 **작업 계약**이다. 실제 상태는 최신 원격 GitHub 재조회로 판단.
 
 ## 임무
