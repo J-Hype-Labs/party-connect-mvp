@@ -50,6 +50,21 @@
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
+  <!-- Supabase (카카오 로그인 + PartyLink DB 연동) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script>
+    // PartyLink 연동 설정 — 두 값을 비워 두면 기존 데모 모드(localStorage)로 동작합니다.
+    //   supabaseUrl     : Supabase 대시보드 → Project Settings → API 의 Project URL
+    //   supabaseAnonKey : 같은 화면의 anon(또는 publishable) 키. 공개돼도 되는 키입니다.
+    //                     ⚠️ service_role / secret 키는 절대 넣지 마세요.
+    // 실서비스 모드 조건: 두 값이 있고, localhost 가 아니거나 주소에 ?live=1 이 있을 때
+    //   (로컬/CI 테스트는 데모 모드 유지, ?demo=1 로 배포 사이트에서도 데모 강제 가능)
+    window.PARTYLINK_CONFIG = {
+      supabaseUrl: "",
+      supabaseAnonKey: "",
+    };
+  </script>
+
   <style>
     /* ===== 2.1 Color System (Design Tokens) ===== */
     :root {
@@ -454,6 +469,77 @@
       return REVIEWS;
     };
 
+    // --- PartyLink 연동 (카카오 로그인 + Edge Function API) ---
+    const PARTYLINK = (() => {
+      const cfg = window.PARTYLINK_CONFIG || {};
+      const params = new URLSearchParams(window.location.search);
+      const isLocal = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+      const configured = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase);
+      const live = configured && params.get("demo") !== "1" && (!isLocal || params.get("live") === "1");
+      // PKCE: 로그인 후 주소에 토큰 대신 1회용 code 가 붙고, 브라우저가 가진 verifier 로만 교환할 수 있어 더 안전합니다.
+      const client = live
+        ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+            auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+          })
+        : null;
+
+      // Edge Function 호출. 로그인 상태면 사용자 토큰, 아니면 anon 키로 호출
+      async function api(path, { method = "GET", body } = {}) {
+        const { data } = await client.auth.getSession();
+        const token = data.session ? data.session.access_token : cfg.supabaseAnonKey;
+        let res;
+        try {
+          res = await fetch(`${cfg.supabaseUrl}/functions/v1/partylink-api/${path}`, {
+            method,
+            headers: {
+              "Content-Type": "application/json",
+              apikey: cfg.supabaseAnonKey,
+              Authorization: `Bearer ${token}`,
+            },
+            body: body ? JSON.stringify(body) : undefined,
+          });
+        } catch (e) {
+          throw new Error("서버에 연결하지 못했습니다. 네트워크를 확인해 주세요.");
+        }
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const err = new Error(json.message || "요청을 처리하지 못했습니다.");
+          err.status = res.status;
+          err.code = json.code;
+          throw err;
+        }
+        return json;
+      }
+
+      // Supabase Auth 사용자 → 기존 화면에서 쓰던 currentUser 형태
+      function toAppUser(u) {
+        if (!u) return null;
+        const meta = u.user_metadata || {};
+        return {
+          id: u.id,
+          name: meta.name || meta.full_name || meta.nickname || meta.preferred_username || "카카오유저",
+          avatar: "🟡",
+          email: u.email || null,
+          provider: (u.app_metadata && u.app_metadata.provider) || "kakao",
+          joinedAt: u.created_at,
+          preferences: { regions: [], categories: [] },
+        };
+      }
+
+      return { live, client, api, toAppUser };
+    })();
+
+    const APPLICATION_STATUS_LABELS = {
+      APPLIED: { label: "선정 대기", className: "bg-zinc-100 text-zinc-700" },
+      APPROVED: { label: "선정 · 방문 확정", className: "bg-emerald-50 text-emerald-700" },
+      VISITED: { label: "방문 인증 완료", className: "bg-sky-50 text-sky-700" },
+      MISSION_SUBMITTED: { label: "미션 검수 중", className: "bg-amber-50 text-amber-700" },
+      COMPLETED: { label: "체험 완료", className: "bg-emerald-50 text-emerald-700" },
+      NOSHOW: { label: "노쇼", className: "bg-rose-50 text-rose-700" },
+      REJECTED: { label: "미선정", className: "bg-zinc-100 text-zinc-500" },
+      CANCELLED: { label: "취소됨", className: "bg-zinc-100 text-zinc-500" },
+    };
+
     // --- Main Application Component ---
     function App() {
       // Filter states
@@ -472,13 +558,14 @@
       });
 
       // 파티 리스트 — persisted in localStorage (관리자 관리 가능)
-      const [parties, setParties] = useState(() => loadInitialParties());
+      const [parties, setParties] = useState(() => (PARTYLINK.live ? [] : loadInitialParties()));
 
       // 후기 리스트 — persisted in localStorage (관리자 관리 가능)
       const [reviews, setReviews] = useState(() => loadInitialReviews());
 
       // 체험단 신청 내역 — persisted in localStorage
       const [applications, setApplications] = useState(() => {
+        if (PARTYLINK.live) return [];
         try {
           const saved = JSON.parse(localStorage.getItem("partyconnect:applications") || "[]");
           return Array.isArray(saved) ? saved : [];
@@ -500,6 +587,7 @@
       const [applyStep, setApplyStep] = useState("detail");
       const [applyForm, setApplyForm] = useState({ name: "", phone: "", day: "", agree: false });
       const [applyError, setApplyError] = useState("");
+      const [applySubmitting, setApplySubmitting] = useState(false);
 
       // Reviews "전체보기" toggle
       const [showAllReviews, setShowAllReviews] = useState(false);
@@ -543,6 +631,7 @@
       // ===== Phase 2: User & Social Features State =====
       // User authentication
       const [currentUser, setCurrentUser] = useState(() => {
+        if (PARTYLINK.live) return null; // 세션은 Supabase Auth 에서 복원
         try {
           const saved = JSON.parse(localStorage.getItem("partyconnect:user") || "null");
           return saved;
@@ -551,7 +640,7 @@
         }
       });
       const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-      const [loginMethod, setLoginMethod] = useState(null); // 'kakao', 'naver', 'email'
+      const [loginMethod, setLoginMethod] = useState(null); // 'kakao', 'email'
 
       // Notifications
       const [notifications, setNotifications] = useState(() => {
@@ -610,6 +699,7 @@
       }, [wishlist]);
 
       useEffect(() => {
+        if (PARTYLINK.live) return; // 실서비스 모드: 신청 내역은 DB 가 원본
         try {
           localStorage.setItem("partyconnect:applications", JSON.stringify(applications));
         } catch (e) {}
@@ -617,6 +707,7 @@
 
       // Persist parties & reviews (localStorage)
       useEffect(() => {
+        if (PARTYLINK.live) return; // 실서비스 모드: 파티 목록은 DB 가 원본
         try {
           localStorage.setItem(STORAGE_KEYS.parties, JSON.stringify(parties));
         } catch (e) {}
@@ -713,6 +804,26 @@
           return;
         }
 
+        if (PARTYLINK.live) {
+          if (!currentUser) {
+            setApplyError("카카오 로그인 후 신청할 수 있어요.");
+            openLoginModal();
+            return;
+          }
+          if (applySubmitting) return;
+          setApplySubmitting(true);
+          setApplyError("");
+          PARTYLINK.api("applications", {
+            method: "POST",
+            body: { slotId: activePartyDetail.id, name, phone, agree: true },
+          })
+            .then(() => Promise.all([refreshMyApplications(), refreshParties()]))
+            .then(() => setApplyStep("done"))
+            .catch((err) => setApplyError(err.message))
+            .finally(() => setApplySubmitting(false));
+          return;
+        }
+
         const application = {
           id: activePartyDetail.id + "-" + Date.now(),
           partyId: activePartyDetail.id,
@@ -722,6 +833,7 @@
           name,
           phone,
           appliedAt: new Date().toISOString(),
+          userId: currentUser ? currentUser.id : null,
         };
 
         setApplications((prev) => [application, ...prev]);
@@ -797,7 +909,7 @@
           }
           return true;
         });
-      }, [selectedRegion, selectedDay, selectedCategory]);
+      }, [parties, selectedRegion, selectedDay, selectedCategory]);
 
       // 참여 가능한(잔여석이 있는) 파티 수 — 실시간 동기화
       const availableCount = useMemo(
@@ -956,12 +1068,89 @@
 
       // ===== Phase 2: User & Social Functions =====
       // User auth
-      const handleSocialLogin = (provider) => {
+      // 실서비스 모드: 파티 목록 / 내 신청 내역 불러오기
+      const refreshParties = async () => {
+        if (!PARTYLINK.live) return;
+        try {
+          setParties(await PARTYLINK.api("parties"));
+        } catch (err) {
+          showToast(err.message);
+        }
+      };
+
+      const refreshMyApplications = async () => {
+        if (!PARTYLINK.live) return;
+        try {
+          setApplications(await PARTYLINK.api("applications"));
+        } catch (err) {
+          if (err.status !== 401) showToast(err.message);
+        }
+      };
+
+      // 실서비스 모드: Supabase Auth 세션 복원 + 카카오 로그인 완료 처리
+      useEffect(() => {
+        if (!PARTYLINK.live) return;
+        refreshParties();
+        PARTYLINK.client.auth.getSession().then(({ data }) => {
+          setCurrentUser(PARTYLINK.toAppUser(data.session ? data.session.user : null));
+        });
+        const { data: sub } = PARTYLINK.client.auth.onAuthStateChange((event, session) => {
+          setCurrentUser(PARTYLINK.toAppUser(session ? session.user : null));
+          let pending = false;
+          try {
+            pending = sessionStorage.getItem("partylink:loginPending") === "1";
+            sessionStorage.removeItem("partylink:loginPending");
+          } catch (e) {}
+          if (event === "SIGNED_IN" && pending) {
+            showToast("카카오 로그인 완료");
+            addNotification({
+              type: "welcome",
+              title: "환영합니다!",
+              message: "파티커넥트 멤버가 되신 것을 환영합니다.",
+              read: false,
+            });
+          }
+        });
+        return () => sub.subscription.unsubscribe();
+      }, []);
+
+      const currentUserId = currentUser ? currentUser.id : null;
+      useEffect(() => {
+        if (!PARTYLINK.live) return;
+        if (!currentUserId) {
+          setApplications([]);
+          return;
+        }
+        refreshMyApplications();
+      }, [currentUserId]);
+
+      const handleMyApplicationCancel = (app) => {
+        if (!window.confirm(`"${app.partyTitle}" 신청을 취소하시겠습니까?`)) return;
+        PARTYLINK.api(`applications/${app.id}/cancel`, { method: "POST" })
+          .then(() => Promise.all([refreshMyApplications(), refreshParties()]))
+          .then(() => showToast("신청이 취소되었습니다."))
+          .catch((err) => showToast(err.message));
+      };
+
+      // 소셜 로그인은 카카오만 지원합니다.
+      const handleSocialLogin = () => {
+        if (PARTYLINK.live) {
+          try { sessionStorage.setItem("partylink:loginPending", "1"); } catch (e) {}
+          PARTYLINK.client.auth
+            .signInWithOAuth({
+              provider: "kakao",
+              options: { redirectTo: window.location.origin + window.location.pathname + window.location.search }, // ?live=1 등 유지
+            })
+            .then(({ error }) => {
+              if (error) showToast("카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+            });
+          return;
+        }
         const mockUser = {
           id: `user_${Date.now()}`,
-          name: provider === 'kakao' ? '카카오유저' : '네이버유저',
-          avatar: provider === 'kakao' ? '🟡' : '🟢',
-          provider,
+          name: '카카오유저',
+          avatar: '🟡',
+          provider: 'kakao',
           joinedAt: new Date().toISOString(),
           preferences: { regions: [], categories: [] }
         };
@@ -969,7 +1158,7 @@
         localStorage.setItem("partyconnect:user", JSON.stringify(mockUser));
         setIsLoginModalOpen(false);
         setLoginMethod(null);
-        showToast(`${provider === 'kakao' ? '카카오' : '네이버'} 로그인 완료`);
+        showToast("카카오 로그인 완료");
         addNotification({
           type: 'welcome',
           title: '환영합니다!',
@@ -979,6 +1168,10 @@
       };
 
       const handleLogout = () => {
+        if (PARTYLINK.live) {
+          PARTYLINK.client.auth.signOut();
+          setApplications([]);
+        }
         setCurrentUser(null);
         localStorage.removeItem("partyconnect:user");
         showToast("로그아웃 되었습니다.");
@@ -1088,6 +1281,7 @@
 
       // Persist user
       useEffect(() => {
+        if (PARTYLINK.live) return; // 실서비스 모드: 세션은 Supabase Auth 가 관리
         if (currentUser) {
           localStorage.setItem("partyconnect:user", JSON.stringify(currentUser));
         }
@@ -1388,6 +1582,11 @@
       const AdminApplicationsTab = ({ applications, handleApplicationDelete }) => (
         <div className="space-y-4">
           <h4 className="text-sm font-bold text-zinc-900">체험단 신청 관리 ({applications.length}건)</h4>
+          {PARTYLINK.live && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-700">
+              실서비스 모드에서는 실제 신청이 Supabase DB 에 저장됩니다. 아래 목록은 현재 로그인한 계정의 신청만 보여 주며, 전체 신청 관리는 Supabase 대시보드에서 해 주세요.
+            </p>
+          )}
           <div className="rounded-xl border border-zinc-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -2374,7 +2573,15 @@
                             hasApplied(activePartyDetail.id)
                           }
                           onClick={() => {
+                            if (PARTYLINK.live && !currentUser) {
+                              showToast("카카오 로그인 후 신청할 수 있어요.");
+                              openLoginModal();
+                              return;
+                            }
                             setApplyError("");
+                            if (currentUser && !applyForm.name) {
+                              setApplyForm((prev) => ({ ...prev, name: currentUser.name === "카카오유저" ? "" : currentUser.name }));
+                            }
                             setApplyStep("form");
                           }}
                           className="flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none"
@@ -2383,7 +2590,9 @@
                             ? "모집이 마감되었습니다"
                             : hasApplied(activePartyDetail.id)
                               ? "신청 완료"
-                              : "무료 체험단 신청하기"}
+                              : PARTYLINK.live && !currentUser
+                                ? "카카오 로그인 후 신청하기"
+                                : "무료 체험단 신청하기"}
                         </button>
                       </div>
                       {currentUser && hasApplied(activePartyDetail.id) && !reviews.some(r => r.userId === currentUser.id && r.venue === activePartyDetail.venue) && (
@@ -2483,9 +2692,10 @@
 
                       <button
                         type="submit"
-                        className="mt-5 w-full rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md transition hover:bg-rose-700"
+                        disabled={applySubmitting}
+                        className="mt-5 w-full rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md transition hover:bg-rose-700 disabled:cursor-wait disabled:bg-rose-300"
                       >
-                        신청 접수하기
+                        {applySubmitting ? "접수 중..." : "신청 접수하기"}
                       </button>
                     </form>
                   )}
@@ -2718,18 +2928,11 @@
                     <div className="space-y-3">
                       <p className="text-center text-xs text-zinc-500 mb-4">간편 로그인으로 시작하세요</p>
                       <button
-                        onClick={() => handleSocialLogin('kakao')}
+                        onClick={() => handleSocialLogin()}
                         className="w-full flex items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 hover:bg-zinc-50 transition"
                       >
                         <span className="text-2xl">🟡</span>
                         <span className="font-semibold text-zinc-900">카카오로 계속하기</span>
-                      </button>
-                      <button
-                        onClick={() => handleSocialLogin('naver')}
-                        className="w-full flex items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 hover:bg-zinc-50 transition"
-                      >
-                        <span className="text-2xl">🟢</span>
-                        <span className="font-semibold text-zinc-900">네이버로 계속하기</span>
                       </button>
                       <div className="relative my-4">
                         <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-zinc-200" /></div>
@@ -2947,9 +3150,33 @@
                       ) : (
                         applications.filter(a => a.userId === currentUser.id).map((app) => (
                           <div key={app.id} className="rounded-lg border border-zinc-200 p-3">
-                            <p className="font-semibold text-zinc-900">{app.partyTitle}</p>
-                            <p className="text-xs text-zinc-500">{app.venue} · {app.day}요일</p>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-semibold text-zinc-900">{app.partyTitle}</p>
+                              {app.status && APPLICATION_STATUS_LABELS[app.status] && (
+                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${APPLICATION_STATUS_LABELS[app.status].className}`}>
+                                  {APPLICATION_STATUS_LABELS[app.status].label}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-zinc-500">
+                              {app.venue} · {app.startsAt ? new Date(app.startsAt).toLocaleString("ko-KR", { month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" }) : `${app.day}요일`}
+                            </p>
                             <p className="text-xs text-zinc-400 mt-1">신청일: {new Date(app.appliedAt).toLocaleString()}</p>
+                            {app.visitCode && (
+                              <div className="mt-2 rounded-lg bg-emerald-50 px-3 py-2">
+                                <p className="text-[10px] font-semibold text-emerald-700">방문 코드 — 매장에서 보여 주세요</p>
+                                <p className="font-mono text-base font-bold tracking-[0.2em] text-emerald-800">{app.visitCode}</p>
+                              </div>
+                            )}
+                            {PARTYLINK.live && (app.status === "APPLIED" || app.status === "APPROVED") && (
+                              <button
+                                type="button"
+                                onClick={() => handleMyApplicationCancel(app)}
+                                className="mt-2 text-[11px] font-semibold text-zinc-500 underline hover:text-rose-600"
+                              >
+                                신청 취소
+                              </button>
+                            )}
                           </div>
                         ))
                       )}

@@ -24,6 +24,18 @@
 - **Deployment**: GitHub Pages (main 브랜치 push 시 자동 배포)
 - **CI/CD**: GitHub Actions (JSX 문법 검증, HTML 구조 검증, 외부 의존성 검증, 배포 검증, Playwright E2E)
 
+## 🔐 카카오 로그인 + DB 연동 (실서비스 모드)
+`index.html`의 `window.PARTYLINK_CONFIG`에 Supabase URL과 anon 키를 넣으면, 배포 사이트에서 다음 기능이 실제 DB로 동작합니다.
+
+- 카카오 로그인 (Supabase Auth)
+- 파티 목록, 체험단 신청·취소, 마이페이지 신청 내역(선정 상태·방문 코드)
+
+API는 [J-Hype-Labs/partylink](https://github.com/J-Hype-Labs/partylink)의 `partylink-api` Edge Function을 사용합니다. 설정 방법은 그 저장소의 `docs/party-connect-integration.md`를 참고하세요.
+
+- 값이 비어 있거나 `localhost`에서 열면 **데모 모드**(기존 localStorage 동작)로 실행됩니다. CI E2E 테스트도 데모 모드로 돌아갑니다.
+- 로컬에서 실서비스 모드를 테스트하려면 `http://localhost:3000/?live=1`로 여세요.
+- ⚠️ `service_role` 키는 절대 `index.html`에 넣지 마세요. anon(publishable) 키만 사용합니다.
+
 ## 🚀 로컬 실행 방법
 ```bash
 # 로컬 파이썬 웹서버 실행
