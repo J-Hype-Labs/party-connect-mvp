@@ -343,7 +343,8 @@
             })
             .then(({ error }) => {
               if (error) showToast("카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
-            });
+            })
+            .catch(() => showToast("로그인 서버에 연결하지 못했습니다. 다시 시도해 주세요."));
           return;
         }
         if (provider !== 'kakao') {
@@ -365,12 +366,15 @@
       };
 
       const handleLogout = () => {
+        setIsMyPageOpen(false);
         if (live) {
-          client.auth.signOut();
+          client.auth.signOut()
+            .then(({ error }) => { if (error) showToast('로그아웃 처리에 실패했습니다. 다시 시도해 주세요.'); })
+            .catch(() => showToast('로그아웃 서버에 연결하지 못했습니다.'));
           setApplications([]);
         }
         setCurrentUser(null);
-        localStorage.removeItem('partyconnect:user');
+        if (!live) localStorage.removeItem('partyconnect:user');
         showToast('로그아웃 되었습니다.');
       };
 
@@ -920,7 +924,7 @@
               <h2 id="partners-title" className="text-xl font-bold text-zinc-900 text-center mb-3">제휴 및 입점 문의</h2>
               <p className="text-center text-zinc-600 mb-6 max-w-xl mx-auto">파티커넥트와 함께 성장할 파트너를 기다립니다. 제휴 제안, 입점 문의는 아래 채널로 연락주세요.</p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <a href="/party-connect-mvp/#partners" className="w-full sm:w-auto px-6 py-3 text-sm font-bold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition text-center min-h-[48px]">제휴 신청하기</a>
+                <a href="../#partners" className="w-full sm:w-auto px-6 py-3 text-sm font-bold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition text-center min-h-[48px]">제휴 신청하기</a>
                 <a href="mailto:partner@partyconnect.kr" className="w-full sm:w-auto px-6 py-3 text-sm font-bold text-zinc-700 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition text-center min-h-[48px]">이메일 문의</a>
               </div>
             </section>
