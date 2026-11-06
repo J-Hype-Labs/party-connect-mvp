@@ -365,14 +365,18 @@
         addNotification({ type: 'welcome', title: '환영합니다!', message: '파티커넥트 멤버가 되신 것을 환영합니다.', read: false });
       };
 
-      const handleLogout = () => {
-        setIsMyPageOpen(false);
+      const handleLogout = async () => {
         if (live) {
-          client.auth.signOut()
-            .then(({ error }) => { if (error) showToast('로그아웃 처리에 실패했습니다. 다시 시도해 주세요.'); })
-            .catch(() => showToast('로그아웃 서버에 연결하지 못했습니다.'));
-          setApplications([]);
+          try {
+            const { error } = await client.auth.signOut();
+            if (error) throw error;
+            setApplications([]);
+          } catch (error) {
+            showToast('로그아웃 처리에 실패했습니다. 다시 시도해 주세요.');
+            return;
+          }
         }
+        setIsMyPageOpen(false);
         setCurrentUser(null);
         if (!live) localStorage.removeItem('partyconnect:user');
         showToast('로그아웃 되었습니다.');
