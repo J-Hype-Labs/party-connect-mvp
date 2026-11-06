@@ -31,11 +31,10 @@ function validateJSX(jsxCode) {
   }
 }
 
-function main() {
-  const htmlPath = path.join(__dirname, '..', 'index.html');
+function validateFile(htmlPath) {
   const html = fs.readFileSync(htmlPath, 'utf-8');
   
-  console.log('Extracting JSX from index.html...');
+  console.log(`Extracting JSX from ${path.basename(htmlPath)}...`);
   const jsxCode = extractJSXFromHTML(html);
   console.log(`Extracted ${jsxCode.length} characters of JSX code`);
   
@@ -43,13 +42,34 @@ function main() {
   const result = validateJSX(jsxCode);
   
   if (result.valid) {
-    console.log('✅ JSX syntax validation PASSED');
-    process.exit(0);
+    console.log(`✅ JSX syntax validation PASSED for ${path.basename(htmlPath)}`);
+    return true;
   } else {
-    console.error('❌ JSX syntax validation FAILED');
+    console.error(`❌ JSX syntax validation FAILED for ${path.basename(htmlPath)}`);
     result.errors.forEach(err => {
       console.error(`  Line ${err.line}, Column ${err.column}: ${err.message}`);
     });
+    return false;
+  }
+}
+
+function main() {
+  const files = [
+    path.join(__dirname, '..', 'index.html'),
+    path.join(__dirname, '..', 'party-connect', 'index.html')
+  ];
+  
+  let allPassed = true;
+  for (const file of files) {
+    const passed = validateFile(file);
+    if (!passed) allPassed = false;
+  }
+  
+  if (allPassed) {
+    console.log('\n✅ All JSX syntax validations PASSED');
+    process.exit(0);
+  } else {
+    console.error('\n❌ Some JSX syntax validations FAILED');
     process.exit(1);
   }
 }

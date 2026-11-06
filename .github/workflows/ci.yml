@@ -74,7 +74,7 @@ jobs:
           echo "Deployment config check passed"
 
   test-e2e:
-    name: E2E Browser Tests (Chromium)
+    name: E2E Browser Tests (Chromium, Mobile Chrome, WebKit)
     runs-on: ubuntu-latest
     needs: validate
     steps:
@@ -107,8 +107,22 @@ jobs:
             sleep 2
           done
 
+      - name: Verify standalone party route on local server
+        run: |
+          curl -fsS http://localhost:3000/party-connect/ | grep -q 'id="root"'
+
       - name: Run comprehensive E2E tests
-        run: npm run test:e2e:full
+        run: npx playwright test tests/comprehensive.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: Run party-connect page E2E tests
+        run: npx playwright test tests/party-connect-page.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: Run user journey regression E2E tests
+        run: npx playwright test tests/user-journey-regression.spec.js --reporter=list
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
