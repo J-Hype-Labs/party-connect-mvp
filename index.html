@@ -529,14 +529,14 @@
 
       useEffect(() => {
         try {
-          localStorage.setItem("partyconnect:applications", JSON.stringify(applications));
+          if (!live) localStorage.setItem("partyconnect:applications", JSON.stringify(applications));
         } catch (e) {}
       }, [applications]);
 
       // Persist parties & reviews (localStorage)
       useEffect(() => {
         try {
-          localStorage.setItem(STORAGE_KEYS.parties, JSON.stringify(parties));
+          if (!live) localStorage.setItem(STORAGE_KEYS.parties, JSON.stringify(parties));
         } catch (e) {}
       }, [parties]);
 
@@ -604,7 +604,10 @@
         setApplyError("");
       };
 
-      const hasApplied = (partyId) => applications.some((a) => a.partyId === partyId);
+      const hasApplied = (partyId) => applications.some((a) =>
+        a.partyId === partyId && !["CANCELLED", "REJECTED"].includes(String(a.status || "APPLIED").toUpperCase()) &&
+        (!live || (currentUser && a.userId === currentUser.id))
+      );
 
       // Submit free trial application
       const submitApplication = (e) => {
@@ -660,6 +663,7 @@
           name,
           phone,
           appliedAt: new Date().toISOString(),
+          status: "APPLIED",
           userId: currentUser ? currentUser.id : null,
         };
 
@@ -1108,7 +1112,7 @@
 
       // Persist user
       useEffect(() => {
-        if (currentUser) {
+        if (!live && currentUser) {
           localStorage.setItem("partyconnect:user", JSON.stringify(currentUser));
         }
       }, [currentUser]);
