@@ -5,6 +5,7 @@
 > **2026-11-07 최신 개발 상태:** 신규 PartyConnect 전용 페이지와 카카오/DB 통합은 각각 미병합 PR에서 진행 중입니다. 아래 2026-11-05 P0 PASS 표는 당시 **기존 main** 기준이며 신규 전용 페이지나 실제 카카오/Supabase 운영 검증을 의미하지 않습니다.
 >
 > - [P0 통합 상태·검증 근거](docs/P0_INTEGRATION_STATUS_2026-11-07.md)
+> - **[최신 `82893c7` 통합 코드 감사 / 차단 결함](docs/P0_QA_REVIEW_82893C7.md)**
 > - [후속 에이전트 실행 계약](docs/NEXT_AGENT_IMPLEMENTATION.md)
 > - [전용 UI 구현 PR #4](https://github.com/J-Hype-Labs/party-connect-mvp/pull/4) / [인증·API PR #5](https://github.com/J-Hype-Labs/party-connect-mvp/pull/5) / [QA PR #6](https://github.com/J-Hype-Labs/party-connect-mvp/pull/6)
 
