@@ -30,20 +30,22 @@ test.describe('PartyConnect Page - Dedicated Party Discovery', () => {
   });
 
   test('should display party cards', async ({ page }) => {
-    await expect(page.locator('article[role="button"]').first()).toBeVisible();
+    await expect(page.locator('article[data-party-id]').first()).toBeVisible();
   });
 
   test('should filter by day', async ({ page }) => {
     await page.click('button:has-text("금")');
     await page.waitForTimeout(500);
-    const cards = page.locator('article[role="button"]');
+    const cards = page.locator('article[data-party-id]');
     const count = await cards.count();
     expect(count).toBeGreaterThan(0);
   });
 
   test('should open party detail modal', async ({ page }) => {
-    const firstCard = page.locator('article[role="button"]').first();
-    await firstCard.click({ force: true });
+    // Click the image area (role=button) inside the first card
+    const firstCard = page.locator('article[data-party-id]').first();
+    const clickableArea = firstCard.locator('[role="button"]').first();
+    await clickableArea.click();
     
     // Wait for modal dialog to appear
     const modal = page.locator('[role="dialog"][aria-modal="true"]');

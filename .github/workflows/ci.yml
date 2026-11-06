@@ -108,12 +108,17 @@ jobs:
           done
 
       - name: Run comprehensive E2E tests
-        run: npm run test:e2e:full
+        run: npx playwright test tests/comprehensive.spec.js --reporter=list
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
       - name: Run party-connect page E2E tests
         run: npx playwright test tests/party-connect-page.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: Run user journey regression E2E tests
+        run: npx playwright test tests/user-journey-regression.spec.js --reporter=list
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
