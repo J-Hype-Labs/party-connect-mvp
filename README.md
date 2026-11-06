@@ -45,7 +45,7 @@ party-connect-mvp/
 │   └── party-data.js             # 공통 파티 데이터 (PARTY_LIST, REGION_CATEGORIES, DAYS, CATEGORIES)
 ├── tests/
 │   ├── comprehensive.spec.js           # 메인 페이지 E2E (15개)
-│   ├── party-connect-page.spec.js      # 전용 페이지 E2E (9개)
+│   ├── party-connect-page.spec.js      # 전용 페이지 E2E (14개: 기본 9 + 라이브 모드 5)
 │   └── user-journey-regression.spec.js # PR #6 회귀 테스트 (2개)
 ├── scripts/
 │   ├── validate-jsx.js            # @babel/parser 기반 JSX 검증 (메인 + 전용)
@@ -122,12 +122,13 @@ npm run validate:jsx && npm run validate:html
 | 외부 CDN 의존성 | curl | ✅ PASS | 5개 CDN 모두 200/302 응답 |
 | 배포 설정 | file check | ✅ PASS | _config.yml, .gitignore, .nojekyll |
 | **Playwright E2E - 메인 페이지** | **Chromium** | ✅ **PASS** | **15/15 테스트 통과** |
-| **Playwright E2E - 전용 페이지** | **Chromium** | ✅ **PASS** | **9/9 테스트 통과** |
+| **Playwright E2E - 전용 페이지** | **Chromium** | ✅ **PASS** | **14/14 테스트 통과** |
 | **Playwright E2E - 회귀 테스트** | **Chromium** | ✅ **PASS** | **2/2 테스트 통과** |
 | **Playwright E2E - 메인 페이지** | **Mobile Chrome** | ✅ **PASS** | **15/15 테스트 통과** |
-| **Playwright E2E - 전용 페이지** | **Mobile Chrome** | ✅ **PASS** | **9/9 테스트 통과** |
+| **Playwright E2E - 전용 페이지** | **Mobile Chrome** | ✅ **PASS** | **14/14 테스트 통과** |
 | **Playwright E2E - 회귀 테스트** | **Mobile Chrome** | ✅ **PASS** | **2/2 테스트 통과** |
-| Playwright E2E - WebKit | WebKit | ⚠️ 부분 | 일부 timeout/skip, 원인 분석 필요 |
+| **Playwright E2E - 전용 페이지** | **WebKit** | ✅ **PASS** | **14/14 테스트 통과** |
+| **Playwright E2E - 종합** | **WebKit** | ✅ **PASS** | **31/31 테스트 통과** |
 | GitHub Actions Validate | ubuntu-latest | 🔄 대기 중 | PR 생성 후 실행 예정 |
 | GitHub Actions E2E (3 스위트) | ubuntu-latest | 🔄 대기 중 | PR 생성 후 실행 예정 |
 | GitHub Pages 배포 | Pages workflow | 🔄 대기 중 | main 병합 후 실행 예정 |
@@ -154,7 +155,7 @@ npm run validate:jsx && npm run validate:html
 | 파티 카드 필드 상세 | **미검증** (카드 존재/가시성만 확인) |
 | 카테고리/요일 필터 결과 정확성 | **미검증** (탭 버튼 존재만 확인) |
 | 찜/후기/마이페이지/지도/알림/소셜로그인 | **일부 검증됨** (UI 플로우 검증, 실제 데이터 동기화는 실서비스에서 확인 필요) |
-| WebKit(Safari) 개별 PASS/FAIL | **분리 집계 필요** (일부 timeout, 환경 이슈 분석 중) |
+| WebKit(Safari) 개별 PASS/FAIL | ✅ **전체 통과** (31/31 테스트 PASS) |
 | 320/768/1280px 해상도 | **미검증** (390px만 검증) |
 | 동일 SHA Pages 배포 검증 | **대기 중** (main 병합 후 확인 필요) |
 | **실제 카카오 OAuth / Supabase 연동** | **미검증** (데모 모드만 확인, 운영 키 설정 후 별도 검증 필요) |
