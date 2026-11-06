@@ -84,12 +84,19 @@ async function loadLiveFixture(page, { parties = [], status = 200 } = {}) {
     contentType: 'application/javascript',
     body: 'window.supabase = {createClient: function() {return {auth: {getSession: async function() {return {data:{session:null}};},onAuthStateChange: function(){return {data:{subscription:{unsubscribe:function(){}}}};}}};}};'
   }));
-  await page.route(projectUrl + '/functions/v1/partylink-api/parties', route => route.fulfill({
-    status,
-    contentType: 'application/json',
-    headers: { 'access-control-allow-origin': '*' },
-    body: JSON.stringify(status === 200 ? parties : { message: '테스트 서버 오류' }),
-  }));
+  await page.route(projectUrl + '/functions/v1/partylink-api/parties', route => {
+    const preflight = route.request().method() === 'OPTIONS';
+    return route.fulfill({
+      status: preflight ? 204 : status,
+      contentType: 'application/json',
+      headers: {
+        'access-control-allow-origin': '*',
+        'access-control-allow-headers': 'authorization, apikey, content-type',
+        'access-control-allow-methods': 'GET, POST, OPTIONS',
+      },
+      body: preflight ? '' : JSON.stringify(status === 200 ? parties : { message: '테스트 서버 오류' }),
+    });
+  });
   await page.goto('/party-connect/?live=1');
 }
 
