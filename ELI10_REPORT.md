@@ -69,7 +69,23 @@ main에 다음 공통 파일이 추가됐다.
 
 특히 현재 handler는 parties와 applications 경로를 처리하지만 /me 및 /me/onboarding 경로는 없다.
 
-## 7. 다음 작업 우선순위
+## 7. PR 상태 스냅샷
+
+2026-11-08 GitHub 확인:
+
+| 저장소 | PR | 상태 | 내용 |
+|---|---:|---|---|
+| party-connect-mvp | #3 | OPEN | 카카오 로그인 명세 |
+| party-connect-mvp | #4 | MERGED | 전용 페이지 관련 문서 |
+| party-connect-mvp | #5 | OPEN | Supabase/Kakao 통합 작업 |
+| party-connect-mvp | #6 | OPEN | 사용자 여정 회귀 테스트 |
+| party-connect-mvp | #7 | OPEN | 통합 감사 문서 |
+| party-connect-mvp | #8 | MERGED | P0 프런트엔드 통합 |
+| partylink | #1 | OPEN | DB migration 및 Edge Function 연동 |
+
+PR #5/#6/#7은 PR #8에 일부 코드가 반영되었더라도 GitHub상 OPEN 상태다. 파일별 diff와 최신 CI를 확인하지 않고 중복 PR이라고 임의 종료하지 않는다.
+
+## 8. 다음 작업 우선순위
 
 1. callback page와 loginWithKakao redirectTo를 하나의 실제 흐름으로 연결
 2. 신규 가입 동의 UI를 callback 이후 실제로 표시
@@ -81,10 +97,10 @@ main에 다음 공통 파일이 추가됐다.
 8. 관리자 비밀번호 하드코딩 제거 및 서버 권한 검증
 9. Auth 전용 E2E를 추가하고 CI에 연결
 
-## 8. 책임 경계
+## 9. 책임 경계
 
 PartyConnect는 카카오 계정 인증과 파티 신청을 처리한다. 생년월일·나이·연령 확인 정보를 수집하거나 관련 인증 기능을 제공하지 않는다. 성인 여부와 신분증 확인은 파티 현장 운영자가 담당한다.
 
-## 9. 최종 판정
+## 10. 최종 판정
 
 **PARTIAL.** 프런트엔드 배포는 완료됐고 인증 기반 코드가 추가됐다. 실제 OAuth, 가입 동의 API, 운영 DB, 관리자 보안은 아직 검증 또는 구현이 필요하다.
