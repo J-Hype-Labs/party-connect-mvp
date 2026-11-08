@@ -162,7 +162,9 @@ callback page가 실제로 사용되기 전에는 redirect 설정 완료로 표�
 - 로그아웃은 signOut 성공 후 사용자 상태와 회원 데이터 UI를 초기화한다.
 - 로그아웃 실패 시 로그인 상태를 유지하고 오류를 표시한다.
 
-현재 restoreSession은 user_metadata.onboarding_complete 값을 사용한다. 이 값이 신뢰 가능한 서버 측 가입 완료 상태와 동기화되는지 확인해야 한다. localStorage만으로 가입 완료를 판단하지 않는다.
+현재 restoreSession과 toAppUser는 user_metadata.onboarding_complete 값을 사용한다. 그러나 /me API가 없고, 해당 metadata가 서버 측 동의 저장 결과와 동기화되는 흐름도 확인되지 않았다. 서버 가입 상태 조회를 단일 기준으로 연결해야 한다. localStorage만으로 가입 완료를 판단하지 않는다.
+
+현재 logout()의 실패 분기는 SIGNING_OUT 상태를 다시 알릴 가능성이 있다. 실패 시 이전 SIGNED_IN 상태와 사용자를 명시적으로 복원하는 테스트를 추가한다.
 
 ## 8. 최초 회원 가입과 동의 기록
 
@@ -204,7 +206,7 @@ callback page가 실제로 사용되기 전에는 redirect 설정 완료로 표�
 - 두 앱 페이지에서 onboarding query를 받아 OnboardingScreen을 표시하는 연결은 확인되지 않았다.
 - auth-service.js와 js/party-api.js는 me/onboarding을 호출하지만 백엔드 handler에 해당 route가 없다.
 
-따라서 온보딩은 컴포넌트 존재만으로 완료가 아니다.
+따라서 온보딩은 컴포넌트 존재만으로 완료가 아니다. 또한 callback page가 consumeReturnUrl()로 복귀 정보를 먼저 제거한 뒤 신규 회원을 onboarding query로 이동시키므로, 가입 완료 후 원래 partyId가 복구되는지 확인하고 복귀 정보를 보존하도록 수정해야 한다.
 
 ## 9. 로그인 후 원래 파티 복귀
 
@@ -316,7 +318,7 @@ Edge Function은 Authorization Bearer token을 auth.getUser로 검증한다. gue
 - production demo query 차단
 - 설정 누락 시 fail-closed
 
-현재 package.json에는 test:auth 스크립트가 있으나 tests/auth-*.spec.js 파일이 확인되지 않고 CI workflow에도 실행 단계가 없다. 인증 테스트가 추가되고 CI에서 실행되기 전까지 자동 검증 완료로 표시하지 않는다.
+현재 package.json에는 test:auth 스크립트가 있으나 tests/auth-*.spec.js 파일이 확인되지 않고 CI workflow에도 실행 단계가 없다. tests/app.spec.js는 root element 표시를 확인하는 기본 smoke test이며 OAuth 검증 테스트가 아니다. 인증 테스트가 추가되고 CI에서 실행되기 전까지 자동 검증 완료로 표시하지 않는다.
 
 ### 실제 통합 테스트
 
