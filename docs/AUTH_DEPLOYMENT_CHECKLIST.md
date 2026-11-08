@@ -60,12 +60,14 @@ Supabase Dashboard → Authentication → Sign In / Providers → Kakao
 - [ ] Kakao Client Secret 설정
 - [ ] 이메일이 없는 사용자 허용 여부 확인
 - [ ] Site URL 확인: https://j-hype-labs.github.io/party-connect-mvp/
-- [ ] Redirect URL allowlist에 정확한 앱 callback 추가:
+- [ ] 앱 callback route 구현 여부 확인
+- [ ] 목표 callback route가 구현·배포된 뒤에만 다음 주소를 Redirect URL allowlist에 추가:
   https://j-hype-labs.github.io/party-connect-mvp/auth/callback/
+- [ ] callback route 구현 전에는 현재 프런트엔드가 실제로 redirectTo에 사용하는 URL만 허용 목록에 추가한다. 현재 코드는 로그인 시작 페이지의 origin + pathname + query를 redirectTo로 사용한다.
 - [ ] 필요한 로컬 개발 callback만 추가
 - [ ] 불필요한 와일드카드 redirect 제거
 
-Kakao의 provider callback(Supabase 주소)과 Supabase가 로그인 후 앱으로 돌려보내는 redirectTo(앱 주소)는 서로 다른 주소다.
+Kakao의 provider callback(Supabase 주소)과 Supabase가 로그인 후 앱으로 돌려보내는 redirectTo(앱 주소)는 서로 다른 주소다. 위 /auth/callback/ 경로는 중앙 callback 페이지를 구현한 뒤 사용할 목표 경로이며, 현재 배포 코드에 해당 페이지가 존재한다고 가정하지 않는다.
 
 ## 4. DB migration 및 RLS
 
