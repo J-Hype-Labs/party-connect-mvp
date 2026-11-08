@@ -51,7 +51,7 @@
   <!-- Shared Party Data -->
   <script src="../js/party-data.js"></script>
 
-  <!-- Supabase (카카오 로그인 + PartyLink DB 연동) -->
+  <!-- Supabase & Auth Modules -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script>
     // PartyLink 연동 설정 — 두 값을 비워 두면 기존 데모 모드(localStorage)로 동작합니다.
@@ -65,6 +65,10 @@
       supabaseAnonKey: "",
     };
   </script>
+  <script src="../js/auth-client.js"></script>
+  <script src="../js/auth-service.js"></script>
+  <script src="../js/auth-ui.js"></script>
+  <script src="../js/party-api.js"></script>
 
   <style>
     .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -72,126 +76,114 @@
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
     }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
 <body class="bg-zinc-50 text-zinc-900 antialiased min-h-screen flex flex-col">
   <div id="root"></div>
 
   <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback } = React;
+
     // Using shared data from ../js/party-data.js (PARTY_LIST, REGION_CATEGORIES, DAYS, CATEGORIES)
 
-    // ===== PARTYLINK Module (Supabase Auth + PartyLink DB) =====
-    const PARTYLINK = (() => {
-      const cfg = window.PARTYLINK_CONFIG || {};
-      const params = new URLSearchParams(window.location.search);
-      const isLocal = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
-      const configured = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase);
-      const live = configured && params.get("demo") !== "1" && (!isLocal || params.get("live") === "1");
-      const client = live
-        ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
-            auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
-          })
-        : null;
+    // Auth & API modules
+    const { live, client, api, toAppUser } = window.PARTYLINK_AUTH;
+    const { 
+      AUTH_STATE, 
+      getState, 
+      getUser, 
+      isAuthenticated, 
+      subscribe, 
+      loginWithKakao, 
+      restoreSession, 
+      logout, 
+      saveReturnUrl, 
+      consumeReturnUrl 
+    } = window.PARTYLINK_AUTH_SERVICE;
+    const { 
+      LoginModal, 
+      WelcomeToast, 
+      ErrorToast, 
+      showToast 
+    } = window.PARTYLINK_AUTH_UI;
+    const { 
+      fetchParties, 
+      fetchMyApplications, 
+      applyToParty, 
+      cancelApplication,
+      normalizeServerParties,
+      normalizeServerApplications,
+      getStatusLabel,
+      isActiveApplication 
+    } = window.PARTYLINK_PARTY_API;
 
-      async function api(path, { method = "GET", body } = {}) {
-        const { data } = await client.auth.getSession();
-        const token = data.session ? data.session.access_token : cfg.supabaseAnonKey;
-        let res;
-        try {
-          res = await fetch(`${cfg.supabaseUrl}/functions/v1/partylink-api/${path}`, {
-            method,
-            headers: {
-              "Content-Type": "application/json",
-              apikey: cfg.supabaseAnonKey,
-              Authorization: `Bearer ${token}`,
-            },
-            body: body ? JSON.stringify(body) : undefined,
-          });
-        } catch (e) {
-          throw new Error("서버에 연결하지 못했습니다. 네트워크를 확인해 주세요.");
-        }
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          const err = new Error(json.message || "요청을 처리하지 못했습니다.");
-          err.status = res.status;
-          err.code = json.code;
-          throw err;
-        }
-        return json;
-      }
+    const REGION_CATEGORIES = [
+      { id: "all", name: "전체 지역", subRegions: ["전체"] },
+      { id: "seoul", name: "서울", subRegions: ["전체", "강남/서초", "교대/사당", "홍대/마포", "용산/이태원", "명동/을지로", "잠실/송파", "강북/성북", "마포/상암", "여의도/영등포", "강서/목동", "건대/성수/왕십리", "강동/천호", "종로/광화문", "신촌/이대", "압구정/청담", "관악/신림", "노원/도봉"] },
+      { id: "gyeonggi", name: "경기·인천", subRegions: ["전체", "일산/파주", "인천/부천", "수원/성남", "안양/군포", "하남/광주"] },
+      { id: "others", name: "지방/기타", subRegions: ["전체", "대전/충청", "대구/경북", "부산/경남", "광주/전라", "제주"] }
+    ];
 
-      function toAppUser(u) {
-        if (!u) return null;
-        const meta = u.user_metadata || {};
-        return {
-          id: u.id,
-          name: meta.name || meta.full_name || meta.nickname || meta.preferred_username || "카카오유저",
-          avatar: "🟡",
-          email: u.email || null,
-          provider: (u.app_metadata && u.app_metadata.provider) || "kakao",
-          joinedAt: u.created_at,
-          preferences: { regions: [], categories: [] },
-        };
-      }
-
-      return { live, client, api, toAppUser };
-    })();
+    const DAYS = ["전체", "월", "화", "수", "목", "금", "토", "일"];
+    const CATEGORIES = ["전체", "혼술바", "소개팅", "소셜파티"];
 
     // ===== MAIN APP COMPONENT =====
     function PartyConnectApp() {
-      const { live, client, api, toAppUser } = PARTYLINK;
-      const [selectedRegion, setSelectedRegion] = React.useState('전체 지역');
-      const [selectedDay, setSelectedDay] = React.useState('전체');
-      const [selectedCategory, setSelectedCategory] = React.useState('전체');
-      const [searchQuery, setSearchQuery] = React.useState('');
-      const [searchInput, setSearchInput] = React.useState('');
-      const [isRegionModalOpen, setIsRegionModalOpen] = React.useState(false);
-      const [modalSelectedCategory, setModalSelectedCategory] = React.useState('all');
-      const [activePartyDetail, setActivePartyDetail] = React.useState(null);
-      const [selectedDetailImage, setSelectedDetailImage] = React.useState(0);
-      const [applyStep, setApplyStep] = React.useState('detail');
-      const [applyForm, setApplyForm] = React.useState({ name: '', phone: '', day: '', agree: false });
-      const [applyError, setApplyError] = React.useState('');
-      const [toastMessage, setToastMessage] = React.useState('');
-      const [wishlist, setWishlist] = React.useState(() => {
+      const [selectedRegion, setSelectedRegion] = useState('전체 지역');
+      const [selectedDay, setSelectedDay] = useState('전체');
+      const [selectedCategory, setSelectedCategory] = useState('전체');
+      const [searchQuery, setSearchQuery] = useState('');
+      const [searchInput, setSearchInput] = useState('');
+      const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
+      const [modalSelectedCategory, setModalSelectedCategory] = useState('all');
+      const [activePartyDetail, setActivePartyDetail] = useState(null);
+      const [selectedDetailImage, setSelectedDetailImage] = useState(0);
+      const [applyStep, setApplyStep] = useState('detail');
+      const [applyForm, setApplyForm] = useState({ name: '', phone: '', day: '', agree: false });
+      const [applyError, setApplyError] = useState('');
+      const [applySubmitting, setApplySubmitting] = useState(false);
+      const [toastMessage, setToastMessage] = useState('');
+      const [wishlist, setWishlist] = useState(() => {
         try {
           const saved = JSON.parse(localStorage.getItem('partyconnect:wishlist') || '[]');
           return new Set(Array.isArray(saved) ? saved : []);
         } catch (e) { return new Set(); }
       });
-      const [applications, setApplications] = React.useState(() => {
+      const [applications, setApplications] = useState(() => {
         if (live) return [];
         try {
           const saved = JSON.parse(localStorage.getItem('partyconnect:applications') || '[]');
           return Array.isArray(saved) ? saved : [];
         } catch (e) { return []; }
       });
-      const [currentUser, setCurrentUser] = React.useState(() => {
-        if (live) return null;
-        try {
-          const saved = JSON.parse(localStorage.getItem('partyconnect:user') || 'null');
-          return saved;
-        } catch (e) { return null; }
-      });
-
-      // Demo uses fixture data; live uses only server rows.
-      // Live mode: parties state from server, demo mode: from PARTY_LIST
-      const [parties, setParties] = React.useState(live ? [] : PARTY_LIST);
-      const [partiesLoading, setPartiesLoading] = React.useState(live);
-      const [partiesError, setPartiesError] = React.useState(null);
-      const [isLoginModalOpen, setIsLoginModalOpen] = React.useState(false);
-      const [isMyPageOpen, setIsMyPageOpen] = React.useState(false);
-      const [notifications, setNotifications] = React.useState(() => {
+      const [parties, setParties] = useState(live ? [] : PARTY_LIST);
+      const [partiesLoading, setPartiesLoading] = useState(live);
+      const [partiesError, setPartiesError] = useState(null);
+      const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+      const [isMyPageOpen, setIsMyPageOpen] = useState(false);
+      const [notifications, setNotifications] = useState(() => {
         try {
           const saved = JSON.parse(localStorage.getItem('partyconnect:notifications') || '[]');
           return Array.isArray(saved) ? saved : [];
         } catch (e) { return []; }
       });
-      const [isNotificationOpen, setIsNotificationOpen] = React.useState(false);
-      const [unreadCount, setUnreadCount] = React.useState(0);
-      const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false);
+      const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+      const [unreadCount, setUnreadCount] = useState(0);
+      const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
-      React.useEffect(() => {
+      // Auth state
+      const [currentUser, setCurrentUser] = useState(null);
+      const [authState, setAuthState] = useState('INITIALIZING');
+      const [loginLoading, setLoginLoading] = useState(false);
+
+      // Welcome/Error toast state
+      const [welcomeToast, setWelcomeToast] = useState({ show: false, isNewUser: false });
+      const [errorToast, setErrorToast] = useState({ show: false, message: '' });
+
+      // UI/UX Pro Max: Motion preferences
+      useEffect(() => {
         const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
         setPrefersReducedMotion(mq.matches);
         const handler = (e) => setPrefersReducedMotion(e.matches);
@@ -199,205 +191,141 @@
         return () => mq.removeEventListener('change', handler);
       }, []);
 
-      React.useEffect(() => {
-        localStorage.setItem('partyconnect:wishlist', JSON.stringify(Array.from(wishlist)));
-      }, [wishlist]);
-
-      React.useEffect(() => {
-        if (!live) localStorage.setItem('partyconnect:applications', JSON.stringify(applications));
-      }, [applications, live]);
-
-      React.useEffect(() => {
-        if (!live && currentUser) {
-          localStorage.setItem('partyconnect:user', JSON.stringify(currentUser));
-        }
-      }, [currentUser, live]);
-
-      React.useEffect(() => {
-        localStorage.setItem('partyconnect:notifications', JSON.stringify(notifications));
-      }, [notifications]);
-
-      const showToast = (msg) => {
-        setToastMessage(msg);
-        setTimeout(() => setToastMessage(''), 2500);
-      };
-
-      const addNotification = (notif) => {
-        const newNotif = { id: `notif_${Date.now()}`, ...notif, createdAt: new Date().toISOString(), read: false };
-        setNotifications(prev => [newNotif, ...prev]);
-        setUnreadCount(prev => prev + 1);
-      };
-
-      // 실서비스 모드: 파티 목록 / 내 신청 내역 불러오기
-      const refreshParties = async () => {
-        if (!live) return;
-        setPartiesLoading(true);
-        setPartiesError(null);
-        try {
-          const data = await api("parties");
-          // Normalize server data to UI schema
-          setParties(normalizeServerParties(data));
-          setPartiesError(null);
-        } catch (err) {
-          setParties([]);
-          setPartiesError(err.message);
-          showToast("파티 목록을 불러오지 못했습니다: " + err.message);
-        } finally {
-          setPartiesLoading(false);
-        }
-      };
-
-      const normalizeServerParties = (serverData) => {
-        // Expected server response: { parties: [...] } or [...]
-        const list = Array.isArray(serverData) ? serverData : (serverData && serverData.parties);
-        if (!Array.isArray(list)) throw new Error('파티 목록 응답 형식이 올바르지 않습니다.');
-        return list.map(p => ({
-          id: p.id ?? p.partyId,
-          title: p.title,
-          region: p.region ?? p.subRegion,
-          category: p.category,
-          days: Array.isArray(p.days) ? p.days : (p.day ? [p.day] : []),
-          recruit: p.recruit ?? p.capacity ?? 10,
-          currentRecruit: p.currentRecruit ?? p.appliedCount ?? 0,
-          venue: p.venue,
-          address: p.address ?? '',
-          desc: p.description ?? p.desc ?? '',
-          images: Array.isArray(p.images) && p.images.length > 0 ? p.images : ["https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=600&q=80"],
-          badges: Array.isArray(p.badges) ? p.badges : [],
-          isFeatured: p.isFeatured ?? false
-        }));
-      };
-
-      const refreshMyApplications = async () => {
-        if (!live) return;
-        try {
-          const data = await api("applications");
-          setApplications(Array.isArray(data) ? data : (data.applications || []));
-        } catch (err) {
-          if (err.status !== 401) showToast(err.message);
-        }
-      };
-
-      // 실서비스 모드: Supabase Auth 세션 복원 + 카카오 로그인 완료 처리
-      React.useEffect(() => {
-        if (!live) return;
-        refreshParties();
-        client.auth.getSession().then(({ data }) => {
-          setCurrentUser(toAppUser(data.session ? data.session.user : null));
+      // Subscribe to auth state changes
+      useEffect(() => {
+        const unsubscribe = subscribe((state, user) => {
+          setAuthState(state);
+          setCurrentUser(user);
+          setIsLoginModalOpen(false);
+          setLoginLoading(false);
         });
-        const { data: sub } = client.auth.onAuthStateChange((event, session) => {
-          setCurrentUser(toAppUser(session ? session.user : null));
-          let pending = false;
-          try {
-            pending = sessionStorage.getItem("partylink:loginPending") === "1";
-            sessionStorage.removeItem("partylink:loginPending");
-          } catch (e) {}
-          if (event === "SIGNED_IN" && pending) {
-            showToast("카카오 로그인 완료");
-            addNotification({
-              type: "welcome",
-              title: "환영합니다!",
-              message: "파티커넥트 멤버가 되신 것을 환영합니다.",
-              read: false,
-            });
+
+        // Restore session on mount
+        restoreSession().then(({ user }) => {
+          if (user) {
+            setCurrentUser(user);
           }
         });
-        return () => sub.subscription.unsubscribe();
+
+        return unsubscribe;
       }, []);
 
-      const currentUserId = currentUser ? currentUser.id : null;
-      React.useEffect(() => {
-        if (!live) return;
-        if (!currentUserId) {
-          setApplications([]);
-          return;
-        }
-        refreshMyApplications();
-      }, [currentUserId]);
-
-      const handleMyApplicationCancel = (app) => {
-        if (!window.confirm(`"${app.partyTitle}" 신청을 취소하시겠습니까?`)) return;
-        if (!live) {
-          setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'CANCELLED' } : a));
-          showToast('신청이 취소되었습니다. (데모 모드)');
-          return;
-        }
-        api(`applications/${app.id}/cancel`, { method: "POST" })
-          .then(() => Promise.all([refreshMyApplications(), refreshParties()]))
-          .then(() => showToast("신청이 취소되었습니다."))
-          .catch((err) => showToast(err.message));
-      };
-
-      // 소셜 로그인은 카카오만 지원합니다.
-      const handleSocialLogin = (provider) => {
-        if (live) {
-          if (provider !== 'kakao') {
-            showToast('현재 카카오 로그인만 지원합니다.');
-            return;
-          }
-          try { sessionStorage.setItem("partylink:loginPending", "1"); } catch (e) {}
-          client.auth
-            .signInWithOAuth({
-              provider: "kakao",
-              options: { redirectTo: window.location.origin + window.location.pathname + window.location.search },
-            })
-            .then(({ error }) => {
-              if (error) showToast("카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
-            })
-            .catch(() => showToast("로그인 서버에 연결하지 못했습니다. 다시 시도해 주세요."));
-          return;
-        }
-        if (provider !== 'kakao') {
-          showToast('데모 모드에서는 카카오 로그인만 가능합니다.');
-          return;
-        }
-        const mockUser = {
-          id: `user_${Date.now()}`,
-          name: '카카오유저',
-          avatar: '🟡',
-          provider: 'kakao',
-          joinedAt: new Date().toISOString(),
+      // Handle welcome toast from auth callback
+      useEffect(() => {
+        const handleWelcome = (event) => {
+          setWelcomeToast({ show: true, isNewUser: event.detail.isNewUser });
         };
-        setCurrentUser(mockUser);
-        localStorage.setItem('partyconnect:user', JSON.stringify(mockUser));
-        setIsLoginModalOpen(false);
-        showToast('카카오 로그인 완료 (데모 모드)');
-        addNotification({ type: 'welcome', title: '환영합니다!', message: '파티커넥트 멤버가 되신 것을 환영합니다.', read: false });
-      };
+        window.addEventListener('partylink:welcome', handleWelcome);
+        return () => window.removeEventListener('partylink:welcome', handleWelcome);
+      }, []);
 
-      const handleLogout = async () => {
-        if (live) {
-          try {
-            const { error } = await client.auth.signOut();
-            if (error) throw error;
-            setApplications([]);
-          } catch (error) {
-            showToast('로그아웃 처리에 실패했습니다. 다시 시도해 주세요.');
-            return;
+      // Handle toast events
+      useEffect(() => {
+        const handleToast = (event) => {
+          showToast(event.detail.message);
+        };
+        window.addEventListener('partylink:toast', handleToast);
+        return () => window.removeEventListener('partylink:toast', handleToast);
+      }, []);
+
+      // Load parties on mount (live mode)
+      useEffect(() => {
+        if (!live) return;
+        setPartiesLoading(true);
+        fetchParties().then(({ data, error }) => {
+          setPartiesLoading(false);
+          if (error) {
+            setPartiesError(error);
+            setParties([]);
+          } else {
+            setParties(normalizeServerParties(data));
           }
+        });
+      }, [live]);
+
+      // Load my applications on mount (live mode)
+      useEffect(() => {
+        if (!live || !currentUser) return;
+        fetchMyApplications().then(({ data, error }) => {
+          if (!error) {
+            setApplications(normalizeServerApplications(data));
+          }
+        });
+      }, [live, currentUser]);
+
+      // Persist wishlist & applications (localStorage for demo mode)
+      useEffect(() => {
+        try {
+          localStorage.setItem('partyconnect:wishlist', JSON.stringify(Array.from(wishlist)));
+        } catch (e) {}
+      }, [wishlist]);
+
+      useEffect(() => {
+        if (!live) {
+          try {
+            localStorage.setItem('partyconnect:applications', JSON.stringify(applications));
+          } catch (e) {}
         }
-        setIsMyPageOpen(false);
-        setCurrentUser(null);
-        if (!live) localStorage.removeItem('partyconnect:user');
-        showToast('로그아웃 되었습니다.');
+      }, [applications, live]);
+
+      // Close modals on ESC
+      useEffect(() => {
+        const onKeyDown = (event) => {
+          if (event.key !== "Escape") return;
+          setIsRegionModalOpen(false);
+          setActivePartyDetail(null);
+          setApplyStep('detail');
+          setApplyError("");
+          setIsLoginModalOpen(false);
+          setIsNotificationOpen(false);
+          setIsMyPageOpen(false);
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+      }, []);
+
+      // Lock body scroll while modal is open
+      useEffect(() => {
+        const hasModal = isRegionModalOpen || Boolean(activePartyDetail) || isLoginModalOpen || isNotificationOpen || isMyPageOpen;
+        document.body.style.overflow = hasModal ? "hidden" : "";
+        return () => { document.body.style.overflow = ""; };
+      }, [isRegionModalOpen, activePartyDetail, isLoginModalOpen, isNotificationOpen, isMyPageOpen]);
+
+      // Lucide icons
+      useEffect(() => {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      });
+
+      // Toast helper
+      const showToast = (msg) => {
+        setToastMessage(msg);
+        setTimeout(() => setToastMessage(""), 2500);
       };
 
-      const openLoginModal = () => setIsLoginModalOpen(true);
-
-      const openMap = (party) => {
-        const addr = encodeURIComponent(party.address || party.venue);
-        window.open(`https://map.kakao.com/link/search/${addr}`, '_blank', 'noopener,noreferrer');
+      // Toggle wishlist
+      const toggleWishlist = (e, partyId) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setWishlist((prev) => {
+          const next = new Set(prev);
+          if (next.has(partyId)) {
+            next.delete(partyId);
+            showToast("관심 파티에서 삭제되었습니다.");
+          } else {
+            next.add(partyId);
+            showToast("관심 파티에 추가되었습니다! (찜 목록)");
+          }
+          return next;
+        });
       };
 
-      const openMyPage = () => {
-        if (!currentUser) { openLoginModal(); return; }
-        setIsMyPageOpen(true);
-      };
-
+      // Open / close party detail modal
       const openPartyDetail = (party) => {
         setActivePartyDetail(party);
         setApplyStep('detail');
-        setApplyError('');
+        setApplyError("");
         setApplyForm({ name: '', phone: '', day: party.days[0] || '', agree: false });
         setSelectedDetailImage(0);
       };
@@ -405,14 +333,120 @@
       const closePartyDetail = () => {
         setActivePartyDetail(null);
         setApplyStep('detail');
-        setApplyError('');
+        setApplyError("");
       };
 
-      const applicationStatus = status => String(status || 'APPLIED').toUpperCase();
-      const hasApplied = (partyId) => applications.some(a => a.partyId === partyId && !['CANCELLED', 'REJECTED'].includes(applicationStatus(a.status)) && (!live || (currentUser && a.userId === currentUser.id)));
-      const [isSubmitting, setIsSubmitting] = React.useState(false);
+      // Auth functions
+      const handleLogin = async () => {
+        setLoginLoading(true);
+        try {
+          if (activePartyDetail) {
+            saveReturnUrl(activePartyDetail.id, 'apply');
+          }
+          await loginWithKakao();
+        } catch (error) {
+          setLoginLoading(false);
+          setErrorToast({ show: true, message: error.message });
+        }
+      };
 
-      const submitApplication = (e) => {
+      const handleLogout = async () => {
+        try {
+          await logout();
+          setApplications([]);
+          setIsMyPageOpen(false);
+          showToast("로그아웃 되었습니다.");
+        } catch (error) {
+          setErrorToast({ show: true, message: error.message });
+        }
+      };
+
+      const openLoginModal = () => {
+        setIsLoginModalOpen(true);
+      };
+
+      // Notifications
+      const addNotification = (notif) => {
+        const newNotif = {
+          id: `notif_${Date.now()}`,
+          ...notif,
+          createdAt: new Date().toISOString(),
+          read: false
+        };
+        setNotifications((prev) => [newNotif, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+      };
+
+      const markAsRead = (notifId) => {
+        setNotifications((prev) => prev.map((n) => n.id === notifId ? { ...n, read: true } : n));
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      };
+
+      const markAllAsRead = () => {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        setUnreadCount(0);
+      };
+
+      const deleteNotification = (notifId) => {
+        setNotifications((prev) => prev.filter((n) => n.id !== notifId));
+      };
+
+      // My Page
+      const openMyPage = () => {
+        if (!currentUser) { openLoginModal(); return; }
+        setIsMyPageOpen(true);
+      };
+
+      const handleMyApplicationCancel = (app) => {
+        if (!window.confirm(`"${app.partyTitle}" 신청을 취소하시겠습니까?`)) return;
+        
+        if (live) {
+          cancelApplication(app.id)
+            .then(() => fetchMyApplications())
+            .then(({ data, error }) => {
+              if (!error) {
+                setApplications(normalizeServerApplications(data));
+              }
+              showToast("신청이 취소되었습니다.");
+            })
+            .catch((err) => showToast(err.message));
+        } else {
+          setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'CANCELLED' } : a));
+          showToast('신청이 취소되었습니다. (데모 모드)');
+        }
+      };
+
+      // Map
+      const openMap = (party) => {
+        const addr = encodeURIComponent(party.address || party.venue);
+        window.open(`https://map.kakao.com/link/search/${addr}`, '_blank', 'noopener,noreferrer');
+      };
+
+      // Filter parties
+      const filteredParties = useMemo(() => {
+        return parties.filter((party) => {
+          const searchMatch = searchQuery === '' || 
+            party.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            party.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            party.region.toLowerCase().includes(searchQuery.toLowerCase());
+          const regionMatch = selectedRegion === '전체 지역' || party.region === selectedRegion;
+          const dayMatch = selectedDay === '전체' || party.days.includes(selectedDay);
+          const categoryMatch = selectedCategory === '전체' || party.category === selectedCategory;
+          return searchMatch && regionMatch && dayMatch && categoryMatch;
+        });
+      }, [parties, searchQuery, selectedRegion, selectedDay, selectedCategory]);
+
+      // Check if user has applied
+      const hasApplied = (partyId) => {
+        return applications.some((a) => 
+          a.partyId === partyId && 
+          isActiveApplication(a.status) &&
+          (!live || (currentUser && a.userId === currentUser.id))
+        );
+      };
+
+      // Submit application
+      const submitApplication = async (e) => {
         e.preventDefault();
         if (!activePartyDetail) return;
 
@@ -422,518 +456,426 @@
         if (name.length < 2) { setApplyError('이름을 2자 이상 입력해 주세요.'); return; }
         if (phone.length < 10 || phone.length > 11) { setApplyError('연락처를 정확히 입력해 주세요. (예: 01012345678)'); return; }
         if (!applyForm.day) { setApplyError('참여할 요일을 선택해 주세요.'); return; }
-        if (!applyForm.agree) { setApplyError('개인정보 수집 및 이용에 동의해 주세요.'); return; }
+        if (!applyForm.agree) { setApplyError('개인정보 수집·이용에 동의해 주세요.'); return; }
+        if (applySubmitting) return;
 
-        if (live) {
-          if (!currentUser) {
-            setApplyError('카카오 로그인 후 신청할 수 있어요.');
-            // openLoginModal would be called here if we had it
-            return;
-          }
-          if (isSubmitting) return;
-          setIsSubmitting(true);
-          setApplyError('');
-          api("applications", {
-            method: "POST",
-            body: { slotId: activePartyDetail.id, name, phone, agree: true },
-          })
-            .then(async () => {
-              await Promise.all([refreshMyApplications(), refreshParties()]);
-              setApplyStep('done');
-            })
-            .catch((err) => setApplyError(err.message))
-            .finally(() => setIsSubmitting(false));
+        if (!currentUser) {
+          setApplyError('카카오 로그인 후 신청할 수 있어요.');
+          openLoginModal();
           return;
         }
 
-        const application = {
-          id: activePartyDetail.id + '-' + Date.now(),
-          partyId: activePartyDetail.id,
-          partyTitle: activePartyDetail.title,
-          venue: activePartyDetail.venue,
-          day: applyForm.day,
-          name, phone,
-          appliedAt: new Date().toISOString(),
-          status: 'APPLIED',
-          userId: currentUser ? currentUser.id : null,
-        };
-
-        setApplications(prev => [application, ...prev]);
+        setApplySubmitting(true);
         setApplyError('');
-        setApplyStep('done');
-        showToast('신청이 접수되었습니다! (데모 모드)');
-        addNotification({ type: 'apply', title: '신청 완료', message: `"${activePartyDetail.title}" 신청이 접수되었습니다.`, read: false });
-      };
 
-      const toggleWishlist = (e, partyId) => {
-        e.preventDefault(); e.stopPropagation();
-        setWishlist(prev => {
-          const next = new Set(prev);
-          if (next.has(partyId)) { next.delete(partyId); showToast('관심 파티에서 삭제되었습니다.'); }
-          else { next.add(partyId); showToast('관심 파티에 추가되었습니다!'); }
-          return next;
-        });
-      };
+        const applicationData = { name, phone, day: applyForm.day, agree: true };
 
-      const getBadges = (party) => {
-        const remaining = party.recruit - party.currentRecruit;
-        const badges = party.badges.filter(badge => !(remaining <= 0 && badge === '마감임박'));
-        if (remaining <= 0) { if (!badges.includes('마감')) badges.push('마감'); }
-        else if (remaining <= 2 && !badges.includes('마감임박')) { badges.push('마감임박'); }
-        return badges;
-      };
-
-      const badgeClass = (badge) => {
-        if (badge === 'NEW') return 'bg-rose-600 text-white';
-        if (badge === '이벤트') return 'bg-amber-500 text-white';
-        if (badge === '마감임박') return 'bg-orange-500 text-white';
-        if (badge === '마감') return 'bg-zinc-400 text-white';
-        if (badge === 'HOT') return 'bg-rose-500 text-white';
-        return 'bg-zinc-800 text-white';
-      };
-
-      const filteredParties = React.useMemo(() => {
-        return parties.filter(party => {
-          if (selectedRegion !== '전체 지역' && selectedRegion !== '전체') {
-            if (!party.region.includes(selectedRegion)) return false;
+        try {
+          if (live) {
+            await applyToParty(activePartyDetail.id, applicationData);
+            const [partiesResult, appsResult] = await Promise.all([
+              fetchParties(),
+              fetchMyApplications()
+            ]);
+            if (!partiesResult.error) {
+              setParties(normalizeServerParties(partiesResult.data));
+            }
+            if (!appsResult.error) {
+              setApplications(normalizeServerApplications(appsResult.data));
+            }
+            setApplyStep('done');
+            showToast("신청이 접수되었습니다!");
+          } else {
+            const application = {
+              id: activePartyDetail.id + "-" + Date.now(),
+              partyId: activePartyDetail.id,
+              partyTitle: activePartyDetail.title,
+              name,
+              phone,
+              day: applyForm.day,
+              appliedAt: new Date().toISOString(),
+              status: "APPLIED",
+              userId: currentUser.id
+            };
+            setApplications((prev) => [application, ...prev]);
+            setApplyStep('done');
+            showToast('신청이 접수되었습니다! (데모 모드)');
           }
-          if (selectedDay !== '전체') {
-            if (!party.days.includes(selectedDay)) return false;
-          }
-          if (selectedCategory !== '전체') {
-            if (party.category !== selectedCategory) return false;
-          }
-          if (searchQuery.trim()) {
-            const q = searchQuery.toLowerCase().trim();
-            const inTitle = party.title.toLowerCase().includes(q);
-            const inVenue = party.venue.toLowerCase().includes(q);
-            const inRegion = party.region.toLowerCase().includes(q);
-            if (!inTitle && !inVenue && !inRegion) return false;
-          }
-          return true;
-        });
-      }, [parties, selectedRegion, selectedDay, selectedCategory, searchQuery]);
-
-      const availableCount = React.useMemo(() => filteredParties.filter(p => p.currentRecruit < p.recruit).length, [filteredParties]);
-
-      const handleSearch = (e) => {
-        setSearchQuery(e.target.value.trim());
-        setSearchInput(e.target.value);
-      };
-
-      const clearSearch = () => { setSearchQuery(''); setSearchInput(''); };
-
-      const clearFilters = () => { setSelectedRegion('전체 지역'); setSelectedDay('전체'); setSelectedCategory('전체'); clearSearch(); };
-
-      const getModalRegions = () => {
-        if (modalSelectedCategory === 'all') {
-          const merged = REGION_CATEGORIES.filter(c => c.id !== 'all').reduce((acc, c) => acc.concat(c.subRegions), []);
-          return ['전체'].concat(Array.from(new Set(merged.filter(r => r !== '전체'))));
+          addNotification({
+            type: 'apply',
+            title: '신청 완료',
+            message: `"${activePartyDetail.title}" 신청이 접수되었습니다.`,
+            read: false
+          });
+        } catch (err) {
+          setApplyError(err.message);
+        } finally {
+          setApplySubmitting(false);
         }
-        const found = REGION_CATEGORIES.find(c => c.id === modalSelectedCategory);
-        return found ? found.subRegions : ['전체'];
       };
 
-      // ===== COMPONENTS =====
-      const Header = () => (
-        <header className="sticky top-0 z-40 border-b border-zinc-200 bg-white/95 backdrop-blur-md">
-          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-            <div className="flex items-center gap-6 md:gap-8">
-              <a href="../" className="flex items-center gap-1.5 focus:outline-none" aria-label="파티커넥트 홈으로 이동">
-                <span className="text-xl font-extrabold tracking-tighter text-zinc-950 sm:text-2xl">
-                  PARTY<span className="text-rose-600">connect</span>
-                </span>
-              </a>
-              <nav className="hidden items-center gap-6 md:flex" aria-label="메인 내비게이션">
-                <a href="./" className="text-sm font-bold text-rose-600 transition" aria-current="page">파티커넥트</a>
-                <a href="/party-connect-mvp/#reviews" className="text-sm font-semibold text-zinc-700 transition hover:text-rose-600">커뮤니티</a>
-                <a href="../#partners" className="text-sm font-semibold text-zinc-500 transition hover:text-zinc-900">제휴신청</a>
-              </nav>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setIsNotificationOpen(!isNotificationOpen)} className="relative p-2 rounded-full text-zinc-600 hover:bg-zinc-100 transition" aria-label={unreadCount > 0 ? `${unreadCount}개의 읽지 않은 알림` : '알림'}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 text-[10px] font-bold flex items-center justify-center text-white">{unreadCount > 9 ? '9+' : unreadCount}</span>}
-              </button>
-              {currentUser ? (
-                <button onClick={openMyPage} className="flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-1.5 transition hover:bg-zinc-200" aria-label={`${currentUser.name}님의 마이페이지`}>
-                  <span className="text-lg" aria-hidden="true">{currentUser.avatar}</span>
-                  <span className="text-xs font-semibold text-zinc-900 hidden sm:inline">{currentUser.name}</span>
-                  <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </button>
-              ) : (
-                <button onClick={openLoginModal} className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 sm:text-sm">로그인</button>
-              )}
-            </div>
-          </div>
-        </header>
-      );
-
-      const SearchBar = () => (
-        <div className="relative max-w-2xl mx-auto">
-          <label htmlFor="party-search" className="sr-only">파티 검색</label>
-          <div className="relative">
-            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            <input id="party-search" type="search" value={searchInput} onChange={handleSearch} placeholder="파티명, 업체명, 지역으로 검색" className="w-full pl-12 pr-12 py-3 text-sm sm:text-base border border-zinc-200 bg-white rounded-xl focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100 transition" />
-            {searchInput && <button onClick={clearSearch} className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-zinc-100 transition" aria-label="검색어 지우기"><svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>}
-          </div>
-        </div>
-      );
-
-      const FilterChips = ({ label, options, selected, onSelect, ariaLabel }) => (
-        <div className="flex flex-wrap gap-2" role="group" aria-label={ariaLabel}>
-          {options.map(opt => (
-            <button key={opt} onClick={() => onSelect(opt)} className={`px-3 py-1.5 text-sm font-medium rounded-full transition min-h-[44px] min-w-[44px] flex items-center justify-center ${selected === opt ? 'bg-rose-600 text-white shadow-sm' : 'bg-white text-zinc-700 border border-zinc-200 hover:border-rose-300 hover:bg-rose-50'}`} aria-pressed={selected === opt}>{opt}</button>
-          ))}
-        </div>
-      );
-
-      const RegionFilter = () => {
-        const regions = getModalRegions();
-        return (
-          <div>
-            <button onClick={() => setIsRegionModalOpen(true)} className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-xl hover:border-rose-300 hover:bg-rose-50 transition flex items-center gap-2 min-h-[44px]" aria-haspopup="dialog" aria-label="지역 필터 열기">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              <span>{selectedRegion}</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-            </button>
-            {isRegionModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="지역 선택">
-                <div className="absolute inset-0 bg-black/50" onClick={() => setIsRegionModalOpen(false)} aria-hidden="true" />
-                <div className="relative w-full max-w-md max-h-[80vh] bg-white rounded-t-2xl sm:rounded-xl shadow-xl overflow-hidden flex flex-col">
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-200">
-                    <h3 className="text-base font-bold text-zinc-900">지역 선택</h3>
-                    <button onClick={() => setIsRegionModalOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기"><svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-                  </div>
-                  <div className="flex border-b border-zinc-200 overflow-x-auto" role="tablist" aria-label="지역 대분류">
-                    {REGION_CATEGORIES.map(cat => (
-                      <button key={cat.id} onClick={() => setModalSelectedCategory(cat.id)} role="tab" aria-selected={modalSelectedCategory === cat.id} className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition ${modalSelectedCategory === cat.id ? 'text-rose-600 border-b-2 border-rose-600' : 'text-zinc-500 hover:text-zinc-700'}`}>{cat.name}</button>
-                    ))}
-                  </div>
-                  <div className="p-4 overflow-y-auto max-h-[50vh]">
-                    {getModalRegions().map(region => (
-                      <button key={region} onClick={() => { setSelectedRegion(region); setIsRegionModalOpen(false); }} className={`w-full text-left px-3 py-2 text-sm rounded-lg transition ${selectedRegion === region ? 'bg-rose-50 text-rose-600 font-semibold' : 'text-zinc-700 hover:bg-zinc-50'}`}>{region}</button>
-                    ))}
-                  </div>
-                  <div className="px-4 pb-4 pt-2 border-t border-zinc-200">
-                    <button onClick={() => { setSelectedRegion('전체 지역'); setIsRegionModalOpen(false); }} className="w-full px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-700 transition">전체 지역으로 초기화</button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      };
-
-      const PartyCard = ({ party }) => {
-        const badges = getBadges(party);
-        const remaining = party.recruit - party.currentRecruit;
-        const isFull = remaining <= 0;
-        const hasApplied = applications.some(a => a.partyId === party.id);
-        const isWishlisted = wishlist.has(party.id);
-
-        const applyBtnClass = isFull 
-          ? "px-4 py-1.5 text-sm font-bold rounded-xl transition min-h-[44px] min-w-[44px] flex items-center justify-center bg-zinc-200 text-zinc-400 cursor-not-allowed"
-          : "px-4 py-1.5 text-sm font-bold rounded-xl transition min-h-[44px] min-w-[44px] flex items-center justify-center bg-rose-600 text-white hover:bg-rose-700";
-        const applyBtnText = hasApplied ? "신청 완료" : isFull ? "모집 마감" : "파티 신청하기";
-        const countText = isFull ? "모집 마감" : `모집 ${party.currentRecruit}/${party.recruit}명`;
-        const countClass = isFull ? "text-zinc-400" : "text-rose-600";
-
-        return (
-          <article key={party.id} className="group bg-white rounded-2xl border border-zinc-200 overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col h-full" data-party-id={party.id}>
-            <div
-              className="relative aspect-[4/3] overflow-hidden bg-zinc-100 cursor-pointer"
-              onClick={() => openPartyDetail(party)}
-              tabIndex={0}
-              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPartyDetail(party); } }}
-              role="button"
-              aria-label={`${party.title} 상세 보기`}
-            >
-              {party.images[0] && (
-                <img src={party.images[0]} alt="" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={e => { e.target.src = "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=600&q=80"; }} />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" aria-hidden="true" />
-              {badges.length > 0 && (
-                <div className="absolute top-3 left-3 flex flex-wrap gap-1.5" aria-label="파티 상태">
-                  {badges.map(b => <span key={b} className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${badgeClass(b)}`}>{b}</span>)}
-                </div>
-              )}
-              <button onClick={e => { e.stopPropagation(); toggleWishlist(e, party.id); }} className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white transition shadow-sm" aria-label={isWishlisted ? "관심 파티에서 제거" : "관심 파티에 추가"} aria-pressed={isWishlisted}>
-                <svg className={`w-5 h-5 ${isWishlisted ? "text-rose-500 fill-current" : "text-zinc-600"}`} fill={isWishlisted ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
-              </button>
-            </div>
-            <div className="p-4 flex flex-col flex-1">
-              <div className="flex items-center gap-2 text-xs text-zinc-500 mb-2">
-                <span className="px-2 py-0.5 bg-zinc-100 rounded-full">{party.category}</span>
-                <span className="px-2 py-0.5 bg-zinc-100 rounded-full">{party.region}</span>
-              </div>
-              <h3 className="text-base font-bold text-zinc-900 line-clamp-2 group-hover:text-rose-600 transition-colors">{party.title}</h3>
-              <p className="mt-2 text-sm text-zinc-600 line-clamp-2">{party.desc}</p>
-              <div className="mt-3 flex items-center gap-3 text-xs text-zinc-500 border-t border-zinc-100 pt-3">
-                <span className="flex items-center gap-1"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>{party.venue}</span>
-                <span className="flex items-center gap-1"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 002-2H5a2 2 0 002-2v12a2 2 0 002 2z" /></svg>{party.days.join(", ")}요일</span>
-              </div>
-              <div className="mt-3 flex items-center justify-between">
-                <span className={`text-sm font-semibold ${countClass}`}>{countText}</span>
-                <button onClick={e => { e.stopPropagation(); openPartyDetail(party); }} disabled={isFull} className={applyBtnClass}>{applyBtnText}</button>
-              </div>
-            </div>
-          </article>
-        );
-      };const PartyDetailModal = () => {
-        if (!activePartyDetail) return null;
-        const party = activePartyDetail;
-        const badges = getBadges(party);
-        const remaining = party.recruit - party.currentRecruit;
-        const isFull = remaining <= 0;
-        const hasApplied = applications.some(a => a.partyId === party.id);
-
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="party-detail-title" onClick={closePartyDetail}>
-            <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-              <button onClick={closePartyDetail} className="absolute top-3 right-3 z-10 p-2 rounded-full bg-white/90 hover:bg-white transition shadow-lg" aria-label="닫기"><svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-
-              {applyStep === 'detail' && (
-                <div className="flex flex-col overflow-y-auto">
-                  <div className="relative aspect-[16/9] overflow-hidden">
-                    {party.images.length > 0 && (
-                      <>
-                        <img src={party.images[selectedDetailImage]} alt="" className="w-full h-full object-cover" onError={e => { e.target.src = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80'; }} />
-                        {party.images.length > 1 && (
-                          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                            {party.images.map((_, i) => <button key={i} onClick={() => setSelectedDetailImage(i)} className={`w-2 h-2 rounded-full transition ${i === selectedDetailImage ? 'bg-white' : 'bg-white/50'}`} aria-label={`이미지 ${i + 1}`} />)}
-                          </div>
-                        )}
-                      </>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-                    <div className="absolute bottom-4 left-4 right-4 text-white">
-                      <div className="flex flex-wrap gap-1.5 mb-2">{badges.map(b => <span key={b} className={`px-2 py-0.5 text-xs font-bold rounded-full ${badgeClass(b)}`}>{b}</span>)}</div>
-                      <h2 className="text-xl font-bold">{party.title}</h2>
-                    </div>
-                  </div>
-                  <div className="p-6 space-y-5">
-                    <div className="flex items-center gap-2 text-sm text-zinc-600">
-                      <span className="px-2 py-0.5 bg-zinc-100 rounded-full">{party.category}</span>
-                      <span className="px-2 py-0.5 bg-zinc-100 rounded-full">{party.region}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="flex items-center gap-2 text-zinc-600"><svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg><div><span className="text-zinc-400 block text-xs">장소</span>{party.venue}</div></div>
-                      <div className="flex items-center gap-2 text-zinc-600"><svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2v12a2 2 0 002 2z" /></svg><div><span className="text-zinc-400 block text-xs">일정</span>매주 {party.days.join(', ')}요일</div></div>
-                      <div className="flex items-center gap-2 text-zinc-600 col-span-2"><svg className="w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg><div><span className="text-zinc-400 block text-xs">주소</span>{party.address}</div></div>
-                    </div>
-                    <div className="border-t border-zinc-200 pt-4">
-                      <h4 className="text-sm font-bold text-zinc-900 mb-2">소개</h4>
-                      <p className="text-sm text-zinc-700 whitespace-pre-line">{party.desc}</p>
-                    </div>
-                    <div className="border-t border-zinc-200 pt-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-zinc-900">모집 현황</span>
-                        <span className={`text-sm font-bold ${isFull ? 'text-zinc-400' : 'text-rose-600'}`}>{isFull ? '모집 마감' : `${party.currentRecruit} / ${party.recruit}명 (잔여 ${remaining}명)`}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-3 pt-2 border-t border-zinc-200">
-                      <button onClick={e => { e.stopPropagation(); setApplyStep('form'); }} disabled={isFull || hasApplied} className={`flex-1 py-3 text-sm font-bold rounded-xl transition min-h-[48px] ${isFull || hasApplied ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed' : 'bg-rose-600 text-white hover:bg-rose-700'}`}>{hasApplied ? '신청 완료' : isFull ? '모집 마감' : '파티 신청하기'}</button>
-                      <button onClick={e => { e.stopPropagation(); openMap(party); }} className="px-4 py-3 text-sm font-bold text-zinc-700 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition min-h-[48px]">지도 보기</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {applyStep === 'form' && (
-                <form onSubmit={submitApplication} className="flex flex-col h-full max-h-[90vh] overflow-y-auto" noValidate>
-                  <div className="p-6 space-y-4 border-b border-zinc-200">
-                    <button type="button" onClick={() => { setApplyStep('detail'); setApplyError(''); }} className="self-start text-sm font-medium text-zinc-500 hover:text-zinc-900 transition">← 상세로 돌아가기</button>
-                    <h3 id="party-detail-title" className="text-lg font-bold text-zinc-900">파티 신청</h3>
-                    <p className="text-sm text-zinc-500 line-clamp-1">{party.title}</p>
-                    {applyError && <p role="alert" className="text-sm font-medium text-rose-600 bg-rose-50 px-3 py-2 rounded-lg">{applyError}</p>}
-                    <div className="space-y-4">
-                      <div><label htmlFor="applicant-name" className="text-xs font-bold text-zinc-700 block mb-1">이름 <span className="text-rose-600">*</span></label><input id="applicant-name" type="text" value={applyForm.name} onChange={e => setApplyForm(prev => ({ ...prev, name: e.target.value }))} placeholder="홍길동" autoComplete="name" className="w-full px-3 py-2.5 text-sm border border-zinc-200 rounded-xl focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100" required /></div>
-                      <div><label htmlFor="applicant-phone" className="text-xs font-bold text-zinc-700 block mb-1">연락처 <span className="text-rose-600">*</span></label><input id="applicant-phone" type="tel" inputMode="numeric" value={applyForm.phone} onChange={e => setApplyForm(prev => ({ ...prev, phone: e.target.value }))} placeholder="01012345678" autoComplete="tel" className="w-full px-3 py-2.5 text-sm border border-zinc-200 rounded-xl focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100" required /></div>
-                      <div><label htmlFor="applicant-day" className="text-xs font-bold text-zinc-700 block mb-1">참여 요일 <span className="text-rose-600">*</span></label><select id="applicant-day" value={applyForm.day} onChange={e => setApplyForm(prev => ({ ...prev, day: e.target.value }))} className="w-full px-3 py-2.5 text-sm border border-zinc-200 rounded-xl focus:border-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-100" required>{party.days.map(d => <option key={d} value={d}>{d}요일</option>)}</select></div>
-                      <label className="flex items-start gap-2 text-xs text-zinc-600"><input type="checkbox" checked={applyForm.agree} onChange={e => setApplyForm(prev => ({ ...prev, agree: e.target.checked }))} className="mt-0.5 w-4.5 h-4.5 accent-rose-600" required /><span>개인정보 수집 및 이용에 동의합니다. (이름·연락처는 신청 안내 목적으로만 사용됩니다.)</span></label>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-zinc-50 border-t border-zinc-200 sticky bottom-0">
-                    <button type="submit" disabled={isSubmitting} className="w-full py-3 text-sm font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition min-h-[48px] disabled:opacity-60">{isSubmitting ? '신청 중…' : '신청 접수하기'}</button>
-                  </div>
-                </form>
-              )}
-
-              {applyStep === 'done' && (
-                <div className="flex flex-col items-center justify-center p-12 text-center">
-                  <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4"><svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div>
-                  <h3 className="text-lg font-bold text-zinc-900">신청이 접수되었습니다!</h3>
-                  <p className="mt-2 text-sm text-zinc-500">{live ? '실제 서버에 신청이 접수되었습니다. 알림을 기다려 주세요.' : '파티 신청이 완료되었습니다. (데모 모드 - 실제 서버 연동 시 알림 발송)'}</p>
-                  <button onClick={closePartyDetail} className="mt-6 w-full max-w-xs py-3 text-sm font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition min-h-[48px]">확인</button>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      };
-
-      const LoginModal = () => {
-        if (!isLoginModalOpen) return null;
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="로그인" onClick={() => setIsLoginModalOpen(false)}>
-            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl p-6" onClick={e => e.stopPropagation()}>
-              <button onClick={() => setIsLoginModalOpen(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기"><svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-              <div className="text-center mb-6"><span className="text-xl font-extrabold tracking-tighter text-zinc-950">PARTY<span className="text-rose-600">connect</span></span><p className="mt-2 text-sm text-zinc-500">로그인하여 파티 신청 및 마이페이지를 이용하세요.</p></div>
-              <div className="space-y-3">
-                <button onClick={() => handleSocialLogin('kakao')} className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition min-h-[48px]"><svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24C14.52 17.16 12.96 16.68 12 16.68s-2.52.48-3.48 1.02c-.36.24-.78.12-1.02-.24-.48-.48-.6-1.32-.24-1.92.48-.72 1.32-1.08 2.16-1.08.72 0 1.44.36 1.92 1.02.48.6.6 1.44.24 1.92zm1.56-5.28c-.72-.36-1.56-.48-2.28-.48-.96 0-1.8.36-2.4 1.08-.6.6-.84 1.44-.72 2.16.12.72.48 1.32 1.08 1.8.72.48 1.56.6 2.4.6.84 0 1.68-.24 2.28-.72.6-.48.84-1.32.72-2.16-.12-.72-.48-1.32-1.08-1.8-.48-.6-1.32-.84-2.16-.72zm-2.52-3.12c-1.2 0-2.16.6-2.76 1.56-.6.96-.6 2.16 0 3.12.6.96 1.56 1.56 2.76 1.56 1.08 0 2.04-.48 2.64-1.32.6-.72.84-1.68.6-2.76-.24-1.08-.84-1.92-1.8-2.52-.72-.48-1.56-.72-2.64-.72zm3.12 9.36c-.6 0-1.08-.36-1.32-.96-.24-.48-.12-1.08.24-1.44.48-.36 1.08-.6 1.8-.6.72 0 1.32.24 1.8.6.36.36.6.96.36 1.44-.24.48-.84.72-1.68.72z"/></svg><span className="font-medium text-zinc-900">카카오로 시작하기</span></button>
-              </div>
-              {!live && <p className="mt-4 text-center text-xs text-zinc-400">데모 모드: 실제 서비스에서는 카카오 로그인으로 연동됩니다.</p>}
-            </div>
-          </div>
-        );
-      };
-
-      const MyPageModal = () => {
-        if (!isMyPageOpen) return null;
-        const myApplications = applications.filter(a => currentUser && a.userId === currentUser.id);
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="마이페이지" onClick={() => setIsMyPageOpen(false)}>
-            <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between p-4 border-b border-zinc-200">
-                <h2 className="text-lg font-bold text-zinc-900">마이페이지</h2>
-                <button onClick={() => setIsMyPageOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기"><svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-              </div>
-              <div className="p-4 border-b border-zinc-200">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl" aria-hidden="true">{currentUser?.avatar || '🟡'}</span>
-                  <div>
-                    <p className="font-semibold text-zinc-900">{currentUser?.name || '사용자'}</p>
-                    <p className="text-sm text-zinc-500">{currentUser?.provider === 'kakao' ? '카카오' : '데모'} 로그인</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                {myApplications.length === 0 ? (
-                  <div className="text-center py-12 text-zinc-500">
-                    <svg className="mx-auto w-12 h-12 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-                    <p className="mt-3 text-sm">신청 내역이 없습니다.</p>
-                    <p className="text-xs mt-1">파티를 탐색하고 신청해 보세요.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {myApplications.map(app => (
-                      <div key={app.id} className="bg-white border border-zinc-200 rounded-xl p-4">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-zinc-900 truncate">{app.partyTitle}</h3>
-                            <p className="text-sm text-zinc-500 mt-1">{app.venue} · {app.day}요일</p>
-                            <p className="text-xs text-zinc-400 mt-1">신청일: {new Date(app.appliedAt).toLocaleDateString('ko-KR')}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${applicationStatus(app.status) === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : applicationStatus(app.status) === 'CANCELLED' ? 'bg-zinc-100 text-zinc-500' : 'bg-amber-100 text-amber-700'}`}>
-                              {applicationStatus(app.status) === 'APPROVED' ? '승인됨' : applicationStatus(app.status) === 'CANCELLED' ? '취소됨' : '대기중'}
-                            </span>
-                            {['APPLIED', 'PENDING'].includes(applicationStatus(app.status)) && (
-                              <button onClick={() => handleMyApplicationCancel(app)} className="px-3 py-1.5 text-xs font-medium text-rose-600 hover:text-rose-700 transition">취소</button>
-                            )}
-                            {applicationStatus(app.status) === 'APPROVED' && app.visitCode && (
-                              <span className="px-2 py-1 text-xs font-mono bg-zinc-100 text-zinc-700 rounded" title="방문 코드">{app.visitCode}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {currentUser && (
-                <div className="p-4 bg-zinc-50 border-t border-zinc-200 text-center">
-                  <button onClick={handleLogout} className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition">로그아웃</button>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      };
-
-      const Toast = () => {
-        if (!toastMessage) return null;
-        return <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 bg-zinc-900 text-white text-sm font-medium rounded-xl shadow-lg animate-fade-in">{toastMessage}</div>;
-      };
-
-      // The view helpers above close over app state and use no hooks. Call them as
-      // render functions so typing/filter updates do not remount inputs and dialogs.
-      // Main render
+      // ================================================================
+      // RENDER
+      // ================================================================
       return (
         <>
-          {Header()}
-          <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-            {/* Hero Section */}
-            <section className="mb-10 text-center" aria-labelledby="page-title">
-              <h1 id="page-title" className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-950">파티커넥트</h1>
-              <p className="mt-3 text-base sm:text-lg text-zinc-600 max-w-2xl mx-auto">혼술바, 소개팅, 소모임 등 다양한 소셜링 파티를 한 곳에서 탐색하고 신청하세요.</p>
-            </section>
+          {/* ================= HEADER ================= */}
+          <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-zinc-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-16">
+                {/* Logo */}
+                <a href="../" className="flex items-center gap-2" aria-label="PartyConnect 홈">
+                  <span className="text-xl font-extrabold tracking-tighter text-zinc-950">
+                    PARTY<span className="text-rose-600">connect</span>
+                  </span>
+                </a>
 
-            {/* Search Bar */}
-            <section className="mb-6" aria-label="파티 검색">
-              {SearchBar()}
-            </section>
+                {/* Desktop Nav */}
+                <nav className="hidden items-center gap-6 md:flex">
+                  <a href="../" className="text-sm font-semibold text-zinc-700 transition hover:text-rose-600">홈</a>
+                  <a href="#" className="text-sm font-bold text-rose-600 transition">파티 탐색</a>
+                </nav>
 
-            {/* Filters */}
-            <section className="mb-6 space-y-4" aria-label="필터">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  {FilterChips({label: "요일", options: DAYS, selected: selectedDay, onSelect: setSelectedDay, ariaLabel: "요일 필터"})}
-                </div>
-                <div className="w-full sm:w-auto">
-                  {RegionFilter()}
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {FilterChips({label: "카테고리", options: CATEGORIES, selected: selectedCategory, onSelect: setSelectedCategory, ariaLabel: "카테고리 필터"})}
-              </div>
-              {(selectedRegion !== '전체 지역' || selectedDay !== '전체' || selectedCategory !== '전체' || searchQuery) && (
-                <button onClick={clearFilters} className="text-sm font-medium text-rose-600 hover:underline flex items-center gap-1"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>필터 초기화</button>
-              )}
-            </section>
+                {/* Desktop Actions */}
+                <div className="hidden items-center gap-3 md:flex">
+                  {/* Notification Bell */}
+                  <button 
+                    onClick={() => setIsNotificationOpen(true)}
+                    className="relative p-2 rounded-full hover:bg-zinc-100 transition text-zinc-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                    aria-label={`알림${unreadCount > 0 ? `, ${unreadCount}개 읽지 않음` : ''}`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0018 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
 
-            {/* Results Summary */}
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-zinc-600" aria-live="polite">검색 결과 <span className="font-bold text-zinc-900">{filteredParties.length}</span>건 · 모집 중 <span className="font-bold text-rose-600">{availableCount}</span>건</p>
-            </div>
-
-            {/* Party Grid */}
-            <section aria-label="파티 목록">
-              {partiesLoading ? (
-                <p role="status" className="py-14 text-center text-zinc-500">파티 목록을 불러오는 중입니다.</p>
-              ) : partiesError ? (
-                <div role="alert" className="py-14 text-center text-rose-700">
-                  <p>파티 목록을 불러오지 못했습니다: {partiesError}</p>
-                  <button type="button" onClick={refreshParties} className="mt-4 px-5 py-2 rounded-xl bg-rose-600 text-white">다시 시도</button>
-                </div>
-              ) : filteredParties.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" role="list">
-                  {filteredParties.map(party => PartyCard({ party }))}
-                </div>
-              ) : (
-                <div className="text-center py-16 bg-white rounded-2xl border border-zinc-200" role="status">
-                  <svg className="mx-auto w-16 h-16 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  <h3 className="mt-4 text-lg font-semibold text-zinc-900">검색 결과가 없습니다</h3>
-                  <p className="mt-2 text-sm text-zinc-500">필터 조건을 조정하거나 검색어를 바꿔보세요.</p>
-                  {(selectedRegion !== '전체 지역' || selectedDay !== '전체' || selectedCategory !== '전체' || searchQuery) && (
-                    <button onClick={clearFilters} className="mt-6 px-5 py-2.5 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition min-h-[44px]">필터 초기화하고 다시 보기</button>
+                  {/* Profile / Login */}
+                  {currentUser ? (
+                    <div className="relative">
+                      <button 
+                        onClick={() => openMyPage()}
+                        className="flex items-center gap-2 p-1.5 rounded-full hover:bg-zinc-100 transition focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                        aria-label="마이페이지"
+                      >
+                        <span className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-xl" aria-hidden="true">
+                          {currentUser.avatar || '🟡'}
+                        </span>
+                        <span className="text-sm font-medium text-zinc-900 hidden sm:block">{currentUser.name}</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={openLoginModal}
+                      className="rounded-full bg-rose-600 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 sm:text-sm"
+                    >
+                      로그인
+                    </button>
                   )}
+                </div>
+
+                {/* Mobile Menu Button */}
+                <button className="md:hidden p-2 rounded-lg hover:bg-zinc-100 transition text-zinc-600" aria-label="메뉴 열기">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* ================= MAIN CONTENT ================= */}
+          <main className="flex-1 pt-4 pb-12">
+            {/* Hero Section */}
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8" aria-label="파티커넥트 소개">
+              <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-rose-500/90 to-pink-600/90">
+                <div className="absolute inset-0 bg-black/10" />
+                <div className="relative p-6 sm:p-8 md:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 min-h-[200px]">
+                  <div className="text-white z-10 max-w-xl">
+                    <span className="inline-block px-3 py-1 rounded-full bg-white/20 text-xs font-semibold mb-3">
+                      파티 탐색 및 신청
+                    </span>
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-tight mb-3">
+                      원하는 파티를 찾아<br/>신청하세요
+                    </h1>
+                    <p className="text-white/90 text-sm sm:text-base mb-6 max-w-md">
+                      혼술바, 소개팅, 소셜파티 등 다양한 모임을 한 곳에서 탐색하고<br/>카카오 로그인으로 간편하게 신청하세요.
+                    </p>
+                    <a href="#parties" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-rose-600 font-semibold rounded-xl hover:bg-white/90 transition shadow-lg">
+                      파티 둘러보기
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Party List Section */}
+            <section id="parties" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-labelledby="parties-heading">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h2 id="parties-heading" className="text-2xl font-extrabold text-zinc-950">
+                    파티커넥트
+                  </h2>
+                  <p className="text-sm text-zinc-500 mt-1">
+                    혼술바, 소개팅, 소셜파티를 한 곳에서 만나보세요
+                  </p>
+                </div>
+              </div>
+
+              {/* Search & Filters */}
+              <div className="bg-white rounded-2xl border border-zinc-200 p-4 sm:p-6 mb-6">
+                {/* Search */}
+                <div className="relative mb-4">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="파티명, 장소, 지역으로 검색"
+                    value={searchInput}
+                    onChange={(e) => { setSearchInput(e.target.value); setSearchQuery(e.target.value); }}
+                    className="w-full pl-10 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    aria-label="파티 검색"
+                  />
+                </div>
+
+                {/* Filter Chips */}
+                <div className="space-y-3">
+                  {/* Category */}
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-500 mb-2 block">카테고리</label>
+                    <div className="flex flex-wrap gap-2 no-scrollbar" role="group" aria-label="카테고리 필터">
+                      {CATEGORIES.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setSelectedCategory(cat)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                            selectedCategory === cat
+                              ? 'bg-rose-600 text-white shadow-sm'
+                              : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
+                          }`}
+                          aria-pressed={selectedCategory === cat}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Day */}
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-500 mb-2 block">요일</label>
+                    <div className="flex flex-wrap gap-2 no-scrollbar" role="group" aria-label="요일 필터">
+                      {DAYS.map((day) => (
+                        <button
+                          key={day}
+                          onClick={() => setSelectedDay(day)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition min-w-[44px] ${
+                            selectedDay === day
+                              ? 'bg-rose-600 text-white shadow-sm'
+                              : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
+                          }`}
+                          aria-pressed={selectedDay === day}
+                        >
+                          {day}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Region */}
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-500 mb-2 block">지역</label>
+                    <button
+                      onClick={() => setIsRegionModalOpen(true)}
+                      className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-left text-sm font-medium text-zinc-900 hover:bg-zinc-50 transition flex items-center justify-between"
+                    >
+                      <span>{selectedRegion}</span>
+                      <svg className="w-4 h-4 text-zinc-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Loading / Error / Empty States */}
+              {partiesLoading && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" role="list" aria-label="파티 목록">
+                  {[...Array(6)].map((_, i) => (
+                    <article key={i} className="bg-white rounded-2xl border border-zinc-200 overflow-hidden animate-pulse">
+                      <div className="aspect-[4/3] bg-zinc-200" />
+                      <div className="p-4 space-y-3">
+                        <div className="h-4 bg-zinc-200 rounded w-3/4" />
+                        <div className="h-5 bg-zinc-200 rounded w-1/2" />
+                        <div className="h-4 bg-zinc-200 rounded w-full" />
+                        <div className="h-4 bg-zinc-200 rounded w-2/3" />
+                        <div className="h-10 bg-zinc-200 rounded" />
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {partiesError && !partiesLoading && (
+                <div className="text-center py-12 bg-white rounded-2xl border border-rose-200">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mb-3">
+                    <svg className="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <h3 className="mt-3 text-lg font-semibold text-zinc-900">파티를 불러오지 못했어요</h3>
+                  <p className="mt-1 text-sm text-zinc-500">{partiesError.message}</p>
+                  <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition">
+                    다시 시도
+                  </button>
+                </div>
+              )}
+
+              {/* Party Cards Grid */}
+              {filteredParties.length === 0 && !partiesLoading && !partiesError && (
+                <div className="col-span-full text-center py-12">
+                  <svg className="mx-auto w-16 h-16 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h3 className="mt-4 text-lg font-semibold text-zinc-900">검색 결과가 없습니다</h3>
+                  <p className="mt-1 text-sm text-zinc-500">필터 조건을 조정하거나 검색어를 바꿔보세요</p>
+                  <button
+                    onClick={() => {
+                      setSelectedRegion("전체 지역");
+                      setSelectedDay("전체");
+                      setSelectedCategory("전체");
+                      setSearchQuery("");
+                      setSearchInput("");
+                    }}
+                    className="mt-4 px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition"
+                  >
+                    필터 초기화하고 다시 보기
+                  </button>
+                </div>
+              )}
+
+              {filteredParties.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" role="list" aria-label="파티 목록">
+                  {filteredParties.map((party) => (
+                    <article 
+                      key={party.id} 
+                      className="group bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300"
+                      role="listitem"
+                      data-party-id={party.id}
+                    >
+                      {/* Image */}
+                      <div className="relative aspect-[4/3] overflow-hidden">
+                        <img
+                          src={party.images[0] || "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=600&q=80"}
+                          alt=""
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                          aria-hidden="true"
+                        />
+                        {/* Badges */}
+                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                          {party.badges.slice(0, 2).map((badge, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/90 backdrop-blur-sm text-zinc-800 shadow-sm">
+                              {badge}
+                            </span>
+                          ))}
+                        </div>
+                        {/* Wishlist */}
+                        <button
+                          onClick={(e) => toggleWishlist(e, party.id)}
+                          className="absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-zinc-100 transition"
+                          aria-label={wishlist.has(party.id) ? "관심 파티에서 제거" : "관심 파티에 추가"}
+                        >
+                          <svg className={`w-5 h-5 ${wishlist.has(party.id) ? 'text-rose-600 fill-current' : 'text-zinc-500'}`} fill={wishlist.has(party.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-4">
+                        {/* Category & Region */}
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[10px] font-medium">{party.category}</span>
+                          <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 text-[10px] font-medium">{party.region}</span>
+                        </div>
+
+                        {/* Title */}
+                        <h3 className="font-bold text-zinc-900 text-base line-clamp-2 mb-2 group-hover:text-rose-600 transition">
+                          {party.title}
+                        </h3>
+
+                        {/* Description */}
+                        <p className="text-sm text-zinc-500 line-clamp-2 mb-3">
+                          {party.desc}
+                        </p>
+
+                        {/* Meta */}
+                        <div className="flex items-center gap-3 text-xs text-zinc-400 mb-3">
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            {party.venue}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            {party.days.join(', ')}
+                          </span>
+                        </div>
+
+                        {/* Recruit Status */}
+                        <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
+                          <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${party.currentRecruit >= party.recruit ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {party.currentRecruit >= party.recruit ? '모집 마감' : `모집 ${party.currentRecruit}/${party.recruit}`}
+                          </span>
+                        </div>
+
+                        {/* CTA Button */}
+                        <button
+                          onClick={() => openPartyDetail(party)}
+                          disabled={party.currentRecruit >= party.recruit || hasApplied(party.id)}
+                          className={`w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition min-h-[44px] ${
+                            party.currentRecruit >= party.recruit
+                              ? 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
+                              : hasApplied(party.id)
+                                ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed'
+                                : 'bg-rose-600 text-white hover:bg-rose-700 shadow-md'
+                          }`}
+                        >
+                          {party.currentRecruit >= party.recruit
+                            ? "모집 마감"
+                            : hasApplied(party.id)
+                              ? "신청 완료"
+                              : "파티 신청하기"}
+                        </button>
+                      </div>
+                    </article>
+                  ))}
                 </div>
               )}
             </section>
 
             {/* Partnership Section */}
-            <section className="mt-16 pt-8 border-t border-zinc-200" aria-labelledby="partners-title">
-              <h2 id="partners-title" className="text-xl font-bold text-zinc-900 text-center mb-3">제휴 및 입점 문의</h2>
-              <p className="text-center text-zinc-600 mb-6 max-w-xl mx-auto">파티커넥트와 함께 성장할 파트너를 기다립니다. 제휴 제안, 입점 문의는 아래 채널로 연락주세요.</p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <a href="../#partners" className="w-full sm:w-auto px-6 py-3 text-sm font-bold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition text-center min-h-[48px]">제휴 신청하기</a>
-                <a href="mailto:partner@partyconnect.kr" className="w-full sm:w-auto px-6 py-3 text-sm font-bold text-zinc-700 border border-zinc-200 rounded-xl hover:bg-zinc-50 transition text-center min-h-[48px]">이메일 문의</a>
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16" aria-labelledby="partners-heading">
+              <h2 id="partners-heading" className="text-2xl font-extrabold text-zinc-950 mb-6 text-center">파트너십</h2>
+              <div className="bg-white rounded-2xl border border-zinc-200 p-6 text-center">
+                <p className="text-zinc-600 mb-4">파티커넥트와 함께하는 파트너가 되고 싶으신가요?</p>
+                <div className="flex flex-wrap gap-3 justify-center">
+                  <a href="../#partners" className="px-5 py-2.5 bg-rose-600 text-white font-semibold rounded-xl hover:bg-rose-700 transition">제휴 신청하기</a>
+                  <a href="mailto:partner@partyconnect.kr" className="px-5 py-2.5 border border-zinc-300 text-zinc-700 font-semibold rounded-xl hover:bg-zinc-50 transition">이메일 문의</a>
+                </div>
               </div>
             </section>
           </main>
 
+          {/* ================= FOOTER ================= */}
           <footer className="border-t border-zinc-200 bg-white py-8">
             <div className="max-w-7xl mx-auto px-4 text-center text-sm text-zinc-500">
               <p>© 2024 PartyConnect. All rights reserved.</p>
@@ -941,10 +883,432 @@
             </div>
           </footer>
 
-          {PartyDetailModal()}
-          {LoginModal()}
-          {MyPageModal()}
-          {Toast()}
+          {/* ================= MODALS ================= */}
+          {/* Region Modal */}
+          {isRegionModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="지역 선택" onClick={() => setIsRegionModalOpen(false)}>
+              <div className="relative w-full max-w-md max-h-[80vh] bg-white rounded-2xl shadow-2xl flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-4 border-b border-zinc-100">
+                  <h3 className="text-base font-bold text-zinc-900">지역 선택</h3>
+                  <button onClick={() => setIsRegionModalOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기">
+                    <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="flex gap-2 border-b border-zinc-100 pb-3 mb-4 no-scrollbar" role="tablist">
+                    {REGION_CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setModalSelectedCategory(cat.id)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap ${
+                          modalSelectedCategory === cat.id
+                            ? 'bg-rose-600 text-white'
+                            : 'text-zinc-700 hover:bg-zinc-100'
+                        }`}
+                        role="tab"
+                        aria-selected={modalSelectedCategory === cat.id}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {REGION_CATEGORIES.find(c => c.id === modalSelectedCategory)?.subRegions.map((sub) => (
+                      <button
+                        key={sub}
+                        onClick={() => { setSelectedRegion(sub); setIsRegionModalOpen(false); }}
+                        className={`w-full px-4 py-2 rounded-xl text-left text-sm font-medium transition ${
+                          selectedRegion === sub
+                            ? 'bg-rose-50 text-rose-600'
+                            : 'text-zinc-700 hover:bg-zinc-50'
+                        }`}
+                      >
+                        {sub}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Party Detail Modal */}
+          {activePartyDetail && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="party-detail-title" onClick={closePartyDetail}>
+              <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+                {/* Image Gallery */}
+                <div className="relative aspect-[16/9] bg-zinc-100">
+                  <img
+                    src={activePartyDetail.images[selectedDetailImage] || "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=800&q=80"}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    aria-hidden="true"
+                  />
+                  {activePartyDetail.images.length > 1 && (
+                    <>
+                      <button onClick={() => setSelectedDetailImage((prev) => (prev - 1 + activePartyDetail.images.length) % activePartyDetail.images.length)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 shadow-lg hover:bg-white transition" aria-label="이전 이미지">
+                        <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                      </button>
+                      <button onClick={() => setSelectedDetailImage((prev) => (prev + 1) % activePartyDetail.images.length)} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 shadow-lg hover:bg-white transition" aria-label="다음 이미지">
+                        <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                        {activePartyDetail.images.map((_, i) => (
+                          <button key={i} onClick={() => setSelectedDetailImage(i)} className={`w-2 h-2 rounded-full transition ${i === selectedDetailImage ? 'bg-white' : 'bg-white/50'}`} aria-label={`이미지 ${i + 1}`} />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+                  <div className="flex items-start justify-between gap-4 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[10px] font-medium">{activePartyDetail.category}</span>
+                        <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 text-[10px] font-medium">{activePartyDetail.region}</span>
+                      </div>
+                      <h3 id="party-detail-title" className="text-lg font-bold text-zinc-900 line-clamp-2">{activePartyDetail.title}</h3>
+                    </div>
+                    <button onClick={closePartyDetail} className="p-2 rounded-full hover:bg-zinc-100 transition flex-shrink-0" aria-label="닫기">
+                      <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+
+                  {/* Application Flow */}
+                  {applyStep === 'detail' && (
+                    <div className="space-y-4">
+                      {/* Venue & Schedule */}
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-center gap-2 p-3 bg-zinc-50 rounded-xl">
+                          <svg className="w-5 h-5 text-zinc-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                          <div>
+                            <p className="text-[10px] text-zinc-500">장소</p>
+                            <p className="font-medium text-zinc-900 truncate">{activePartyDetail.venue}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 p-3 bg-zinc-50 rounded-xl">
+                          <svg className="w-5 h-5 text-zinc-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                          <div>
+                            <p className="text-[10px] text-zinc-500">일정</p>
+                            <p className="font-medium text-zinc-900">{activePartyDetail.days.join(', ')}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 p-3 bg-zinc-50 rounded-xl col-span-2">
+                          <svg className="w-5 h-5 text-zinc-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                          <div>
+                            <p className="text-[10px] text-zinc-500">주소</p>
+                            <p className="font-medium text-zinc-900 truncate">{activePartyDetail.address}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <div className="p-3 bg-zinc-50 rounded-xl">
+                        <p className="text-xs text-zinc-500 mb-1">소개</p>
+                        <p className="text-sm text-zinc-700 whitespace-pre-line">{activePartyDetail.desc}</p>
+                      </div>
+
+                      {/* Recruit Status */}
+                      <div className="p-3 rounded-xl bg-white border border-zinc-200">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-zinc-500">모집 현황</p>
+                            <p className="font-bold text-zinc-900">{activePartyDetail.currentRecruit} / {activePartyDetail.recruit}명</p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${activePartyDetail.currentRecruit >= activePartyDetail.recruit ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {activePartyDetail.currentRecruit >= activePartyDetail.recruit ? '모집 마감' : '모집 중'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => setApplyStep('form')}
+                          disabled={activePartyDetail.currentRecruit >= activePartyDetail.recruit || hasApplied(activePartyDetail.id)}
+                          className={`w-full py-3 rounded-xl text-sm font-bold transition min-h-[48px] ${
+                            activePartyDetail.currentRecruit >= activePartyDetail.recruit
+                              ? 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
+                              : hasApplied(activePartyDetail.id)
+                                ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed'
+                                : 'bg-rose-600 text-white hover:bg-rose-700 shadow-md'
+                          }`}
+                        >
+                          {activePartyDetail.currentRecruit >= activePartyDetail.recruit
+                            ? "모집 마감"
+                            : hasApplied(activePartyDetail.id)
+                              ? "신청 완료"
+                              : "파티 신청하기"}
+                        </button>
+                        <button
+                          onClick={() => openMap(activePartyDetail)}
+                          className="w-full py-3 rounded-xl text-sm font-semibold border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition min-h-[48px] flex items-center justify-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                          카카오맵에서 보기
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Application Form */}
+                  {applyStep === 'form' && (
+                    <form onSubmit={submitApplication} className="space-y-4">
+                      <h3 className="text-lg font-bold text-zinc-900">파티 신청</h3>
+                      <p className="text-sm text-zinc-500">{activePartyDetail.title}</p>
+                      
+                      {applyError && (
+                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-sm text-rose-700" role="alert">
+                          {applyError}
+                        </div>
+                      )}
+
+                      <div>
+                        <label htmlFor="apply-name" className="block text-sm font-medium text-zinc-700 mb-1">신청자 이름 <span className="text-rose-600">*</span></label>
+                        <input
+                          id="apply-name"
+                          type="text"
+                          value={applyForm.name}
+                          onChange={(e) => setApplyForm({...applyForm, name: e.target.value})}
+                          placeholder="이름을 입력해 주세요"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                          autoComplete="name"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="apply-phone" className="block text-sm font-medium text-zinc-700 mb-1">연락처 <span className="text-rose-600">*</span></label>
+                        <input
+                          id="apply-phone"
+                          type="tel"
+                          value={applyForm.phone}
+                          onChange={(e) => setApplyForm({...applyForm, phone: e.target.value})}
+                          placeholder="010-0000-0000"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                          autoComplete="tel"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-zinc-700 mb-1">참여 일정 <span className="text-rose-600">*</span></label>
+                        <div className="flex flex-wrap gap-2">
+                          {activePartyDetail.days.map((day) => (
+                            <label key={day} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="apply-day"
+                                value={day}
+                                checked={applyForm.day === day}
+                                onChange={(e) => setApplyForm({...applyForm, day: e.target.value})}
+                                className="w-4 h-4 text-rose-600 border-zinc-300 focus:ring-rose-500"
+                              />
+                              <span className="px-3 py-1.5 rounded-full text-sm font-medium border border-zinc-200 bg-white hover:bg-zinc-50 transition">{day}요일</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={applyForm.agree}
+                          onChange={(e) => setApplyForm({...applyForm, agree: e.target.checked})}
+                          className="mt-1 w-5 h-5 text-rose-600 border-zinc-300 rounded focus:ring-rose-500 focus:ring-2"
+                          required
+                        />
+                        <div className="text-sm text-zinc-600">
+                          <span className="font-medium text-zinc-900">파티 신청을 위한 개인정보 수집·이용 동의</span>
+                          <a href="../#privacy" className="text-rose-600 hover:underline ml-1">(내용 보기)</a>
+                        </div>
+                      </label>
+
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setApplyStep('detail')}
+                          className="flex-1 py-3 rounded-xl text-sm font-semibold border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition min-h-[48px]"
+                        >
+                          취소
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={applySubmitting}
+                          className={`flex-1 py-3 rounded-xl text-sm font-bold transition min-h-[48px] ${applySubmitting ? 'bg-zinc-300 cursor-not-allowed' : 'bg-rose-600 text-white hover:bg-rose-700 shadow-md'}`}
+                        >
+                          {applySubmitting ? '신청 중...' : '신청하기'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* Application Complete */}
+                  {applyStep === 'done' && (
+                    <div className="flex flex-col items-center justify-center p-12 text-center">
+                      <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
+                        <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-bold text-zinc-900">신청이 접수되었습니다!</h3>
+                      <p className="mt-2 text-sm text-zinc-500">
+                        {live 
+                          ? '실제 서버에 신청이 접수되었습니다. 알림을 기다려 주세요.' 
+                          : '파티 신청이 완료되었습니다. (데모 모드 - 실제 서버 연동 시 알림 발송)'}
+                      </p>
+                      <button onClick={closePartyDetail} className="mt-6 w-full max-w-xs py-3 text-sm font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition min-h-[48px]">
+                        확인
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Notification Center */}
+          {isNotificationOpen && (
+            <div className="fixed inset-0 z-[60] flex items-start justify-end bg-black/60 p-4 backdrop-blur-sm animate-fade-in" onClick={() => setIsNotificationOpen(false)}>
+              <div role="dialog" aria-modal="true" aria-labelledby="notification-title" onClick={e => e.stopPropagation()} className="animate-slide-up relative w-full max-w-md max-h-[80vh] rounded-2xl bg-white shadow-2xl flex flex-col">
+                <div className="flex items-center justify-between border-b border-zinc-100 p-4">
+                  <h3 id="notification-title" className="text-base font-bold text-zinc-900">알림</h3>
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button onClick={markAllAsRead} className="text-xs font-semibold text-rose-600 hover:underline">전체 읽음</button>
+                    )}
+                    <button onClick={() => setIsNotificationOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기">
+                      <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <div className="p-8 text-center text-zinc-500">
+                      <svg className="mx-auto w-12 h-12 text-zinc-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0018 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                      <p>알림이 없습니다.</p>
+                    </div>
+                  ) : (
+                    <ul className="divide-y divide-zinc-100">
+                      {notifications.map((notif) => (
+                        <li key={notif.id} className={`p-4 ${!notif.read ? 'bg-rose-50/50' : ''}`}>
+                          <div className="flex items-start gap-3">
+                            <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${!notif.read ? 'bg-rose-500' : 'bg-zinc-300'}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-medium text-zinc-900 ${!notif.read ? 'font-bold' : ''}`}>{notif.title}</p>
+                              <p className="text-sm text-zinc-600 mt-0.5">{notif.message}</p>
+                              <p className="text-xs text-zinc-400 mt-1">{new Date(notif.createdAt).toLocaleString('ko-KR')}</p>
+                            </div>
+                            <button onClick={() => { markAsRead(notif.id); deleteNotification(notif.id); }} className="p-1 text-zinc-400 hover:text-zinc-600" aria-label="알림 삭제">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* My Page Modal */}
+          {isMyPageOpen && currentUser && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="마이페이지" onClick={() => setIsMyPageOpen(false)}>
+              <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between p-4 border-b border-zinc-200">
+                  <h2 className="text-lg font-bold text-zinc-900">마이페이지</h2>
+                  <button onClick={() => setIsMyPageOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기"><svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                </div>
+                <div className="p-4 border-b border-zinc-200">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl" aria-hidden="true">{currentUser.avatar || '🟡'}</span>
+                    <div>
+                      <p className="font-semibold text-zinc-900">{currentUser.name}</p>
+                      <p className="text-sm text-zinc-500">카카오 로그인</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div>
+                    <h3 className="font-semibold text-zinc-900 mb-3">내 신청 내역</h3>
+                    {applications.length === 0 ? (
+                      <div className="text-center py-8 text-zinc-500">
+                        <svg className="mx-auto w-12 h-12 text-zinc-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                        <p>신청한 파티가 없습니다.</p>
+                        <button onClick={() => { setIsMyPageOpen(false); }} className="mt-3 inline-block text-sm font-semibold text-rose-600 hover:underline">파티 둘러보기</button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {applications.map((app) => {
+                          const status = getStatusLabel(app.status);
+                          return (
+                            <div key={app.id} className="p-3 bg-zinc-50 rounded-xl border border-zinc-100">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-zinc-900">{app.partyTitle}</p>
+                                  <p className="text-sm text-zinc-500">{app.day}요일 · {new Date(app.appliedAt).toLocaleDateString('ko-KR')}</p>
+                                </div>
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${status.className}`}>{status.label}</span>
+                              </div>
+                              {app.status === 'APPLIED' && (
+                                <button onClick={() => handleMyApplicationCancel(app)} className="mt-2 w-full py-2 text-sm font-medium text-rose-600 hover:text-rose-700 transition">신청 취소</button>
+                              )}
+                              {app.status === 'APPROVED' && app.visitCode && (
+                                <div className="mt-2 p-2 bg-emerald-50 rounded-lg text-sm text-emerald-700">방문 인증 코드: <span className="font-mono font-bold">{app.visitCode}</span></div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="border-t border-zinc-200 p-4">
+                  <button onClick={handleLogout} className="w-full px-4 py-2 text-sm font-medium text-rose-600 hover:text-rose-700 transition">로그아웃</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Login Modal */}
+          {isLoginModalOpen && (
+            <LoginModal 
+              isOpen={isLoginModalOpen}
+              onClose={() => setIsLoginModalOpen(false)}
+              onLogin={handleLogin}
+              isLoading={loginLoading}
+              isLive={live}
+            />
+          )}
+
+          {/* Welcome Toast */}
+          {welcomeToast.show && (
+            <WelcomeToast 
+              isOpen={welcomeToast.show}
+              onClose={() => setWelcomeToast({ show: false, isNewUser: false })}
+              isNewUser={welcomeToast.isNewUser}
+            />
+          )}
+
+          {/* Error Toast */}
+          {errorToast.show && (
+            <ErrorToast 
+              message={errorToast.message}
+              onClose={() => setErrorToast({ show: false, message: '' })}
+            />
+          )}
+
+          {/* Global Toast */}
+          {toastMessage && (
+            <div className="fixed bottom-4 right-4 z-50 animate-slide-up">
+              <div className="bg-zinc-900 text-white px-4 py-3 rounded-xl shadow-xl text-sm max-w-xs">
+                {toastMessage}
+              </div>
+            </div>
+          )}
         </>
       );
     }
@@ -952,11 +1316,6 @@
     // Render
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<PartyConnectApp />);
-
-    // Lucide icons
-    if (window.lucide) { window.lucide.createIcons(); }
-    const obs = new MutationObserver(() => { if (window.lucide) window.lucide.createIcons(); });
-    obs.observe(document.body, { childList: true, subtree: true });
   </script>
 </body>
 </html>
