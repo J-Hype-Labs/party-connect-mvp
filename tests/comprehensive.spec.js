@@ -181,7 +181,9 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('button:has-text("지역 선택")')).toBeVisible({ timeout: 30000 });
 
     if (errors.length > 0) {
-      console.log('Critical JavaScript errors found:', errors);
+      const errorMsg = 'Critical JavaScript errors found:\n' + errors.join('\n');
+      console.log(errorMsg);
+      throw new Error(errorMsg);
     }
     
     expect(errors).toHaveLength(0);
