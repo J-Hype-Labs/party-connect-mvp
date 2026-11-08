@@ -38,7 +38,7 @@
 | Background | #FFFFFF | 기본 바탕 |
 | Surface | #FAFAFA | 보조 표면 |
 | Text | #18181B | 본문 |
-| Muted | #71717Z | 보조 텍스트 |
+| Muted | #71717A | 보조 텍스트 |
 | Border | #E4E4E7 | 경계 |
 | Font | Pretendard | 전체 기본 글꼴 |
 
