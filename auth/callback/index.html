@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>로그인 처리 중 - PartyConnect</title>
+  
+  <!-- SEO -->
+  <meta name="robots" content="noindex, nofollow">
+  
+  <!-- Pretendard Font -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              primary: '#E11D48',
+              secondary: '#FB7185',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 & ReactDOM & Babel CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+
+  <!-- Shared Config & Auth Modules -->
+  <script src="../../js/party-data.js"></script>
+  <script src="../../js/auth-client.js"></script>
+  <script src="../../js/auth-service.js"></script>
+  <script src="../../js/auth-ui.js"></script>
+
+  <style>
+    :root {
+      --color-primary: #E11D48;
+      --color-secondary: #FB7185;
+      --color-background: #FFFFFF;
+      --color-text-main: #18181B;
+      --color-text-muted: #71717A;
+      --color-border: #E4E4E7;
+    }
+
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background-color: var(--color-background);
+      color: var(--color-text-main);
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .animate-fade-in { animation: fade-in 0.3s ease-out both; }
+    .animate-spin { animation: spin 1s linear infinite; }
+  </style>
+</head>
+<body class="min-h-screen bg-white text-zinc-900">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+    const { AuthProcessingScreen } = window.PARTYLINK_AUTH_UI;
+    const { handleCallback, restoreSession, AUTH_STATE, saveReturnUrl, consumeReturnUrl } = window.PARTYLINK_AUTH_SERVICE;
+    const { live, client } = window.PARTYLINK_AUTH;
+
+    function CallbackApp() {
+      const [state, setState] = useState('processing'); // processing, success, error, redirecting
+      const [message, setMessage] = useState('카카오 로그인을 확인하고 있어요.');
+      const [subMessage, setSubMessage] = useState('잠시 후 자동으로 이동해요.');
+      const [returnInfo, setReturnInfo] = useState(null);
+
+      useEffect(() => {
+        // Consume return URL info
+        const info = consumeReturnUrl();
+        setReturnInfo(info);
+
+        // Handle OAuth callback
+        const processCallback = async () => {
+          try {
+            // Check for error params from Kakao/Supabase
+            const params = new URLSearchParams(window.location.search);
+            const error = params.get('error');
+            const errorDescription = params.get('error_description');
+            
+            if (error) {
+              throw new Error(errorDescription || '인증 과정에서 오류가 발생했습니다.');
+            }
+
+            // Process callback - this will wait for session via detectSessionInUrl
+            const result = await handleCallback();
+            
+            if (result.needsOnboarding) {
+              setState('onboarding');
+              setMessage('회원가입을 완료해 주세요.');
+              setSubMessage('필수 약관에 동의하면 바로 시작할 수 있어요.');
+            } else {
+              setState('success');
+              setMessage('로그인이 완료되었습니다!');
+              setSubMessage('원래 페이지로 이동해요.');
+              
+              // Redirect after short delay
+              setTimeout(() => {
+                redirectToReturnPage(info);
+              }, 1500);
+            }
+          } catch (error) {
+            console.error('Callback error:', error);
+            setState('error');
+            setMessage('로그인에 실패했어요.');
+            setSubMessage(error.message || '다시 시도해 주세요.');
+          }
+        };
+
+        processCallback();
+      }, []);
+
+      const redirectToReturnPage = (info) => {
+        let targetPath = '/';
+        
+        if (info && info.returnPath) {
+          // Validate it's an internal path
+          if (info.returnPath.startsWith('/') && !info.returnPath.startsWith('//')) {
+            targetPath = info.returnPath;
+          }
+        }
+        
+        // If partyId and intent=apply, ensure we go to party-connect
+        if (info && info.partyId && info.intent === 'apply') {
+          // Ensure we're on the party-connect page
+          if (!targetPath.includes('/party-connect/')) {
+            targetPath = '/party-connect-mvp/party-connect/';
+          }
+        }
+        
+        // Clean URL - remove auth params
+        window.location.href = targetPath;
+      };
+
+      const handleRetry = () => {
+        setState('processing');
+        setMessage('카카오 로그인을 확인하고 있어요.');
+        setSubMessage('잠시 후 자동으로 이동해요.');
+        // Reload to restart OAuth flow
+        window.location.reload();
+      };
+
+      const handleGoHome = () => {
+        window.location.href = '/party-connect-mvp/';
+      };
+
+      // Render based on state
+      if (state === 'onboarding') {
+        // Onboarding will be handled by the parent page after redirect
+        // For now, redirect to main with onboarding flag
+        window.location.href = '/party-connect-mvp/?onboarding=1';
+        return null;
+      }
+
+      return (
+        <AuthProcessingScreen 
+          message={message} 
+          subMessage={subMessage}
+        />
+      );
+    }
+
+    // Render
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<CallbackApp />);
+  </script>
+</body>
+</html>

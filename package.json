@@ -8,10 +8,13 @@
     "validate:html": "node scripts/validate-html.js",
     "test:unit": "node scripts/validate-all.js",
     "test:e2e": "playwright test",
-    "test:e2e:full": "npx playwright test tests/comprehensive.spec.js --reporter=html"
+    "test:e2e:full": "playwright test tests/comprehensive.spec.js tests/party-connect-page.spec.js tests/user-journey-regression.spec.js --reporter=list",
+    "test:party-connect": "npx playwright test tests/party-connect-page.spec.js --reporter=list",
+    "test:user-journey": "npx playwright test tests/user-journey-regression.spec.js --reporter=list",
+    "test:auth": "npx playwright test tests/auth-*.spec.js --reporter=list"
   },
   "devDependencies": {
-    "@babel/parser": "^7.23.0",
+    "@babel/parser": "^7.29.13",
     "@playwright/test": "^1.40.0"
   },
   "engines": {
