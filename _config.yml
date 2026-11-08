@@ -1,10 +1,18 @@
 # GitHub Pages (legacy Jekyll build) 설정
-# 개발용 파일은 배포 결과물에서 제외합니다.
+# 개발용 문서와 도구는 공개 사이트 산출물에서 제외합니다.
 exclude:
   - README.md
   - SPECIFICATION.md
+  - PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md
+  - UI_UX_DECISION_RECORD.md
+  - ELI10_REPORT.md
+  - docs
   - start.sh
   - .agents
   - .github
+  - tests
+  - scripts
+  - "*.md"
+  - "*.mdx"
   - "*.png"
   - "*.pyc"
