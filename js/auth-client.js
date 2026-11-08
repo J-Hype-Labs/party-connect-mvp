@@ -12,8 +12,14 @@
   const params = new URLSearchParams(window.location.search);
   const isLocal = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
   
+  // Ensure Supabase is available (loaded via CDN before this script)
+  if (!window.supabase) {
+    console.warn('[auth-client.js] Supabase not available on window.supabase');
+    window.supabase = { createClient: function() { return null; } };
+  }
+  
   // Production mode: configured + not demo + (not local OR live=1)
-  const configured = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase);
+  const configured = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase && window.supabase.createClient);
   const live = configured && params.get("demo") !== "1" && (!isLocal || params.get("live") === "1");
 
   // Supabase client (only created in live mode)

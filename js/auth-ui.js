@@ -9,6 +9,10 @@
   'use strict';
 
   const React = window.React;
+  if (!React || !React.createElement) {
+    console.error('[auth-ui.js] React not available');
+    window.React = { createElement: () => null, useState: () => [null, () => {}] };
+  }
   const e = React.createElement;
 
   // Toast helper

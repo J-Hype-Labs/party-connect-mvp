@@ -321,36 +321,36 @@
       const [selectedDay, setSelectedDay] = useState("전체");
       const [selectedCategory, setSelectedCategory] = useState("전체");
 
-      // PARTYLINK integration
-      const { live, client, api, toAppUser } = window.PARTYLINK_AUTH;
+      // PARTYLINK integration (with fallbacks for robustness)
+      const { live = false, client = null, api = null, toAppUser = (u) => u } = window.PARTYLINK_AUTH || {};
       const { 
-        AUTH_STATE, 
-        getState, 
-        getUser, 
-        isAuthenticated, 
-        subscribe, 
-        loginWithKakao, 
-        restoreSession, 
-        logout, 
-        saveReturnUrl, 
-        consumeReturnUrl 
-      } = window.PARTYLINK_AUTH_SERVICE;
+        AUTH_STATE = {}, 
+        getState = () => 'SIGNED_OUT', 
+        getUser = () => null, 
+        isAuthenticated = () => false, 
+        subscribe = (l) => () => {}, 
+        loginWithKakao = async () => { throw new Error('Auth not available'); }, 
+        restoreSession = async () => ({ user: null }), 
+        logout = async () => {}, 
+        saveReturnUrl = () => {}, 
+        consumeReturnUrl = () => null 
+      } = window.PARTYLINK_AUTH_SERVICE || {};
       const { 
-        LoginModal, 
-        WelcomeToast, 
-        ErrorToast, 
-        ProfileMenu 
-      } = window.PARTYLINK_AUTH_UI;
+        LoginModal = () => null, 
+        WelcomeToast = () => null, 
+        ErrorToast = () => null, 
+        ProfileMenu = () => null 
+      } = window.PARTYLINK_AUTH_UI || {};
       const { 
-        fetchParties, 
-        fetchMyApplications, 
-        applyToParty, 
-        cancelApplication,
-        normalizeServerParties,
-        normalizeServerApplications,
-        getStatusLabel,
-        isActiveApplication 
-      } = window.PARTYLINK_PARTY_API;
+        fetchParties = async () => ({ data: [], error: new Error('API not available') }), 
+        fetchMyApplications = async () => ({ data: [], error: null }), 
+        applyToParty = async () => { throw new Error('API not available'); }, 
+        cancelApplication = async () => { throw new Error('API not available'); },
+        normalizeServerParties = (d) => d,
+        normalizeServerApplications = (d) => d,
+        getStatusLabel = (s) => ({ label: s, className: '' }),
+        isActiveApplication = () => false 
+      } = window.PARTYLINK_PARTY_API || {};
       
       // Wishlist (favorites) state — persisted in localStorage
       const [wishlist, setWishlist] = useState(() => {
