@@ -5,6 +5,8 @@
 (function () {
   'use strict';
   const ui = () => window.ADMIN_UI;
+  const api = () => window.ADMIN_API;
+  const row = (k, v) => ui().h('div', null, ui().h('dt', { text: k }), ui().h('dd', { text: v }));
   const S = { items: [], failed: '', loaded: false, content: null, blocked: false };
 
   async function open(content, opts) {
@@ -15,7 +17,7 @@
 
   async function load() {
     S.loaded = false; render();
-    try { S.items = await ui().api.guests(S.blocked ? { blocked: 1 } : {}); S.failed = ''; }
+    try { S.items = await api().guests(S.blocked ? { blocked: 1 } : {}); S.failed = ''; }
     catch (e) { S.failed = e.message || '목록을 불러오지 못했습니다.'; }
     S.loaded = true; render();
   }
@@ -27,7 +29,7 @@
     u.clear(c);
     c.appendChild(h('h1', { text: '게스트' }));
     c.appendChild(h('div', { class: 'toolbar' },
-      h('label', { class: 'field inline' },
+      h('label', { class: 'field check' },
         h('input', { id: 'guest-blocked', type: 'checkbox', checked: S.blocked, onchange: function (e) { S.blocked = e.target.checked; load(); } }),
         h('span', { text: '차단된 게스트만' }))));
     if (!S.loaded) return c.appendChild(h('p', { class: 'state-msg', text: '불러오는 중…' }));
@@ -45,11 +47,11 @@
       h('div', { class: 'card-head' }, h('strong', { text: g.name }),
         h('span', { class: 'badge ' + (blocked ? 'st-bad' : 'st-done'), text: blocked ? '차단' : '정상' })),
       h('dl', { class: 'meta' },
-        u.row('연락처', g.phone),
-        g.instagram ? u.row('인스타', g.instagram) : null,
-        u.row('노쇼 / 벌점', g.noshowCount + '회 / ' + g.penaltyCount + '점'),
-        g.isBlocked ? u.row('차단', '관리자 차단 (수동 해제 전까지 유지)') : null,
-        !g.isBlocked && blocked ? u.row('차단', u.fmtDate(g.blockedUntil) + ' 까지 (벌점 자동)') : null),
+        row('연락처', g.phone),
+        g.instagram ? row('인스타', g.instagram) : null,
+        row('노쇼 / 벌점', g.noshowCount + '회 / ' + g.penaltyCount + '점'),
+        g.isBlocked ? row('차단', '관리자 차단 (수동 해제 전까지 유지)') : null,
+        !g.isBlocked && blocked ? row('차단', u.fmtDate(g.blockedUntil) + ' 까지 (벌점 자동)') : null),
       h('div', { class: 'actions' },
         h('button', { class: 'btn small ' + (blocked ? 'primary' : 'danger'), type: 'button', 'data-action': blocked ? 'unblock' : 'block',
           onclick: function () { toggle(g, !blocked); }, text: blocked ? '차단 해제' : '차단' })));
@@ -60,11 +62,11 @@
     u.dialog(block ? '게스트를 차단할까요?' : '차단을 해제할까요?',
       h('p', { text: block ? g.name + ' 님은 해제하기 전까지 파티에 신청할 수 없습니다.' : g.name + ' 님의 차단(벌점 자동 차단 포함)을 해제합니다.' }),
       block ? '차단' : '해제', block, async function () {
-        try { await u.api.blockGuest(g.id, block); u.toast(block ? '차단했습니다.' : '해제했습니다.', 'ok'); await load(); return ''; }
+        try { await api().blockGuest(g.id, block); u.toast(block ? '차단했습니다.' : '해제했습니다.', 'ok'); await load(); return ''; }
         catch (e) { return e.message || '처리하지 못했습니다.'; }
       });
   }
 
-  window.ADMIN_SCREENS = window.ADMIN_SCREENS || {};
-  window.ADMIN_SCREENS.guests = { open: open };
+  window.ADMIN_VIEWS = window.ADMIN_VIEWS || {};
+  window.ADMIN_VIEWS.guests = open;
 })();

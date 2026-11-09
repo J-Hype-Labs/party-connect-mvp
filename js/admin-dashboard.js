@@ -4,13 +4,14 @@
 (function () {
   'use strict';
   const UI = () => window.ADMIN_UI;
+  const api = () => window.ADMIN_API;
 
   const CARDS = [
-    ['pendingApplications', '선정 대기 신청', '명 처리 필요', function (ui) { ui.goto('applications', { status: 'APPLIED', slotId: '' }); }],
-    ['partiesThisWeek', '이번 주 파티', '개', function (ui) { ui.goto('parties', { status: 'OPEN' }); }],
-    ['openParties', '모집 중 파티', '개', function (ui) { ui.goto('parties', { status: 'OPEN' }); }],
-    ['lowBalanceStores', '적립금 부족 점포', '곳', function (ui) { ui.goto('stores', { lowOnly: true }); }],
-    ['blockedGuests', '차단된 게스트', '명', function (ui) { ui.goto('guests', { blocked: true }); }],
+    ['pendingApplications', '선정 대기 신청', '명 처리 필요', function (ui) { ui.navigate('applications', { status: 'APPLIED', slotId: '' }); }],
+    ['partiesThisWeek', '이번 주 파티', '개', function (ui) { ui.navigate('parties'); }],
+    ['openParties', '모집 중 파티', '개', function (ui) { ui.navigate('parties'); }],
+    ['lowBalanceStores', '적립금 부족 점포', '곳', function (ui) { ui.navigate('stores'); }],
+    ['blockedGuests', '차단된 게스트', '명', function (ui) { ui.navigate('guests', { blocked: true }); }],
   ];
 
   async function open(content) {
@@ -20,7 +21,7 @@
     const box = h('div', { id: 'dash' }, h('p', { class: 'state-msg', text: '불러오는 중…' }));
     content.appendChild(box);
     try {
-      const s = await ui.api.summary();
+      const s = await api().summary();
       ui.clear(box);
       const grid = h('ul', { class: 'cards stats' });
       CARDS.forEach(function (c) {
@@ -40,6 +41,6 @@
     }
   }
 
-  window.ADMIN_SCREENS = window.ADMIN_SCREENS || {};
-  window.ADMIN_SCREENS.dashboard = { open: open };
+  window.ADMIN_VIEWS = window.ADMIN_VIEWS || {};
+  window.ADMIN_VIEWS.dashboard = open;
 })();
