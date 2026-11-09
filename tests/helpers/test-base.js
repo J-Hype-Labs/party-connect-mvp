@@ -9,6 +9,8 @@ const NO_MOTION_CSS = [
   '  animation-duration: 0s !important; animation-delay: 0s !important;',
   '  transition-duration: 0s !important; transition-delay: 0s !important;',
   '  scroll-behavior: auto !important;',
+  // 모달 배경의 backdrop-blur 는 GPU 없는 Linux WebKit 에서 프레임당 수 초가 걸려 클릭 안정화 검사가 끝나지 않는다.
+  '  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;',
   '}',
 ].join('\n');
 
