@@ -121,7 +121,7 @@ test.describe('관리자 페이지 — 신청 관리', () => {
     await expect(page.locator('#app-list li')).toHaveCount(4);
     expect(await actions('a1')).toEqual(['approve', 'reject']);
     expect(await actions('a2')).toEqual(['verify-visit', 'noshow']);
-    expect(await actions('a3')).toEqual(['complete']);
+    expect(await actions('a3')).toEqual(['complete', 'request-revision']);
     expect(await actions('a4')).toEqual([]);
   });
 
@@ -188,6 +188,20 @@ test.describe('관리자 페이지 — 신청 관리', () => {
     await expect(page.locator('.toast').first()).toContainText('적립금 잔액이 부족합니다');
     await expect(page.locator('[data-app-id="a3"] .badge')).toHaveText('미션 제출');
     expect(calls.filter((c) => c.path.endsWith('/complete')).length).toBe(1);
+  });
+
+  test('보완 요청: 확인 후 요청하고 방문 인증 상태로 돌아간다', async ({ page }) => {
+    const { calls } = await setup(page, {
+      apps: [app({ id: 'a3', status: 'MISSION_SUBMITTED', missionUrl: 'https://instagram.com/p/x' })],
+      onPost: (path, body, state) => { state.apps[0].status = 'VISITED'; return { status: 200, body: { status: 'VISITED' } }; },
+    });
+    await open(page);
+    await page.locator('[data-action="request-revision"]').click();
+    await expect(page.locator('dialog[open]')).toContainText('차감되지 않습니다');
+    await page.locator('#dlg-confirm').click();
+    await expect(page.locator('[data-app-id="a3"] .badge')).toHaveText('방문 인증');
+    await expect(page.locator('.toast.ok')).toContainText('보완을 요청했습니다');
+    expect(calls.filter((c) => c.path === 'admin/applications/a3/request-revision').length).toBe(1);
   });
 
   test('노쇼: 확인 대화상자에서 취소하면 요청하지 않는다', async ({ page }) => {
