@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/test-base.js';
 import { loadLive } from './helpers/live-fixture.js';
 
 // Front-end contract tests. These deliberately target the existing home page,
