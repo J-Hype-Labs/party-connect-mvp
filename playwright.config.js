@@ -14,6 +14,9 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    // Modal enter animations never reach Playwright's "stable" state in headless
+    // WebKit; the app already disables them under prefers-reduced-motion.
+    reducedMotion: 'reduce',
   },
   projects: [
     {
