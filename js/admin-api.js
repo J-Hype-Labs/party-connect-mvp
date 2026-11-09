@@ -47,6 +47,7 @@
     approve: function (id) { return request('admin/applications/' + id + '/approve', { method: 'POST' }); },
     reject: function (id, reason) { return request('admin/applications/' + id + '/reject', { method: 'POST', body: { reason: reason || undefined } }); },
     complete: function (id) { return request('admin/applications/' + id + '/complete', { method: 'POST' }); },
+    requestRevision: function (id) { return request('admin/applications/' + id + '/request-revision', { method: 'POST' }); },
     noshow: function (id) { return request('admin/applications/' + id + '/noshow', { method: 'POST' }); },
     verifyVisit: function (id, code) { return request('admin/applications/' + id + '/verify-visit', { method: 'POST', body: { code: code } }); },
   };
