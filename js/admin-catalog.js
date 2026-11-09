@@ -348,5 +348,5 @@
     }
   }
 
-  window.ADMIN_VIEWS = { parties: openParties, stores: openStores };
+  window.ADMIN_VIEWS = Object.assign(window.ADMIN_VIEWS || {}, { parties: openParties, stores: openStores });
 })();

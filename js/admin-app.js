@@ -133,10 +133,10 @@
   // ---------------------------------------------------------------- 셸 (내비게이션)
   const NAV = [
     ['applications', '신청', true],
-    ['dashboard', '대시보드', false],
+    ['dashboard', '대시보드', true],
     ['parties', '파티', true],
     ['stores', '점포·적립금', true],
-    ['guests', '게스트', false],
+    ['guests', '게스트', true],
   ];
 
   let content = null;
@@ -349,7 +349,7 @@
     });
   }
 
-  window.ADMIN_UI = { h: h, clear: clear, toast: toast, fmtDate: fmtDate, won: won, dialog: dialog, isActive: function (name) { return state.section === name; } };
+  window.ADMIN_UI = { h: h, clear: clear, toast: toast, fmtDate: fmtDate, won: won, dialog: dialog, navigate: navigate, isActive: function (name) { return state.section === name; } };
 
   boot();
 })();
