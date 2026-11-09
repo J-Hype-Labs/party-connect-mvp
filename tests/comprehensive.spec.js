@@ -37,7 +37,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   test('should open and close region selector modal', async ({ page }) => {
     // Open region modal - button shows current selected region (default: "전체 지역")
     const regionBtn = page.locator('button:has-text("전체 지역")');
-    await regionBtn.waitForElementState('stable', { timeout: 10000 });
+    await regionBtn.waitFor({ state: 'visible', timeout: 10000 });
     await regionBtn.click();
     
     // Verify modal is visible (using the modal title)
@@ -53,7 +53,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('#region-modal-title')).toBeHidden({ timeout: 5000 });
     
     // Verify modal can be closed by clicking outside (background)
-    await regionBtn.waitForElementState('stable', { timeout: 10000 });
+    await regionBtn.waitFor({ state: 'visible', timeout: 10000 });
     await regionBtn.click();
     await expect(page.locator('#region-modal-title')).toBeVisible({ timeout: 10000 });
     await page.locator('.fixed.inset-0').click({ position: { x: 10, y: 10 } });
@@ -64,7 +64,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   test('should open and close party detail modal', async ({ page }) => {
     // Click the CTA button on first party card to open detail modal
     const firstCardApplyBtn = page.locator('article[role="listitem"]').first().locator('button:has-text("파티 신청하기")');
-    await firstCardApplyBtn.waitForElementState('stable', { timeout: 10000 });
+    await firstCardApplyBtn.waitFor({ state: 'visible', timeout: 10000 });
     await firstCardApplyBtn.click();
     
     // Verify modal opens
@@ -83,7 +83,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   test('should complete full application flow', async ({ page }) => {
     // Click the CTA button on first party card to open detail modal
     const firstCardApplyBtn = page.locator('article[role="listitem"]').first().locator('button:has-text("파티 신청하기")');
-    await firstCardApplyBtn.waitForElementState('stable', { timeout: 10000 });
+    await firstCardApplyBtn.waitFor({ state: 'visible', timeout: 10000 });
     await firstCardApplyBtn.click();
     
     // Verify modal opens
@@ -91,7 +91,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     
     // Click apply button in modal (scoped to modal)
     const modalApplyBtn = page.locator('div[aria-labelledby="party-detail-title"]').locator('button:has-text("파티 신청하기")');
-    await modalApplyBtn.waitForElementState('stable', { timeout: 5000 });
+    await modalApplyBtn.waitFor({ state: 'visible', timeout: 5000 });
     await modalApplyBtn.click();
     
     // Fill application form
@@ -113,12 +113,12 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     
     // Open region modal and select a specific region
     const regionBtn = page.locator('button:has-text("전체 지역")');
-    await regionBtn.waitForElementState('stable', { timeout: 10000 });
+    await regionBtn.waitFor({ state: 'visible', timeout: 10000 });
     await regionBtn.click();
     await expect(page.locator('#region-modal-title')).toBeVisible();
     
     // Select Seoul tab
-    await page.locator('button[role="tab"]:has-text("서울")').waitForElementState('stable', { timeout: 5000 });
+    await page.locator('button[role="tab"]:has-text("서울")').waitFor({ state: 'visible', timeout: 5000 });
     await page.click('button[role="tab"]:has-text("서울")');
     
     // Wait for filter to apply
@@ -139,7 +139,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await page.waitForLoadState('domcontentloaded');
     // Button shows current selected region (default: "전체 지역")
     const regionBtn = page.locator('button:has-text("전체 지역")');
-    await regionBtn.waitForElementState('stable', { timeout: 30000 });
+    await regionBtn.waitFor({ state: 'visible', timeout: 30000 });
     await expect(regionBtn).toBeVisible();
     
     // Verify root element is visible
@@ -167,7 +167,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await page.waitForLoadState('domcontentloaded');
     // Button shows current selected region (default: "전체 지역")
     const regionBtn = page.locator('button:has-text("전체 지역")');
-    await regionBtn.waitForElementState('stable', { timeout: 30000 });
+    await regionBtn.waitFor({ state: 'visible', timeout: 30000 });
     await expect(regionBtn).toBeVisible();
     
     // Check body width doesn't exceed viewport
@@ -207,7 +207,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await page.waitForLoadState('domcontentloaded');
     // Button shows current selected region (default: "전체 지역")
     const regionBtn = page.locator('button:has-text("전체 지역")');
-    await regionBtn.waitForElementState('stable', { timeout: 30000 });
+    await regionBtn.waitFor({ state: 'visible', timeout: 30000 });
     await expect(regionBtn).toBeVisible();
 
     if (errors.length > 0) {
@@ -223,9 +223,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   // The "파티 탐색하기" (Explore Parties) button is a CTA link in hero section with SVG arrow
   test('should expose clickable search entry point', async ({ page }) => {
     const exploreButton = page.locator('a:has-text("파티 탐색하기")').first();
-    await expect(exploreButton).toBeVisible();
-    // Wait for element to be stable (not animating)
-    await exploreButton.waitForElementState('stable', { timeout: 10000 });
+    await exploreButton.waitFor({ state: 'visible', timeout: 10000 });
     await exploreButton.click();
     // Should scroll to party list section (id="parties", aria-labelledby="parties-heading")
     await expect(page.locator('section[aria-labelledby="parties-heading"]')).toBeVisible();
@@ -285,7 +283,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   test('should have apply button in party detail modal', async ({ page }) => {
     // Click the CTA button on first party card to open detail modal
     const firstCardApplyBtn = page.locator('article[role="listitem"]').first().locator('button:has-text("파티 신청하기")');
-    await firstCardApplyBtn.waitForElementState('stable', { timeout: 10000 });
+    await firstCardApplyBtn.waitFor({ state: 'visible', timeout: 10000 });
     await firstCardApplyBtn.click();
     
     // Verify modal opens
