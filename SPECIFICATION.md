@@ -1,151 +1,198 @@
-# Party Connect MVP — 통합 개발 명세 및 후속 에이전트 작업 기준
+# PartyConnect 통합 제품·기술 명세
 
-> 기준일: 2026-11-07. 실제 구현 여부는 반드시 최신 `main` 코드와 Actions로 재확인한다. 이 문서는 작업 기준이며, 기능이 이미 완성됐다는 뜻이 아니다.
-> 저장소: https://github.com/J-Hype-Labs/party-connect-mvp
-> 운영 URL: https://j-hype-labs.github.io/party-connect-mvp/
-> 파티커넥트 전용 페이지: https://j-hype-labs.github.io/party-connect-mvp/party-connect/
-> 벤치마크 사이트는 UI 참고용이며 타사 콘텐츠·상표·개인정보를 그대로 복제하지 않는다.
+- 기준일: 2026-11-08
+- 기준 main: 9949f53567f033e269acc123d47b59cbd22ff254
+- 저장소: https://github.com/J-Hype-Labs/party-connect-mvp
+- 운영 메인: https://j-hype-labs.github.io/party-connect-mvp/
+- 전용 페이지: https://j-hype-labs.github.io/party-connect-mvp/party-connect/
+- 문서 진입점: docs/README.md
 
-## 1. 사업 목표와 경계
+인증 세부 구현은 docs/AUTH_IMPLEMENTATION_SPEC.md, 인증 화면은 docs/AUTH_UI_UX_SPEC.md, 콘솔·배포 절차는 docs/AUTH_DEPLOYMENT_CHECKLIST.md를 기준으로 한다.
 
-- 2030 여성 중심의 오프라인 소셜링/소개팅/혼술바 파티 **무료 체험단 매칭 MVP**.
-- 참가자에게 무료 체험 기회를 안내하고, 제휴업체는 **실제 방문 확인된 참가자 1명당 10,000원(가설)**을 플랫폼에 지불하는 모델. 신청만으로 과금하지 않는다.
-- 운영자가 업체·파티·신청·방문확인·정산을 관리한다. 사업/정산 정책은 검증 전 가설로 표시한다.
-- 강제 리뷰, 대가성 미표시 리뷰, 허위 영수증/허위 방문, 실사용자 아닌 가짜 후기 금지. 광고·체험 혜택 공개와 개인정보 동의 필요.
-- **실제 운영/결제/로그인 연동은 별도 승인과 보안 검토 전까지 구현했다고 주장하지 않는다.**
+## 1. 제품 목표
 
-## 2. 현재 기술 및 구현 범위 (코드 재검증 필수)
+PartyConnect는 사용자가 오프라인 소셜링 파티, 소개팅·혼술바 등의 파티를 탐색하고 신청할 수 있도록 연결하는 서비스다.
 
-- 두 개의 독립 HTML(`index.html`, `party-connect/index.html`) 각각 React 18 UMD + ReactDOM, Tailwind CDN, Babel Standalone, Lucide CDN, Pretendard를 로드하는 **브라우저 런타임 JSX** 구조.
-- GitHub Pages에서 `main` 브랜치 배포. 정적 라우팅으로 `/party-connect-mvp/party-connect/` 경로에 전용 페이지 서빙.
-- 공통 데이터: `js/party-data.js` (`PARTY_LIST`, `REGION_CATEGORIES`, `DAYS`, `CATEGORIES`)를 두 페이지가 공유.
-- 인증/데이터: PARTYLINK 모듈(Supabase Auth PKCE + Edge Function API) 통합. 데모 모드(localStorage) / 실서비스 모드 분기.
-- 메인 페이지 UI: 헤더/히어로 슬라이더, 파티/후기 목록, 지역·요일·카테고리 필터, 파티 상세/신청 폼, 찜, 관리자 대시보드·파티/신청/후기 관리, 로그인 UI, 알림, 후기 작성, 마이페이지, 지도 안내 모달.
-- 전용 페이지 UI: 히어로, 검색, 요일 칩/지역 모달/카테고리 필터, 카드 그리드(1/2/3컬럼), 빈 상태, 상세 모달(이미지 갤러리/지도/신청), 신청 플로우, 마이페이지, 파트너십 섹션.
-- 데이터는 데모 모드에서 `localStorage`, 실서비스 모드에서 Supabase API 동기화. **실제 OAuth·실제 지도·다중 사용자 공유·방문 검증·업체 청구 기능은 완료로 간주하지 말 것.**
-- 2026-11-04 수정: JSX 오류 4곳(`e52c0cc`), 모달 `z-60` → `z-[60]` 7곳(`5261ada`).
-- **2026-11-05 P0 검증 완료**: GitHub Actions CI 파이프라인 구축, JSX 문법 검증 자동화(@babel/parser + Python), HTML 구조 검증, 외부 의존성 검증, Playwright E2E 필수 실행, 배포 검증.
-- **2026-11-07 P0 통합 QA 2차 수정**: 모달 강제 클릭(`force: true`) 제거, 중첩 버튼 구조 개선(`role="button"` 영역과 찜/신청 버튼 분리), PARTYLINK Supabase 인증 통합, 공통 데이터 단일화, 마이페이지/지도/네이버 버튼 수정, 3개 테스트 스위트 CI 통합, 문서 갱신.
+핵심 사용자 여정:
 
-### P0 검증된 항목 (2026-11-07 로컬 검증: Chromium + Mobile Chrome 52/52 PASS, WebKit 부분; GitHub Actions 대기 중)
-| 기능 | 검증 범위 | 상태 |
-|------|----------|------|
-| **메인 페이지 기본 로드** | `#root` 마운트, 한국어 콘텐츠, 히어로 배너, 필터 버튼 | ✅ 로컬 PASS |
-| **전용 페이지 기본 로드** | `#root` 마운트, h1 `파티커넥트`, 검색 입력, 요일 칩(8개), 지역 필터, 파티 카드 | ✅ 로컬 PASS |
-| **메인 지역 선택 모달** | 열기/닫기(ESC/바깥 클릭), 탭(서울/경기·인천/지방) 표시 | ✅ 로컬 PASS |
-| **전용 지역 필터 모달** | 열기/닫기, 탭 전환, 서브리전 선택, 필터 적용 | ✅ 로컬 PASS |
-| **메인 파티 상세 모달** | 열기(카드 이미지 클릭), 닫기(닫기 버튼/ESC/배경), 장소·일정·모집정원·신청 버튼 | ✅ 로컬 PASS |
-| **전용 파티 상세 모달** | 열기(카드 이미지 클릭), 닫기(닫기 버튼/ESC/배경), 이미지 갤러리, 지도/신청 버튼 | ✅ 로컬 PASS |
-| **메인 신청 폼 전체 플로우** | 상세→신청 버튼→폼(이름/전화/요일/동의) 입력→제출→완료 메시지 | ✅ 로컬 PASS |
-| **전용 신청 폼 전체 플로우** | 상세→신청 버튼→폼 입력→제출→완료 메시지(데모/실서비스 구분) | ✅ 로컬 PASS |
-| **마이페이지 (전용)** | 신청 내역 조회, 상태 표시(대기/승인/취소), 취소 기능, 방문 코드 표시 | ✅ 로컬 PASS |
-| **지도 버튼 (전용)** | `openMap()` 카카오맵 링크 정상 열림, JS 오류 없음 | ✅ 로컬 PASS |
-| **로그인/로그아웃 (데모)** | 카카오 모의 로그인→상태 유지→새로고침→로그아웃, 콘솔 오류 0개 | ✅ 로컬 PASS |
-| **중복 신청 방지** | 동일 파티 재신청 불가, 버튼 `신청 완료` 비활성화 | ✅ 로컬 PASS |
-| **세션 복원** | `onAuthStateChange`로 로그인 상태 동기화, 페이지 이동 후 유지 | ✅ 로컬 PASS |
-| **모바일 렌더링 (390px)** | 양쪽 페이지 루트, 한국어, 필터 버튼, 모달 정상 | ✅ 로컬 PASS |
-| **모바일 가로 스크롤** | 390px 뷰포트에서 `body.scrollWidth ≤ 410px` 확인 | ✅ 로컬 PASS |
-| **JavaScript 런타임 오류 없음** | 콘솔 에러/페이지 에러 0개 (favicon/Warning/preload/DevTools 제외) | ✅ 로컬 PASS |
-| **강제 클릭 제거** | 모든 테스트에서 `force: true` 제거, 실제 클릭으로 검증 | ✅ 로컬 PASS |
-| **JSX 문법 (@babel/parser)** | 메인 + 전용 페이지 문법 오류 0개 | ✅ 로컬 PASS |
-| **JSX 괄호 균형 (Python)** | 모든 괄호/중괄호/소괄호 균형 맞음 | ✅ 로컬 PASS |
-| **HTML 구조 필수 요소** | 두 페이지 모두 `#root`, `text/babel`, `ReactDOM.createRoot`, `<App />` 존재 | ✅ 로컬 PASS |
-| **외부 CDN 의존성** | Tailwind/React/ReactDOM/Babel/Pretendard/Lucide 모두 HTTP 200/302 | ✅ 로컬 PASS |
-| **배포 설정** | `_config.yml`, `.gitignore`, `.nojekyll` 존재 | ✅ 로컬 PASS |
-| **CI 파이프라인** | Validate → E2E(3개 스위트) → Deploy-Check 구성 완료 | 🔄 GitHub Actions 대기 중 |
-| **동일 SHA 검증** | PR 생성 후 CI 실행 SHA와 Pages 배포 SHA 대조 예정 | 🔄 대기 중 |
+1. 파티 목록 탐색
+2. 검색·지역·요일·카테고리 필터
+3. 파티 상세 확인
+4. 신청을 위한 카카오 로그인
+5. 최초 서비스 이용 동의(필요한 경우)
+6. 신청자 정보와 파티 신청 동의 입력
+7. 서버 신청 접수
+8. 마이페이지에서 신청 상태 확인
 
-### 미검증/제한 항목 (다음 단계에서 검증 필요)
-| 기능 | 사유 |
-|------|------|
-| 관리자 로그인/인증 | 백드롭 인터셉션으로 닫기/로그인 흐름 미완료; 비밀번호 검증 로직 미검증 (프런트엔드 하드코딩 → 서버 측 권한 분리 필요) |
-| 관리자 대시보드 CRUD | 로그인 후 탭(파티/신청/후기/통계) 진입 및 CRUD 동작 미검증 |
-| 찜(위시리스트) 기능 | 하트 버튼 클릭/상태 저장/마이페이지 연동 미검증 (전용 페이지는 검증됨, 메인은 미검증) |
-| 후기 작성/모달 | 별점/태그/댓글 입력 및 저장 플로우 미검증 (메인 페이지) |
-| 마이페이지 4탭 | 내 신청/찜/후기/프로필 탭 전환 및 데이터 표시 미검증 (메인 페이지) |
-| 지도 모달/카카오맵 링크 | 메인 페이지: 위치 버튼 → 지도 모달 → 외부 링크 열림 미검증 (전용 페이지는 검증됨) |
-| 알림 센터 | 벨 아이콘 → 알림 리스트/읽음 처리 미검증 (메인 페이지) |
-| 소셜 로그인(카카오/네이버) | 실제 OAuth 연동 여부 미확인 (데모 모드만 검증, `PARTYLINK_CONFIG` 비어있음) |
-| 검색 모달/기능 | 진입점만 검증; 실제 검색/필터/결과 표시 정확성(데이터 비교) 미검증 |
-| 대기열(웨이트리스트) | 매진 시 대기열 등록/알림 플로우 미검증 |
-| 캘린더 ICS 내보내기 | 일정 내보내기 버튼/파일 다운로드 미검증 |
-| 추천인 코드 생성/공유 | 마이페이지 내 추천 코드 표시/복사/공유 미검증 |
-| 실제 API/서버 동기화 | 실서비스 모드에서 Supabase API 연동 코드는 있으나 운영 키 미설정으로 미검증 |
-| 방문 확인/정산 | 운영자 수동 승인/중복 방지/과금 로직 미구현 |
-| WebKit(Safari) E2E | 일부 테스트 timeout/skip 발생, 환경 이슈 분석 필요 (PASS/FAIL/SKIP 분리 집계 필요) |
-| 320px/768px/1280px 해상도 | 390px 모바일만 검증; 다른 브레이크포인트 회귀 테스트 미실시 |
-| 접근성(키보드/포커스/ARIA) | 기본 포커스 이동만 확인; 전체 WCAG 2.1 AA 검증 미완료 |
-| 성능/메모리/번들 크기 | 런타임 JSX 특성상 번들 크기/로드 성능 미측정 |
-| 다중 사용자/동시성 | 단일 브라우저 세션 기준; 동시 접속/데이터 경합 미검증 |
-| 개인정보 최소수집/동의 | 폼 필드 존재하나 실제 처리/암호화/동의 로그 미검증 |
-| **실제 카카오 OAuth / Supabase 운영 검증** | `supabaseUrl`/`supabaseAnonKey` 비어있음, 백엔드(partylink PR #1) 미병합, Edge Function 미배포 |
-| **데이터 정확성 검증** | 필터/검색 결과가 기대값(파티 ID, 개수)과 일치하는지 fixture 비교 미구현 |
+신청 접수와 파티 선정·참가 확정은 서로 다른 상태다. UI 문구와 데이터 상태에서 혼동하지 않는다.
 
-## 3. 디자인 및 반응형 기준
+## 2. 사용자와 권한
 
-- 색상: primary `#E11D48`, secondary `#FB7185`, accent `#F59E0B`, 배경 `#FFFFFF`, 표면 `#FAFAFA`, 본문 `#18181B`, 보조 `#71717A`, 경계 `#E4E4E7`.
-- Pretendard 우선. 모바일 최소 320px, 375px, 390px 및 데스크톱 768px/1280px 검증.
-- 모달은 **헤더·배너보다 앞에 표시**. Tailwind CDN에서 유효한 `z-[60]` 등 명시적 유틸리티 사용; 모달 배경은 화면 전체를 덮고, 본문은 최대 높이와 내부 스크롤 적용.
-- 모달 내부 콘텐츠는 배너/헤더와 겹치지 않아야 한다. 바깥 클릭, 닫기 버튼, ESC, 배경 스크롤 잠금, 포커스 이동/복귀와 키보드 접근성 검증.
-- 320px 가로 스크롤, 잘림, 탭/버튼 터치영역, 이미지 오버플로, 긴 한국어 문구 줄바꿈 확인. 기존 기능·디자인은 불필요하게 변경하지 않는다.
-- `z-60` 등 Tailwind 기본값에 없는 클래스 사용 금지. CDN에서 실제 스타일이 적용되는지 검사.
+| 유형 | 허용 범위 | 현재 상태 |
+|---|---|---|
+| 비로그인 방문자 | 공개 파티 목록·상세 탐색 | UI 구현 |
+| 일반 회원 | 로그인, 신청, 본인 신청 조회·취소 | 데모 UI 및 인증 코드 존재; 실서비스 미검증 |
+| 점주/업체 운영자 | 파티 및 신청 운영 | 실서비스 화면/API 미완료 |
+| 관리자 | 회원·파티·신청·후기 운영 | UI 일부 존재; 서버 권한 미완료 |
 
-## 4. 다음 개발 우선순위 (순서 고정)
+로그인 여부와 역할 권한은 별개다. 카카오로 로그인한 일반 회원에게 관리자나 점주 권한을 자동 부여하지 않는다.
 
-### P0. 배포 신뢰성/회귀방지 (검증 완료 ✅ 2026-11-05)
-1. 저장소·README·명세와 `index.html`의 실제 구현 차이를 확인해 체크리스트 작성.
-2. **JSX 문법 검증 자동화**: `@babel/parser`(Node.js) + Python 괄호 균형 검사로 `index.html`의 `<script type="text/babel">` 부분 검증. 문법 오류 시 CI 실패.
-3. **브라우저 스모크 테스트**: Playwright E2E 테스트 필수 실행(Chromium + Mobile Chrome + WebKit). 로컬 서버에서 기본 로드, 요소 탐색, 필수 기능(루트/한국어/히어로/필터) 검증 통과.
-4. **GitHub Actions 게이트**: Validate → E2E → Deploy-Check 순차 실행, 실패 시 배포 차단. 운영 URL HTTP 200 및 정적/동적 콘텐츠 렌더링 검증 완료.
-5. `README.md`의 이전 소유자 `hustlinjh` API 링크를 `J-Hype-Labs`로 수정. 로컬 `file:///Users/...` 경로와 과거 배포 지침 제거 완료.
-6. 작업 후 모든 모달의 z-index/포커스/스크롤 및 320/390/768/1280px 회귀 테스트. 실패하면 후속 기능 개발 중지.
+## 3. 서비스 범위와 책임 경계
 
-**P0 완료 기준 (충족 ✅):** 
-- JSX @babel/parser PASS, Python 괄호 균형 PASS
-- HTML 구조 PASS, 외부 CDN 의존성 PASS, 배포 설정 PASS
-- Playwright E2E 3단계(기본 로드/요소 탐색/필수 기능) PASS (Chromium/Mobile Chrome/WebKit)
-- GitHub Actions Validate + E2E + Deploy-Check 전체 PASS
-- Pages 배포 성공, 운영 URL HTTP 200, `#root` 렌더링, 한국어 콘텐츠 확인
+### PartyConnect가 처리하는 업무
 
-### P1. MVP 실사용 흐름 정리 (다음 작업)
-1. 파티 상세→무료 신청→필수 동의→신청 확인→마이페이지 내역의 사용자 흐름 정리.
-2. 운영자 파티 생성/수정/마감, 신청 조회/중복방지, 개인정보 최소수집, 상태값(신청/확정/취소/방문확인/노쇼) 정의.
-3. **방문 확인은 운영자 수동 승인으로 시작**. 중복 승인·중복 과금 방지. 업체별 방문확인 인원×단가 정산 미리보기(실제 청구/결제는 보류).
-4. 로그인 버튼의 실제 OAuth 연동 여부 명시. 미연동이면 '데모/준비 중' 표시; 임의의 가짜 소셜 로그인으로 실제 인증처럼 보이게 하지 않는다.
-5. 후기 작성 권한은 실제 방문확인과 연결할 설계를 명시. 목업 후기는 실제 사용자 검증 후기로 표시하지 않는다.
+- 카카오 계정 기반 회원 인증
+- Supabase Auth 세션 및 회원 식별
+- 서비스 이용약관 및 개인정보 처리 동의
+- 파티 목록·상세 제공
+- 회원 본인 신청·취소·조회
+- 서버 역할에 따른 파티·신청 운영
 
-### P2. 구조 개선 (P0 통과 후 별도 PR)
-- 3,000줄 이상의 단일 HTML을 단계적으로 분리할 방안 검토. React/Vite 전환은 별도 제안/승인 후 수행하며 Pages `/party-connect-mvp/` base path를 지켜야 한다.
-- 컴포넌트·상태·데이터/서비스 분리, 인증/데이터 저장/권한 모델 설계. 실서버 도입은 별도 승인.
-- 성능, 접근성, 모바일 사용성 및 UI/UX Pro Max 가이드 반영. 외부 패키지 버전 고정/신뢰성 개선.
+### 명시적으로 처리하지 않는 업무
 
-## 5. 구현 및 검증 원칙 (무료 에이전트 필수)
+- 회원 인증을 위해 생년월일, 나이 또는 연령 확인 자료를 수집하지 않는다.
+- 연령 판정, 성인인증 API, 관련 DB 필드·회원 상태·화면을 구현하지 않는다.
+- 성인 여부와 신분증 확인은 파티 현장 운영자가 담당한다. PartyConnect 회원 인증과 별도 업무다.
+- 카카오 로그인을 실명·전화번호 소유 확인으로 간주하지 않는다.
 
-1. 시작 시 `git status`, 최신 `main`, 최근 커밋, Actions, 파일 목록 확인. 미확인 내용을 완료로 추정 금지.
-2. 한 번에 **P0만** 수행. P1/P2 무단 착수 금지. 작은 단위 커밋/PR, 기존 UI/데이터 보존.
-3. 파일 수정 후 `git diff`로 예상 외 변경 점검. `index.html` 전체 교체/대규모 자동 포맷 금지.
-4. 모든 변경은 **검사 명령과 실제 출력**, 테스트 범위, 실패 항목, 커밋 SHA, Actions URL, 운영 URL 검증 여부를 남긴다.
-5. CI/배포 오류가 나면 원인부터 분석하고 수정. 테스트 생략, 오류 무시, 실패한 배포를 성공으로 보고 금지.
-6. 비밀번호·토큰·고객 연락처를 코드/커밋에 포함하지 않는다. 사용자 승인 없이 외부 서비스 과금·실제 개인정보 처리·운영 데이터 삭제 금지.
-7. 작업 완료 후 이 명세/README의 '구현됨/미구현/검증됨' 상태를 최신화. 추측을 사실로 문서화 금지.
+## 4. 주요 화면
 
-## 6. 에이전트 최종 보고 형식 (간결)
+### 메인 페이지
 
-- 변경 파일/기능
-- 테스트 명령·PASS/FAIL/미실행 및 이유
-- GitHub 커밋/PR/Actions 링크
-- 운영 URL 브라우저 검증 여부
-- 남은 장애·P1 착수 가능 여부
+- 공통 헤더와 히어로 배너
+- 파티 및 후기 콘텐츠
+- 파티 목록과 필터
+- 상세·신청 모달
+- 로그인 및 마이페이지 진입
+- 관리자 UI(현재 브라우저에 관리자 비밀번호 상수 존재)
 
-## 7. 참고
+### 전용 페이지
 
-- 기존 디자인 시스템: 본 문서 3절.
-- GitHub Pages: https://j-hype-labs.github.io/party-connect-mvp/
-- 소스 기준: `main:index.html`, `README.md`, `_config.yml`, `.github/workflows`(존재 시).
+- Hero, 검색, 요일·지역·카테고리 필터
+- 파티 카드 그리드 및 빈 상태
+- 상세 모달, 지도 링크, 신청
+- 마이페이지 및 제휴 안내
 
-## 8. P0 재검증 주의 (2026-11-05)
-- CI 성공은 실제 테스트가 검증한 범위만 증명한다. `if (hasNameInput)` 같은 우회 분기와 조건부 존재 검사로 누락 기능을 PASS 처리하지 않는다. (최신 테스트 `d40258a`에서 조건부 분기 제거, 필수 폼 필드 검증 강화)
-- 지역·요일·카테고리 필터는 선택 UI뿐 아니라 결과 변화를 검증한다. 관리자 모달 닫기, 검색 결과, 신청 완료 상태도 별도 확인한다.
-- WebKit 포함 총 테스트 개수와 실제 통과 건수는 다르다. Playwright의 passed/skipped/failed 결과를 그대로 기록한다.
-- GitHub Pages의 HTTP 200과 정적 HTML 문자열 존재는 실제 브라우저 React 렌더링 또는 동일 SHA 배포의 증거가 아니다. (최신 Deploy-Check run 41968324010에서 콘텐츠 렌더링 검증 포함)
-- 'Clean reset' 방식의 기존 구현 전면 교체 금지. P1은 기능 보존 기반 단계적 개선로 진행한다.
+전용 페이지의 기능 기준은 PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md를 참조한다.
+
+## 5. 현재 구현 상태
+
+2026-11-08 main SHA 9949f53 기준:
+
+| 영역 | 상태 | 근거/제약 |
+|---|---|---|
+| 메인·전용 페이지 | 배포됨 | GitHub Pages workflow 성공 |
+| 메뉴 통합·네이버 제거 | 배포됨 | PR #8 병합 |
+| 검색·필터·상세 UI | 구현됨 | 기존 E2E 일부 흐름 검증 |
+| 공통 Auth 모듈 | 코드 존재 | 실제 Kakao OAuth 미검증 |
+| PKCE 및 세션 코드 | 코드 존재 | 실제 계정/콜백 흐름 미검증 |
+| OAuth callback 페이지 | 코드 존재 | loginWithKakao의 redirectTo와 연결 여부 미검증 |
+| OnboardingScreen | 컴포넌트 존재 | 실제 callback/페이지 연결 미검증 |
+| /me, /me/onboarding | 프런트엔드 호출 존재 | 백엔드 handler에 구현되지 않음 |
+| 실제 Supabase 설정 | 미완료 | URL/공개 키 공란 |
+| PartyLink Edge Function | PR #1에 코드 존재 | OPEN, 미병합 |
+| 실제 DB migration/RLS | 운영 적용 미확인 | 스테이징·운영 검증 필요 |
+| 관리자 인증 | 차단 | index.html에 ADMIN_PASSWORD 상수 존재 |
+| 실서비스 회원 운영 | 차단 | OAuth·API·관리자 보안 미검증 |
+
+## 6. 기술 아키텍처
+
+### 프런트엔드
+
+- index.html: 메인 페이지
+- party-connect/index.html: 파티 탐색 페이지
+- auth/callback/index.html: OAuth callback UI
+- js/auth-client.js: Supabase client, 환경 판정, API helper
+- js/auth-service.js: 로그인, callback, 세션 복원, 로그아웃, 복귀 URL
+- js/auth-ui.js: 로그인 모달, 가입 동의, 오류/환영 UI
+- js/party-api.js: 파티·신청·마이페이지 API
+- js/party-data.js: 공통 데모 파티 데이터
+
+### 인증 및 데이터
+
+- Supabase Auth Kakao OAuth, PKCE
+- Supabase Edge Function partylink-api
+- PostgreSQL: stores, party_slots, guests, applications, deposit_histories
+- 브라우저에는 공개용 Supabase 키만 허용
+- service_role 키는 Edge Function에서만 사용
+
+백엔드 PR #1은 아직 main에 병합되지 않았다. 실제 운영 배포로 간주하지 않는다.
+
+## 7. 인증 및 회원 데이터 규칙
+
+- Supabase auth.users.id를 회원 고유 식별자로 사용한다.
+- 이메일은 제공 여부가 보장되지 않는 선택 정보다.
+- 이름과 연락처는 신청 처리에 필요한 시점에 수집한다.
+- 클라이언트가 보낸 user_id/guest_id를 권한 판단에 사용하지 않는다.
+- Edge Function은 access token을 검증하고 auth user ID로 데이터를 연결한다.
+- 회원은 본인 신청만 조회·취소할 수 있어야 한다.
+- 중복 신청·모집 마감·정원 초과는 서버와 DB에서 검증한다.
+- 가입 동의는 서버에 버전과 시각을 저장해야 한다. 현재 /me/onboarding은 미구현이다.
+- 데모 localStorage와 실서비스 DB를 혼합하지 않는다.
+
+## 8. 신청 상태
+
+- APPLIED: 신청 접수/선정 대기
+- APPROVED: 선정 완료
+- VISITED: 방문 확인
+- MISSION_SUBMITTED: 미션 제출
+- COMPLETED: 완료
+- CANCELLED: 신청 취소
+- REJECTED: 선정되지 않음
+- NOSHOW: 미방문
+
+신청 접수만으로 참가 확정이라고 안내하지 않는다.
+
+## 9. 비기능 요구사항
+
+- 비밀키 및 토큰 로그 노출 금지
+- 브라우저에 service_role 또는 Kakao Client Secret 포함 금지
+- API 권한 서버 검증
+- RLS와 Edge Function 권한 분리
+- 운영 환경의 demo fallback 금지
+- 오류와 빈 데이터 상태 구분
+- 키보드 접근성, focus 표시, 44px 이상 터치 영역
+- 320~1440px 반응형 검증
+- 실제 신청 성공은 서버 응답 후에만 표시
+- 개인정보 최소 수집 및 처리방침 고지
+
+## 10. 우선순위
+
+### P0: 실제 인증과 데이터 안전성
+
+1. 공통 Auth 모듈 안정화
+2. loginWithKakao의 redirectTo와 callback page 연결
+3. 신규/기존 회원 온보딩 실제 연결
+4. /me 및 /me/onboarding API와 DB 동의 기록 구현
+5. 로그인 후 원래 파티 복귀
+6. PartyLink migration/Edge Function 통합
+7. 본인 신청 조회·취소 및 RLS 검증
+8. production demo override 제거 및 fail-closed
+9. 관리자 비밀번호 하드코딩 제거와 서버 권한 검증
+10. 실제 OAuth/DB 및 모바일 통합 테스트
+
+### P1: 운영 도구
+
+- 관리자 파티 CRUD 서버 연동
+- 점주용 선정·방문 확인
+- 방문 검증과 정산 원자성
+- 후기 작성 권한 및 실제 방문 상태 연결
+- 알림·찜·후기의 회원 계정 동기화
+
+### P2: 구조 개선
+
+- 단일 HTML 점진적 모듈 분리
+- 번들러/프레임워크 전환은 별도 설계·승인
+- 성능·접근성·운영 관측성 개선
+
+## 11. 문서와 상태 관리
+
+- 제품/기술 범위: 본 문서
+- 인증 구현/API/보안: docs/AUTH_IMPLEMENTATION_SPEC.md
+- 인증 화면/상태: docs/AUTH_UI_UX_SPEC.md
+- 콘솔/배포: docs/AUTH_DEPLOYMENT_CHECKLIST.md
+- 전용 페이지: PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md
+- 디자인 결정: UI_UX_DECISION_RECORD.md
+- 시점별 현황: ELI10_REPORT.md
+
+상태는 구현·검증됨, 코드 존재·실서비스 미검증, 미구현, 차단으로 구분한다. 코드와 문서가 다르면 최신 main과 실제 Actions를 확인해 문서를 갱신한다.
