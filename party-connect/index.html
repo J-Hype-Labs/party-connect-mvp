@@ -886,10 +886,10 @@
           {/* ================= MODALS ================= */}
           {/* Region Modal */}
           {isRegionModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="지역 선택" onClick={() => setIsRegionModalOpen(false)}>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="region-modal-title" onClick={() => setIsRegionModalOpen(false)}>
               <div className="relative w-full max-w-md max-h-[80vh] bg-white rounded-2xl shadow-2xl flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b border-zinc-100">
-                  <h3 className="text-base font-bold text-zinc-900">지역 선택</h3>
+                  <h3 id="region-modal-title" className="text-base font-bold text-zinc-900">지역 선택</h3>
                   <button onClick={() => setIsRegionModalOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기">
                     <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
