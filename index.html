@@ -630,6 +630,33 @@
         return unsubscribe;
       }, []);
 
+      // 실서비스 모드: 파티 목록의 원본은 서버다. 마운트 시 한 번 가져온다.
+      // (이 효과가 없으면 실서비스 모드의 메인 페이지는 항상 "검색 결과가 없습니다"로 보인다)
+      useEffect(() => {
+        if (!live) return;
+        let cancelled = false;
+        fetchParties().then(({ data, error }) => {
+          if (cancelled) return;
+          if (error) {
+            showToast("파티 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+            return;
+          }
+          setParties(normalizeServerParties(data));
+        });
+        return () => { cancelled = true; };
+      }, []);
+
+      // 실서비스 모드: 로그인 상태가 바뀌면 내 신청 내역을 서버에서 다시 가져온다.
+      useEffect(() => {
+        if (!live) return;
+        if (!currentUser) { setApplications([]); return; }
+        let cancelled = false;
+        fetchMyApplications().then(({ data, error }) => {
+          if (!cancelled && !error) setApplications(normalizeServerApplications(data));
+        });
+        return () => { cancelled = true; };
+      }, [currentUser && currentUser.id]);
+
       // Handle welcome toast from auth callback
       useEffect(() => {
         const handleWelcome = (event) => {

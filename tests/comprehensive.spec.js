@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/test-base.js';
+import { loadLive } from './helpers/live-fixture.js';
 
 test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
@@ -92,7 +93,12 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   });
 
   // Test 4: Application flow. Missing form is a failure, not a pass.
+  // 신청은 로그인이 필요하고 데모 모드에서는 카카오 로그인이 비활성이므로,
+  // 로그인된 세션과 API 를 mock 한 실서비스(live) 화면으로 검증한다 (tests/helpers/live-fixture.js).
   test('should complete full application flow', async ({ page }) => {
+    const { calls } = await loadLive(page);
+    await expect(page.locator('article[role="listitem"]').first()).toContainText('서버 전용 테스트 파티', { timeout: 30000 });
+
     // Click the CTA button on first party card to open detail modal
     const firstCardApplyBtn = page.locator('article[role="listitem"]').first().locator('button:has-text("파티 신청하기")');
     await firstCardApplyBtn.waitFor({ state: 'visible', timeout: 10000 });
@@ -113,14 +119,20 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await page.waitForTimeout(500);
     
     // Fill application form
-    await expect(page.locator('#applicant-name')).toBeVisible({ timeout: 10000 });
-    await page.locator('#applicant-name').fill('테스트 사용자');
-    await page.locator('#applicant-phone').fill('01012345678');
-    await expect(page.locator('#applicant-day')).toBeVisible();
-    await page.locator('#applicant-day').selectOption({ index: 0 });
+    // 현재 UI: 입력 id 는 apply-name / apply-phone, 참여 일정은 라디오(name="apply-day"), 제출 버튼은 "신청하기"
+    await expect(page.locator('#apply-name')).toBeVisible({ timeout: 10000 });
+    await page.locator('#apply-name').fill('테스트 사용자');
+    await page.locator('#apply-phone').fill('01012345678');
+    await page.locator('input[name="apply-day"]').first().check();
     await page.locator('form input[type="checkbox"]').check();
-    await page.getByRole('button', { name: '신청 접수하기' }).click();
-    await expect(page.getByText('신청이 접수되었습니다!')).toBeVisible();
+    await page.getByRole('button', { name: '신청하기', exact: true }).click();
+    // 같은 문구가 토스트에도 나오므로 완료 화면의 제목으로 확인한다
+    await expect(page.getByRole('heading', { name: '신청이 접수되었습니다!' })).toBeVisible();
+    // 서버에는 로그인 토큰 기준으로 신청 한 건만 전달된다
+    const posts = calls.filter((c) => c.method === 'POST' && c.path === 'applications');
+    expect(posts.length).toBe(1);
+    expect(posts[0].body.slotId).toBe('9167ab8e-1743-49d4-bb74-7c1accb1fa90');
+    expect(posts[0].body.phone).toBe('01012345678');
   });
 
   // Test 5: Filter functionality
