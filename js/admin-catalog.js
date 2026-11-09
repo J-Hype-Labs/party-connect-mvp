@@ -194,7 +194,8 @@
   }
 
   // ================================================================ 점포·적립금
-  const sv = { items: [], loaded: false, failed: '', content: null };
+  const sv = { items: [], apps: [], appsFailed: '', month: '', loaded: false, failed: '', content: null };
+  const APPS_LIMIT = 500; // 서버 최대치. 넘으면 최근 건만 집계되므로 화면에 안내합니다.
 
   async function openStores(content) {
     if (content) sv.content = content;
@@ -202,6 +203,9 @@
     renderStores();
     try { sv.items = await api.stores(); sv.failed = ''; }
     catch (e) { sv.failed = e.message || '목록을 불러오지 못했습니다.'; }
+    // 수수료 집계는 점포 목록과 별개로 불러온다: 실패해도 점포 관리는 계속 쓸 수 있어야 한다.
+    try { sv.apps = await api.applications({ limit: APPS_LIMIT }); sv.appsFailed = ''; }
+    catch (e) { sv.apps = []; sv.appsFailed = e.message || '집계를 불러오지 못했습니다.'; }
     sv.loaded = true;
     renderStores();
   }
@@ -216,9 +220,70 @@
     if (!sv.loaded) return c.appendChild(h('p', { class: 'state-msg', text: '불러오는 중…' }));
     if (sv.failed) return c.appendChild(failText({ failed: sv.failed, open: function () { openStores(); } }));
     if (sv.items.length === 0) return c.appendChild(h('p', { class: 'state-msg', id: 'empty-stores', text: '등록된 점포가 없습니다. "새 점포"로 등록하세요.' }));
+    c.appendChild(feeSummary());
     const list = h('ul', { class: 'cards', id: 'store-list' });
     sv.items.forEach(function (s) { list.appendChild(storeCard(s)); });
     c.appendChild(list);
+  }
+
+  // ---------------------------------------------------------------- 수수료 집계 (초기 수동 정산용)
+  // 서버 변경 없이 신청 목록(최근 500건)에서 점포별로 센다. 각 건은 자기 시각(방문/완료/노쇼)의 한국 시간 월로 분류한다.
+  function kstMonth(iso) {
+    return iso ? new Date(new Date(iso).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 7) : '';
+  }
+  function monthOptions() {
+    const now = new Date(Date.now() + 9 * 3600 * 1000);
+    const out = [['', '전체 기간']];
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+      const v = d.toISOString().slice(0, 7);
+      out.push([v, v.replace('-', '년 ') + '월']);
+    }
+    return out;
+  }
+  function aggregate(apps, month) {
+    const inMonth = function (iso) { return !!iso && (!month || kstMonth(iso) === month); };
+    const by = {};
+    const row = function (a) {
+      const k = a.storeId || '-';
+      return by[k] || (by[k] = { storeId: k, name: a.storeName || '(알 수 없음)', visited: 0, completed: 0, noshow: 0, fee: 0 });
+    };
+    apps.forEach(function (a) {
+      if (!a.storeId) return;
+      if (inMonth(a.visitedAt)) row(a).visited += 1;
+      if (a.status === 'COMPLETED' && inMonth(a.completedAt)) { const r = row(a); r.completed += 1; r.fee += a.feeAmount || 0; }
+      if (a.status === 'NOSHOW' && inMonth(a.noshowAt)) row(a).noshow += 1;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (x, y) { return y.fee - x.fee || y.visited - x.visited; });
+  }
+
+  function feeSummary() {
+    const U = ui(), h = U.h;
+    const box = h('section', { class: 'fee-summary', id: 'fee-summary', 'aria-labelledby': 'fee-title' });
+    box.appendChild(h('div', { class: 'title-row' }, h('h2', { id: 'fee-title', text: '업체별 수수료 집계' }),
+      h('select', { id: 'fee-month', 'aria-label': '집계 기간', onchange: function (e) { sv.month = e.target.value; renderStores(); } },
+        monthOptions().map(function (o) { return h('option', { value: o[0], text: o[1], selected: sv.month === o[0] }); }))));
+    if (sv.appsFailed) {
+      box.appendChild(h('p', { class: 'hint', id: 'fee-failed', text: '집계를 불러오지 못했습니다: ' + sv.appsFailed }));
+      return box;
+    }
+    const rows = aggregate(sv.apps, sv.month);
+    if (rows.length === 0) {
+      box.appendChild(h('p', { class: 'hint', id: 'fee-empty', text: '이 기간에 방문·완료·노쇼 기록이 없습니다.' }));
+    } else {
+      const total = rows.reduce(function (t, r) { t.visited += r.visited; t.completed += r.completed; t.noshow += r.noshow; t.fee += r.fee; return t; }, { visited: 0, completed: 0, noshow: 0, fee: 0 });
+      const td = function (t) { return h('td', { text: t }); };
+      const tr = function (r, cls) {
+        return h('tr', { class: cls, 'data-fee-store': r.storeId },
+          h('th', { scope: 'row', text: r.name }), td(String(r.visited)), td(String(r.completed)), td(String(r.noshow)), td(U.won(r.fee)));
+      };
+      box.appendChild(h('div', { class: 'table-wrap' }, h('table', { class: 'fee-table' },
+        h('thead', null, h('tr', null, h('th', { scope: 'col', text: '점포' }), h('th', { scope: 'col', text: '방문' }), h('th', { scope: 'col', text: '완료' }), h('th', { scope: 'col', text: '노쇼' }), h('th', { scope: 'col', text: '차감 합계' }))),
+        h('tbody', null, rows.map(function (r) { return tr(r, ''); })),
+        h('tfoot', null, tr({ storeId: 'total', name: '합계', visited: total.visited, completed: total.completed, noshow: total.noshow, fee: total.fee }, 'total')))));
+    }
+    box.appendChild(h('p', { class: 'hint', text: '차감 합계는 최종 승인(완료)된 신청의 수수료 합이며, 정산은 이 숫자를 보고 수동으로 진행합니다. 자동 청구는 하지 않습니다.' + (sv.apps.length >= APPS_LIMIT ? ' 신청이 ' + APPS_LIMIT + '건 이상이라 최근 ' + APPS_LIMIT + '건만 집계했습니다.' : '') }));
+    return box;
   }
 
   function storeCard(s) {
