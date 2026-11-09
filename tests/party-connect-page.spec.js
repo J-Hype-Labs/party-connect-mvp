@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loadLive } from './helpers/live-fixture.js';
 
 test.describe('PartyConnect Page - Dedicated Party Discovery', () => {
   test.beforeEach(async ({ page }) => {
@@ -8,7 +9,9 @@ test.describe('PartyConnect Page - Dedicated Party Discovery', () => {
 
   test('should load party-connect page with h1', async ({ page }) => {
     await expect(page.locator('#root')).toBeVisible();
-    await expect(page.locator('h1:has-text("파티커넥트")')).toBeVisible();
+    // 페이지의 h1 은 "원하는 파티를 찾아 신청하세요", "파티커넥트"는 로고/섹션 제목(h2)이다.
+    await expect(page.locator('h1:has-text("원하는 파티")')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: '파티커넥트' })).toBeVisible();
   });
 
   test('should have search input', async ({ page }) => {
@@ -39,9 +42,9 @@ test.describe('PartyConnect Page - Dedicated Party Discovery', () => {
   });
 
   test('should open party detail modal', async ({ page }) => {
-    // Click the image area (role=button) inside the first card
+    // 카드 안의 첫 버튼은 찜하기 아이콘이므로, 상세를 여는 "파티 신청하기" 버튼을 누른다
     const firstCard = page.locator('article[data-party-id]').first();
-    const clickableArea = firstCard.locator('[role="button"]').first();
+    const clickableArea = firstCard.getByRole('button', { name: '파티 신청하기' });
     await clickableArea.click();
     
     // Wait for modal dialog to appear
@@ -143,13 +146,17 @@ test('demo page search supports consecutive typing without dropping focus', asyn
   expect(ids).toEqual(['1']);
 });
 
-test('demo Kakao login and mypage can close and log out', async ({ page }) => {
-  const errors = [];
-  page.on('pageerror', e => errors.push(e.message));
+test('demo mode never fakes a login: the Kakao button is disabled', async ({ page }) => {
   await page.goto('/party-connect/');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
-  await page.getByRole('button', { name: /카카오로 시작하기/ }).click();
-  await expect(page.getByRole('button', { name: /마이페이지/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /카카오로 계속하기/ })).toBeDisabled();
+});
+
+test('live signed-in user can open mypage and log out', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await loadLive(page, { path: '/party-connect/' });
+  await expect(page.getByRole('button', { name: /마이페이지/ })).toBeVisible({ timeout: 30000 });
   await page.getByRole('button', { name: /마이페이지/ }).click();
   await expect(page.getByRole('dialog', { name: '마이페이지' })).toBeVisible();
   await page.getByRole('dialog', { name: '마이페이지' }).getByRole('button', { name: '로그아웃' }).click();
