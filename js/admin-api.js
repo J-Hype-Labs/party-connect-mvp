@@ -36,6 +36,9 @@
     me: function () { return request('admin/me'); },
     parties: function (params) { return request('admin/parties' + query(Object.assign({ limit: 200 }, params))); },
     applications: function (params) { return request('admin/applications' + query(Object.assign({ limit: 200 }, params))); },
+    summary: function () { return request('admin/summary'); },
+    guests: function (params) { return request('admin/guests' + query(Object.assign({ limit: 300 }, params))); },
+    blockGuest: function (id, blocked) { return request('admin/guests/' + id + '/block', { method: 'POST', body: { blocked: !!blocked } }); },
     stores: function () { return request('admin/stores?limit=200'); },
     createStore: function (b) { return request('admin/stores', { method: 'POST', body: b }); },
     updateStore: function (id, b) { return request('admin/stores/' + id, { method: 'PATCH', body: b }); },
@@ -47,10 +50,8 @@
     approve: function (id) { return request('admin/applications/' + id + '/approve', { method: 'POST' }); },
     reject: function (id, reason) { return request('admin/applications/' + id + '/reject', { method: 'POST', body: { reason: reason || undefined } }); },
     complete: function (id) { return request('admin/applications/' + id + '/complete', { method: 'POST' }); },
+    requestRevision: function (id) { return request('admin/applications/' + id + '/request-revision', { method: 'POST' }); },
     noshow: function (id) { return request('admin/applications/' + id + '/noshow', { method: 'POST' }); },
-    summary: function () { return request('admin/summary'); },
-    guests: function (params) { return request('admin/guests' + query(Object.assign({ limit: 200 }, params))); },
-    blockGuest: function (id, blocked) { return request('admin/guests/' + id + '/block', { method: 'POST', body: { blocked: blocked } }); },
     verifyVisit: function (id, code) { return request('admin/applications/' + id + '/verify-visit', { method: 'POST', body: { code: code } }); },
   };
 })();

@@ -141,21 +141,17 @@
 
   let content = null;
 
-  // 화면 전환: 신청은 이 파일, 파티·점포는 js/admin-catalog.js, 대시보드·게스트는 js/admin-dashboard.js · admin-guests.js (window.ADMIN_VIEWS)
-  function navigate(name, opts) {
+  // 화면 전환: 신청은 이 파일, 파티·점포는 js/admin-catalog.js (window.ADMIN_VIEWS)
+  function navigate(name) {
     state.section = name;
     Array.prototype.forEach.call(document.querySelectorAll('.nav-item'), function (b) {
       const on = b.getAttribute('data-nav') === name;
       b.classList.toggle('active', on);
       if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
-    if (name === 'applications') {
-      if (opts && opts.status !== undefined) view.status = opts.status;
-      if (opts && opts.slotId !== undefined) view.slotId = opts.slotId;
-      return openApplications();
-    }
+    if (name === 'applications') return openApplications();
     const open = window.ADMIN_VIEWS && window.ADMIN_VIEWS[name];
-    if (open) open(content, opts || {});
+    if (open) open(content);
   }
 
   function shellView() {
@@ -245,6 +241,7 @@
     }
     if (a.status === 'MISSION_SUBMITTED') {
       actions.push(btn('최종 승인', 'primary', function () { completeDialog(a); }, 'complete'));
+      actions.push(btn('보완 요청', '', function () { revisionDialog(a); }, 'request-revision'));
     }
 
     return h('li', { class: 'card', 'data-app-id': a.id },
@@ -333,6 +330,13 @@
     dialog('노쇼로 처리할까요?', h('p', { text: (a.guest && a.guest.name || '') + ' 님을 노쇼로 기록합니다. 벌점이 쌓이고 누적되면 신청이 자동 제한될 수 있습니다.' }), '노쇼 처리', true, async function () {
       const ok = await run(a, 'noshow', function () { return api.noshow(a.id); }, '노쇼로 처리했습니다.');
       return ok ? '' : '처리하지 못했습니다. 위 알림의 안내를 확인해 주세요.';
+    });
+  }
+
+  function revisionDialog(a) {
+    dialog('미션 보완을 요청할까요?', h('p', { text: (a.guest && a.guest.name || '') + ' 님의 신청이 "방문 인증" 상태로 돌아가 같은 신청에 미션 링크를 다시 제출할 수 있습니다. 적립금은 차감되지 않습니다.' }), '보완 요청', false, async function () {
+      const ok = await run(a, 'request-revision', function () { return api.requestRevision(a.id); }, '보완을 요청했습니다.');
+      return ok ? '' : '요청하지 못했습니다. 위 알림의 안내를 확인해 주세요.';
     });
   }
 
