@@ -57,3 +57,16 @@ button, select, input, textarea { font: inherit; }
 #toasts { position: fixed; left: 16px; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 50; pointer-events: none; }
 .toast { max-width: 480px; margin: 0 auto; padding: 12px 14px; border-radius: 10px; color: #fff; background: var(--bad); pointer-events: auto; }
 .toast.ok { background: var(--ok); }
+
+.title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.title-row h1 { margin: 0; }
+.dlg { max-height: 90vh; overflow: auto; }
+.form { display: grid; gap: 10px; }
+.field { display: grid; gap: 4px; }
+.field > span { font-weight: 600; font-size: 13px; }
+.field.check { display: flex; align-items: center; gap: 8px; }
+.field.check input { width: auto; }
+.dlg select { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.history { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.history li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.history small { grid-column: 1 / -1; color: var(--muted); }

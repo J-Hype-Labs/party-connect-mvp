@@ -115,7 +115,7 @@
       if (!sess || !sess.data || !sess.data.session) return show('login');
       const me = await api.me();
       show('app', { user: me });
-      openApplications();
+      navigate('applications');
     } catch (e) {
       if (e.status === 401) return show('login');
       if (e.status === 403) return show('forbidden');
@@ -134,12 +134,25 @@
   const NAV = [
     ['applications', '신청', true],
     ['dashboard', '대시보드', false],
-    ['parties', '파티', false],
-    ['stores', '점포·적립금', false],
+    ['parties', '파티', true],
+    ['stores', '점포·적립금', true],
     ['guests', '게스트', false],
   ];
 
   let content = null;
+
+  // 화면 전환: 신청은 이 파일, 파티·점포는 js/admin-catalog.js (window.ADMIN_VIEWS)
+  function navigate(name) {
+    state.section = name;
+    Array.prototype.forEach.call(document.querySelectorAll('.nav-item'), function (b) {
+      const on = b.getAttribute('data-nav') === name;
+      b.classList.toggle('active', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    if (name === 'applications') return openApplications();
+    const open = window.ADMIN_VIEWS && window.ADMIN_VIEWS[name];
+    if (open) open(content);
+  }
 
   function shellView() {
     content = h('section', { class: 'content', id: 'content', 'aria-live': 'polite' });
@@ -152,6 +165,7 @@
           return h('button', {
             class: 'nav-item' + (n[0] === 'applications' ? ' active' : ''), type: 'button', 'data-nav': n[0],
             disabled: !n[2], 'aria-current': n[0] === 'applications' ? 'page' : false,
+            onclick: function () { navigate(n[0]); },
             text: n[1] + (n[2] ? '' : ' (준비 중)'),
           });
         })),
@@ -184,7 +198,7 @@
   }
 
   function renderApplications() {
-    if (!content) return;
+    if (!content || state.section !== 'applications') return;
     clear(content);
     content.appendChild(h('h1', { text: '신청 관리' }));
 
@@ -326,6 +340,8 @@
       return ok ? '' : '승인하지 못했습니다. 위 알림의 안내를 확인해 주세요.';
     });
   }
+
+  window.ADMIN_UI = { h: h, clear: clear, toast: toast, fmtDate: fmtDate, won: won, dialog: dialog, isActive: function (name) { return state.section === name; } };
 
   boot();
 })();
