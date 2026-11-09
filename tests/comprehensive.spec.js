@@ -36,12 +36,13 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   // Test 2: Region selector modal functionality
   test('should open and close region selector modal', async ({ page }) => {
     // Open region modal - button shows current selected region (default: "전체 지역")
-    const regionBtn = page.locator('button:has-text("전체 지역")');
+    // The region filter button has a dropdown SVG, use that to distinguish from reset button
+    const regionBtn = page.locator('button:has-text("전체 지역"):has(svg)').first();
     await regionBtn.waitFor({ state: 'visible', timeout: 10000 });
     await regionBtn.click();
     
-    // Verify modal is visible (using the modal title)
-    await expect(page.locator('#region-modal-title')).toBeVisible({ timeout: 10000 });
+    // Verify modal is visible (using aria-label on dialog)
+    await expect(page.locator('div[aria-label="지역 선택"][role="dialog"]')).toBeVisible({ timeout: 10000 });
     
     // Verify region tabs are visible (using role="tab" to be specific)
     await expect(page.locator('button[role="tab"]:has-text("서울")')).toBeVisible();
@@ -50,14 +51,15 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     
     // Verify modal can be closed with ESC
     await page.keyboard.press('Escape');
-    await expect(page.locator('#region-modal-title')).toBeHidden({ timeout: 5000 });
+    await expect(page.locator('div[aria-label="지역 선택"][role="dialog"]')).toBeHidden({ timeout: 5000 });
     
     // Verify modal can be closed by clicking outside (background)
-    await regionBtn.waitFor({ state: 'visible', timeout: 10000 });
-    await regionBtn.click();
-    await expect(page.locator('#region-modal-title')).toBeVisible({ timeout: 10000 });
+    const regionBtn2 = page.locator('button:has-text("전체 지역"):has(svg)').first();
+    await regionBtn2.waitFor({ state: 'visible', timeout: 10000 });
+    await regionBtn2.click();
+    await expect(page.locator('div[aria-label="지역 선택"][role="dialog"]')).toBeVisible({ timeout: 10000 });
     await page.locator('.fixed.inset-0').click({ position: { x: 10, y: 10 } });
-    await expect(page.locator('#region-modal-title')).toBeHidden({ timeout: 5000 });
+    await expect(page.locator('div[aria-label="지역 선택"][role="dialog"]')).toBeHidden({ timeout: 5000 });
   });
 
   // Test 3: Party detail modal functionality
@@ -112,10 +114,10 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     const initialCount = await initialCards.count();
     
     // Open region modal and select a specific region
-    const regionBtn = page.locator('button:has-text("전체 지역")');
+    const regionBtn = page.locator('button:has-text("전체 지역"):has(svg)').first();
     await regionBtn.waitFor({ state: 'visible', timeout: 10000 });
     await regionBtn.click();
-    await expect(page.locator('#region-modal-title')).toBeVisible();
+    await expect(page.locator('div[aria-label="지역 선택"][role="dialog"]')).toBeVisible();
     
     // Select Seoul tab
     await page.locator('button[role="tab"]:has-text("서울")').waitFor({ state: 'visible', timeout: 5000 });
@@ -126,7 +128,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     
     // Close region modal
     await page.keyboard.press('Escape');
-    await expect(page.locator('#region-modal-title')).toBeHidden();
+    await expect(page.locator('div[aria-label="지역 선택"][role="dialog"]')).toBeHidden();
   });
 
   // Test 6: Mobile responsiveness across all configured browser projects
@@ -138,7 +140,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await page.waitForSelector('#root', { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
     // Button shows current selected region (default: "전체 지역")
-    const regionBtn = page.locator('button:has-text("전체 지역")');
+    const regionBtn = page.locator('button:has-text("전체 지역"):has(svg)').first();
     await regionBtn.waitFor({ state: 'visible', timeout: 30000 });
     await expect(regionBtn).toBeVisible();
     
@@ -153,7 +155,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     
     // Verify region modal works on mobile
     await regionBtn.click();
-    await expect(page.locator('#region-modal-title')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('div[aria-label="지역 선택"][role="dialog"]')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('button[role="tab"]:has-text("서울")')).toBeVisible();
   });
 
@@ -166,7 +168,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await page.waitForSelector('#root', { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
     // Button shows current selected region (default: "전체 지역")
-    const regionBtn = page.locator('button:has-text("전체 지역")');
+    const regionBtn = page.locator('button:has-text("전체 지역"):has(svg)').first();
     await regionBtn.waitFor({ state: 'visible', timeout: 30000 });
     await expect(regionBtn).toBeVisible();
     
@@ -206,7 +208,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await page.waitForSelector('#root', { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
     // Button shows current selected region (default: "전체 지역")
-    const regionBtn = page.locator('button:has-text("전체 지역")');
+    const regionBtn = page.locator('button:has-text("전체 지역"):has(svg)').first();
     await regionBtn.waitFor({ state: 'visible', timeout: 30000 });
     await expect(regionBtn).toBeVisible();
 
