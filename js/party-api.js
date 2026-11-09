@@ -200,7 +200,6 @@
       visitCode: a.visitCode || null,
       rejectReason: a.rejectReason || null,
       missionUrl: a.missionUrl || null,
-      revisionNote: a.revisionNote || null,
       approvedAt: a.approvedAt || null,
       visitedAt: a.visitedAt || null,
       startsAt: a.startsAt || null,

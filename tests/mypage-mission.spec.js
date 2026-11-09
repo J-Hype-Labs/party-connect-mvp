@@ -106,18 +106,19 @@ for (const path of ['/party-connect/', '/']) {
         path,
         applications: [
           app({ id: 'a-first', status: 'VISITED' }),
-          app({ id: 'a-revise', status: 'VISITED', missionUrl: 'https://blog.example.test/old', revisionNote: '사진을 더 올려 주세요' }),
+          app({ id: 'a-revise', status: 'VISITED', missionUrl: 'https://blog.example.test/old' }),
           app({ id: 'a-review', status: 'MISSION_SUBMITTED', missionUrl: 'https://blog.example.test/review' }),
           app({ id: 'a-unsafe', status: 'MISSION_SUBMITTED', missionUrl: 'javascript:alert(1)' }),
         ],
       });
       const dialog = await openMyPage(page, path);
 
-      // 제출 전: 배너 없음, 안내 문구만
+      // 제출 전(missionUrl 없음): 배너 없이 안내 문구만
       await expect(dialog.getByTestId('revision-requested')).toHaveCount(1);
       await expect(dialog.getByText('체험 후기(미션) 링크를 제출해 주세요', { exact: false })).toHaveCount(1);
-      // 보완 요청됨: 배너 + 사유 + 이전 링크
-      await expect(dialog.getByText('요청 사유: 사진을 더 올려 주세요')).toBeVisible();
+      // 보완 요청됨: 배너 + 이전 링크 + 입력창이 이전 제출값으로 채워짐
+      await expect(dialog.locator('#mission-url-a-revise')).toHaveValue('https://blog.example.test/old');
+      await expect(dialog.locator('#mission-url-a-first')).toHaveValue('');
       await expect(dialog.getByTestId('mission-previous-link').first()).toHaveAttribute('href', 'https://blog.example.test/old');
       // 검수 중: 제출한 링크 표시, http(s)가 아닌 값은 링크로 만들지 않는다
       await expect(dialog.getByTestId('mission-previous-link')).toHaveCount(2);

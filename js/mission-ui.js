@@ -25,7 +25,8 @@
   }
 
   function MissionSubmitForm({ application, onSubmitted }) {
-    const [url, setUrl] = useState('');
+    // 보완 요청 후 재제출이면 이전 제출값으로 미리 채운다 (서버가 missionUrl 을 남겨 둠)
+    const [url, setUrl] = useState(application.missionUrl || '');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
     const inputId = 'mission-url-' + application.id;
@@ -43,7 +44,6 @@
       setSubmitting(true);
       try {
         await api.submitMission(application.id, trimmed);
-        setUrl('');
         if (onSubmitted) await onSubmitted(application);
       } catch (err) {
         setError((err && err.message) || '미션 제출에 실패했어요. 잠시 후 다시 시도해 주세요.');
@@ -96,10 +96,7 @@
     const showPrevious = canLink && (revisionRequested || status === 'MISSION_SUBMITTED');
 
     return e('div', { className: 'mt-2 space-y-2', 'data-testid': 'application-extras' }, [
-      revisionRequested ? e('p', { key: 'revision', role: 'status', className: 'px-3 py-2 rounded-lg bg-amber-50 text-sm font-medium text-amber-700', 'data-testid': 'revision-requested' }, '운영팀이 미션 보완을 요청했어요. 아래에서 다시 제출해 주세요.') : null,
-      revisionRequested && application.revisionNote
-        ? e('p', { key: 'note', className: 'text-sm text-zinc-600' }, '요청 사유: ' + application.revisionNote)
-        : null,
+      revisionRequested ? e('p', { key: 'revision', role: 'status', className: 'px-3 py-2 rounded-lg bg-amber-50 text-sm font-medium text-amber-700', 'data-testid': 'revision-requested' }, '운영팀이 미션 보완을 요청했어요. 자세한 내용은 운영팀 안내를 확인하고 아래에서 다시 제출해 주세요.') : null,
       hint && !revisionRequested ? e('p', { key: 'hint', className: 'text-sm text-zinc-600' }, hint) : null,
       showPrevious ? e('p', { key: 'previous', className: 'text-sm text-zinc-500 break-all' }, [
         '제출한 링크: ',
