@@ -189,7 +189,9 @@ test.describe('관리자 — 점포·적립금', () => {
     await page.locator('[data-store-id="s1"] [data-action="charge"]').click();
     await page.locator('#charge-amount').fill('300000');
     await page.locator('#dlg-confirm').click();
-    await expect(page.locator('dialog .dlg-err')).toHaveText('입금자명을 입력해 주세요.');
+    // 입금자명이 비어 있으면 브라우저 필수 입력 검사가 막아 서버 요청도 닫힘도 일어나지 않는다
+    await expect(page.locator('dialog')).toHaveCount(1);
+    expect(writes(calls).length).toBe(0);
     await page.locator('#charge-depositor').fill('홍길동');
     await page.locator('#dlg-confirm').click();
     await expect(page.locator('[data-store-id="s1"]')).toContainText('305,000원');
@@ -304,6 +306,7 @@ test('모바일(360px)에서 파티 등록 폼이 가로로 넘치지 않는다'
   await open(page);
   await nav(page, 'parties');
   await page.locator('#party-new').click();
+  await expect(page.locator('dialog')).toBeVisible();
   const over = await page.evaluate(() => {
     const d = document.querySelector('dialog');
     return document.documentElement.scrollWidth > window.innerWidth || d.scrollWidth > d.clientWidth;
