@@ -81,8 +81,10 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('div[aria-labelledby="party-detail-title"]')).toBeHidden({ timeout: 5000 });
   });
 
-  // Test 4: Application flow. Missing form is a failure, not a pass.
-  test('should complete full application flow', async ({ page }) => {
+  // Test 4: Application form. Demo mode has no login (live mode only), so a valid
+  // submission must be blocked with a login prompt. The success path is covered by
+  // the live-mode fixture tests in party-connect-page.spec.js.
+  test('should validate application form and require login in demo mode', async ({ page }) => {
     // Click the CTA button on first party card to open detail modal
     const firstCardApplyBtn = page.locator('article[role="listitem"]').first().locator('button:has-text("파티 신청하기")');
     await firstCardApplyBtn.waitFor({ state: 'visible', timeout: 10000 });
@@ -96,15 +98,19 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await modalApplyBtn.waitFor({ state: 'visible', timeout: 5000 });
     await modalApplyBtn.click();
     
-    // Fill application form
-    await expect(page.locator('#applicant-name')).toBeVisible();
-    await page.locator('#applicant-name').fill('테스트 사용자');
-    await page.locator('#applicant-phone').fill('01012345678');
-    await expect(page.locator('#applicant-day')).toBeVisible();
-    await page.locator('#applicant-day').selectOption({ index: 0 });
-    await page.locator('form input[type="checkbox"]').check();
-    await page.getByRole('button', { name: '신청 접수하기' }).click();
-    await expect(page.getByText('신청이 접수되었습니다!')).toBeVisible();
+    // Fill application form (field ids: apply-name / apply-phone, day radios, consent checkbox)
+    const dialog = page.locator('div[aria-labelledby="party-detail-title"]');
+    await expect(dialog.locator('#apply-name')).toBeVisible();
+    await dialog.locator('#apply-name').fill('테스트 사용자');
+    await dialog.locator('#apply-phone').fill('01012345678');
+    await dialog.locator('input[name="apply-day"]').first().check();
+    await dialog.locator('form input[type="checkbox"]').check();
+    await dialog.getByRole('button', { name: '신청하기', exact: true }).click();
+
+    // Valid data but not logged in: blocked with an alert and the login dialog opens.
+    await expect(dialog.getByRole('alert')).toContainText('카카오 로그인 후 신청할 수 있어요');
+    await expect(page.locator('div[role="dialog"][aria-label="로그인"]')).toBeVisible();
+    await expect(page.getByText('신청이 접수되었습니다!')).toBeHidden();
   });
 
   // Test 5: Filter functionality

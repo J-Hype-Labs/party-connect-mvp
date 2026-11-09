@@ -886,7 +886,7 @@
           {/* ================= MODALS ================= */}
           {/* Region Modal */}
           {isRegionModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="region-modal-title" onClick={() => setIsRegionModalOpen(false)}>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="지역 선택" aria-labelledby="region-modal-title" onClick={() => setIsRegionModalOpen(false)}>
               <div className="relative w-full max-w-md max-h-[80vh] bg-white rounded-2xl shadow-2xl flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b border-zinc-100">
                   <h3 id="region-modal-title" className="text-base font-bold text-zinc-900">지역 선택</h3>
