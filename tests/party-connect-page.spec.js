@@ -74,8 +74,8 @@ async function loadLiveFixture(page, { parties = [], status = 200 } = {}) {
     const response = await route.fetch();
     const original = await response.text();
     const html = original
-      .replace('supabaseUrl: ""', 'supabaseUrl: "' + projectUrl + '"')
-      .replace('supabaseAnonKey: ""', 'supabaseAnonKey: "public-test-anon"');
+      .replace(/supabaseUrl: "[^"]*"/, 'supabaseUrl: "' + projectUrl + '"')
+      .replace(/supabaseAnonKey: "[^"]*"/, 'supabaseAnonKey: "public-test-anon"');
     expect(html).not.toBe(original);
     await route.fulfill({ response, body: html });
   });
