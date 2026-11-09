@@ -19,6 +19,37 @@
     CANCELLED: { label: "취소됨", className: "bg-zinc-100 text-zinc-500" },
   };
 
+  // One-line guidance per status shown on the my-page card
+  const APPLICATION_STATUS_HINTS = {
+    APPLIED: "운영팀이 참여자를 선정하면 알려드려요. 선정 전에는 직접 취소할 수 있어요.",
+    APPROVED: "선정되었어요! 방문할 때 아래 방문 인증 코드를 매장에 보여주세요.",
+    VISITED: "방문이 확인되었어요. 체험 후기(미션) 링크를 제출해 주세요.",
+    MISSION_SUBMITTED: "미션을 검수하고 있어요. 보완이 필요하면 다시 제출할 수 있어요.",
+    COMPLETED: "체험이 모두 완료되었어요. 참여해 주셔서 감사합니다.",
+    NOSHOW: "방문하지 않아 노쇼로 처리되었어요.",
+    REJECTED: "이번에는 선정되지 않았어요.",
+    CANCELLED: "취소된 신청이에요.",
+  };
+
+  // Mission URL: http(s) only (same rule as POST /applications/:id/mission)
+  function isValidMissionUrl(value) {
+    const url = String(value == null ? '' : value).trim();
+    if (url.length === 0 || url.length > 1000) return false;
+    if (!/^https?:\/\//i.test(url)) return false;
+    try {
+      const parsed = new URL(url);
+      return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname.length > 0;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // A mission can be (re)submitted only after the visit is verified.
+  // MISSION_SUBMITTED -> VISITED happens when an admin asks for a revision.
+  function canSubmitMission(status) {
+    return String(status || '').toUpperCase() === 'VISITED';
+  }
+
   // Get auth client
   function getAuthClient() {
     return window.PARTYLINK_AUTH || { live: false, api: null };
@@ -92,6 +123,22 @@
     });
   }
 
+  // Submit (or re-submit after a revision request) the mission URL
+  async function submitMission(applicationId, url) {
+    const auth = getAuthClient();
+    if (!auth.live || !auth.api) {
+      throw new Error("실서비스 모드에서만 미션을 제출할 수 있습니다.");
+    }
+    const trimmed = String(url == null ? '' : url).trim();
+    if (!isValidMissionUrl(trimmed)) {
+      throw new Error("미션 URL은 http:// 또는 https:// 로 시작하는 주소여야 합니다.");
+    }
+    return await auth.api(`applications/${encodeURIComponent(applicationId)}/mission`, {
+      method: 'POST',
+      body: { url: trimmed }
+    });
+  }
+
   // Get user profile
   async function getProfile() {
     const auth = getAuthClient();
@@ -150,7 +197,10 @@
       appliedAt: a.appliedAt || a.created_at,
       status: String(a.status || 'APPLIED').toUpperCase(),
       userId: a.userId,
-      visitCode: a.visitCode || null
+      visitCode: a.visitCode || null,
+      rejectReason: a.rejectReason || null,
+      startsAt: a.startsAt || null,
+      venue: a.venue || ''
     }));
   }
 
@@ -158,6 +208,11 @@
   function getStatusLabel(status) {
     const normalized = String(status || 'APPLIED').toUpperCase();
     return APPLICATION_STATUS_LABELS[normalized] || APPLICATION_STATUS_LABELS.APPLIED;
+  }
+
+  function getStatusHint(status) {
+    const normalized = String(status || 'APPLIED').toUpperCase();
+    return APPLICATION_STATUS_HINTS[normalized] || '';
   }
 
   // Check if application is active (not cancelled/rejected)
@@ -173,6 +228,10 @@
     fetchMyApplications,
     applyToParty,
     cancelApplication,
+    submitMission,
+    isValidMissionUrl,
+    canSubmitMission,
+    getStatusHint,
     getProfile,
     completeOnboarding,
     normalizeServerParties,

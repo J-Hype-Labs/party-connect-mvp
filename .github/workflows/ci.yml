@@ -126,6 +126,11 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
+      - name: Run my-page mission E2E tests (mocked API)
+        run: npx playwright test tests/mypage-mission.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
       - name: Run admin page E2E tests (mocked API)
         run: npx playwright test tests/admin-page.spec.js tests/admin-catalog.spec.js tests/admin-ops.spec.js --reporter=list
         env:

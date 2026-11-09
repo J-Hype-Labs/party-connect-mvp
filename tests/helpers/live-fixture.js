@@ -27,9 +27,9 @@ const CORS = {
  * @param {{ path?: string, parties?: object[], signedIn?: boolean, partiesStatus?: number }} [opts]
  * @returns {Promise<{ calls: {method: string, path: string, body: any}[], applications: object[] }>}
  */
-export async function loadLive(page, { path = '/', parties = [FIXTURE_PARTY], signedIn = true, partiesStatus = 200 } = {}) {
+export async function loadLive(page, { path = '/', parties = [FIXTURE_PARTY], signedIn = true, partiesStatus = 200, applications = [] } = {}) {
   const calls = [];
-  const state = { applications: [] };
+  const state = { applications: applications.map((a) => ({ ...a })) };
   const session = signedIn
     ? { access_token: 'user-token', user: { id: 'user-1', created_at: '2026-11-01T00:00:00Z', app_metadata: { provider: 'kakao' }, user_metadata: { name: '테스트유저', onboarding_complete: true } } }
     : null;
@@ -76,6 +76,18 @@ export async function loadLive(page, { path = '/', parties = [FIXTURE_PARTY], si
       };
       state.applications.push(app);
       return json(201, app);
+    }
+    // POST applications/:id/mission — 서버와 같은 규칙: http(s) URL 만, VISITED 상태에서만 제출
+    const missionMatch = apiPath.match(/^applications\/([^/]+)\/mission$/);
+    if (missionMatch && req.method() === 'POST') {
+      const app = state.applications.find((a) => a.id === decodeURIComponent(missionMatch[1]));
+      if (!app) return json(404, { message: '대상을 찾을 수 없습니다.' });
+      const url = String((body && body.url) || '').trim();
+      if (!/^https?:\/\//i.test(url)) return json(400, { message: '미션 URL은 http:// 또는 https:// 로 시작해야 합니다.' });
+      if (app.status !== 'VISITED') return json(409, { message: '지금은 미션을 제출할 수 없는 상태입니다.' });
+      app.status = 'MISSION_SUBMITTED';
+      app.missionUrl = url;
+      return json(200, { application_id: app.id, status: app.status });
     }
     return json(404, { message: 'unexpected ' + req.method() + ' ' + apiPath });
   });
