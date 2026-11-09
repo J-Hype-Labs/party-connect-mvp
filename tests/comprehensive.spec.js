@@ -6,7 +6,8 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     // Wait for React to mount and load initial data
     await page.waitForSelector('#root', { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.locator('button:has-text("지역 선택")')).toBeVisible({ timeout: 30000 });
+    // Button shows current selected region (default: "전체 지역")
+    await expect(page.locator('button:has-text("전체 지역")')).toBeVisible({ timeout: 30000 });
   });
 
   // Test 1: Basic application loading and core functionality
@@ -21,7 +22,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('section').first()).toBeVisible();
     
     // Verify filter buttons exist
-    await expect(page.locator('button:has-text("지역 선택")')).toBeVisible();
+    await expect(page.locator('button:has-text("전체 지역")')).toBeVisible();
     
     // Category filter - "혼술바"
     await expect(page.locator('button:has-text("혼술바")')).toBeVisible();
@@ -34,8 +35,8 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
 
   // Test 2: Region selector modal functionality
   test('should open and close region selector modal', async ({ page }) => {
-    // Open region modal
-    await page.click('button:has-text("지역 선택")');
+    // Open region modal - button shows current selected region (default: "전체 지역")
+    await page.click('button:has-text("전체 지역")');
     
     // Verify modal is visible (using the modal title)
     await expect(page.locator('#region-modal-title')).toBeVisible({ timeout: 10000 });
@@ -178,7 +179,8 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await page.reload();
     await page.waitForSelector('#root', { timeout: 30000 });
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.locator('button:has-text("지역 선택")')).toBeVisible({ timeout: 30000 });
+    // Button shows current selected region (default: "전체 지역")
+    await expect(page.locator('button:has-text("전체 지역")')).toBeVisible({ timeout: 30000 });
 
     if (errors.length > 0) {
       const errorMsg = 'Critical JavaScript errors found:\n' + errors.join('\n');
