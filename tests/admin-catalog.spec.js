@@ -18,9 +18,9 @@ const party = (o) => Object.assign({
   createdAt: '2026-11-05T00:00:00Z', selectedCount: 0, applicantCount: 0,
 }, o);
 
-async function setup(page, { stores = [store()], parties = [], failNext = null } = {}) {
+async function setup(page, { stores = [store()], parties = [], failNext = null, applications = [], appsFail = false } = {}) {
   const calls = [];
-  const db = { stores, parties, deposits: [] };
+  const db = { stores, parties, deposits: [], applications };
   let seq = 100;
 
   await page.addInitScript((s) => { window.__SESSION = s; }, SESSION);
@@ -56,7 +56,7 @@ async function setup(page, { stores = [store()], parties = [], failNext = null }
       return json(f.status, { message: f.message });
     }
     if (path === 'admin/me') return json(200, { isAdmin: true, userId: 'u1' });
-    if (path === 'admin/applications') return json(200, []);
+    if (path === 'admin/applications') return appsFail ? json(500, { message: '일시적인 오류가 발생했습니다.' }) : json(200, db.applications);
     if (path === 'admin/stores' && m === 'GET') return json(200, db.stores);
     if (path === 'admin/stores' && m === 'POST') {
       const s = store({ id: 'st' + (++seq), name: body.name, ownerName: body.ownerName, phone: body.phone, address: body.address, region: body.region || null, prepaidBalance: 0, defaultFeePerGuest: body.defaultFeePerGuest || 0 });
@@ -270,6 +270,58 @@ test.describe('관리자 — 점포·적립금', () => {
     await page.locator('#dlg-confirm').click();
     await expect(page.locator('[data-store-id="st1"] .badge')).toHaveText('운영 중지');
     expect(calls.find((c) => c.method === 'PATCH').body).toEqual({ isActive: false });
+  });
+
+  test.describe('업체별 수수료 집계', () => {
+    const NOW = new Date();
+    const thisMonthIso = new Date(NOW.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 7);
+    const thisMonthDay = thisMonthIso + '-02T03:00:00Z';
+    const app = (o) => Object.assign({ id: 'x', status: 'COMPLETED', storeId: 'st1', storeName: '43번지 혼술바', feeAmount: 10000, visitedAt: null, completedAt: null, noshowAt: null }, o);
+    const apps = () => [
+      app({ id: 'a1', visitedAt: thisMonthDay, completedAt: thisMonthDay, feeAmount: 10000 }),
+      app({ id: 'a2', visitedAt: thisMonthDay, completedAt: thisMonthDay, feeAmount: 12000 }),
+      app({ id: 'a3', status: 'VISITED', visitedAt: thisMonthDay, feeAmount: 10000 }), // 방문만, 아직 차감 없음
+      app({ id: 'a4', status: 'NOSHOW', noshowAt: thisMonthDay }),
+      app({ id: 'a5', visitedAt: '2020-01-05T03:00:00Z', completedAt: '2020-01-05T05:00:00Z', feeAmount: 99999 }), // 오래된 달
+      app({ id: 'a6', storeId: 'st2', storeName: '다른 점포', visitedAt: thisMonthDay, completedAt: thisMonthDay, feeAmount: 5000 }),
+      app({ id: 'a7', status: 'APPLIED' }), // 아직 신청만
+    ];
+
+    test('점포별 방문·완료·노쇼 건수와 차감 합계를 센다 (기본은 전체 기간)', async ({ page }) => {
+      await setup(page, { stores: [store(), store({ id: 'st2', name: '다른 점포' })], applications: apps() });
+      await open(page, 'stores');
+      const row = (id) => page.locator(`[data-fee-store="${id}"] td`).allTextContents();
+      await expect(page.locator('#fee-summary')).toBeVisible();
+      // 전체 기간: st1 방문 3(a1,a2,a3)+오래된 a5=4, 완료 3, 노쇼 1, 차감 10000+12000+99999
+      expect(await row('st1')).toEqual(['4', '3', '1', '121,999원']);
+      expect(await row('st2')).toEqual(['1', '1', '0', '5,000원']);
+      expect(await page.locator('[data-fee-store="total"] > *').allTextContents()).toEqual(['합계', '5', '4', '1', '126,999원']);
+    });
+
+    test('월을 고르면 그 달에 일어난 건만 센다 (각 건은 자기 시각의 달로 분류)', async ({ page }) => {
+      await setup(page, { stores: [store(), store({ id: 'st2', name: '다른 점포' })], applications: apps() });
+      await open(page, 'stores');
+      await page.locator('#fee-month').selectOption(thisMonthIso);
+      const row = (id) => page.locator(`[data-fee-store="${id}"] td`).allTextContents();
+      expect(await row('st1')).toEqual(['3', '2', '1', '22,000원']); // 오래된 a5 제외
+      expect(await page.locator('[data-fee-store="total"] > *').allTextContents()).toEqual(['합계', '4', '3', '1', '27,000원']);
+      await page.locator('#fee-month').selectOption({ index: 6 }); // 5개월 전: 기록 없음
+      await expect(page.locator('#fee-empty')).toBeVisible();
+    });
+
+    test('집계 요청이 실패해도 점포 목록은 그대로 쓸 수 있다', async ({ page }) => {
+      await setup(page, { appsFail: true });
+      await open(page, 'stores');
+      await expect(page.locator('#fee-failed')).toContainText('일시적인 오류');
+      await expect(page.locator('#store-list li')).toHaveCount(1);
+    });
+
+    test('자동 청구가 아니라 수동 정산용임을 안내한다', async ({ page }) => {
+      await setup(page, { applications: apps() });
+      await open(page, 'stores');
+      await expect(page.locator('#fee-summary')).toContainText('수동으로 진행');
+      await expect(page.locator('#fee-summary')).toContainText('자동 청구는 하지 않습니다');
+    });
   });
 
   test('화면을 오가도 이전 화면의 늦은 응답이 덮어쓰지 않는다', async ({ page }) => {
