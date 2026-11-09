@@ -40,6 +40,17 @@
     reject: function (id, reason) { return request('admin/applications/' + id + '/reject', { method: 'POST', body: { reason: reason || undefined } }); },
     complete: function (id) { return request('admin/applications/' + id + '/complete', { method: 'POST' }); },
     noshow: function (id) { return request('admin/applications/' + id + '/noshow', { method: 'POST' }); },
+    summary: function () { return request('admin/summary'); },
+    createParty: function (body) { return request('admin/parties', { method: 'POST', body: body }); },
+    updateParty: function (id, body) { return request('admin/parties/' + id, { method: 'PATCH', body: body }); },
+    stores: function () { return request('admin/stores?limit=200'); },
+    createStore: function (body) { return request('admin/stores', { method: 'POST', body: body }); },
+    updateStore: function (id, body) { return request('admin/stores/' + id, { method: 'PATCH', body: body }); },
+    deposits: function (id) { return request('admin/stores/' + id + '/deposits?limit=100'); },
+    charge: function (id, body) { return request('admin/stores/' + id + '/charge', { method: 'POST', body: body }); },
+    refund: function (id, body) { return request('admin/stores/' + id + '/refund', { method: 'POST', body: body }); },
+    guests: function (params) { return request('admin/guests' + query(Object.assign({ limit: 200 }, params))); },
+    blockGuest: function (id, blocked) { return request('admin/guests/' + id + '/block', { method: 'POST', body: { blocked: blocked } }); },
     verifyVisit: function (id, code) { return request('admin/applications/' + id + '/verify-visit', { method: 'POST', body: { code: code } }); },
   };
 })();

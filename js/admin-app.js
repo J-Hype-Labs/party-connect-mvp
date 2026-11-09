@@ -115,7 +115,7 @@
       if (!sess || !sess.data || !sess.data.session) return show('login');
       const me = await api.me();
       show('app', { user: me });
-      openApplications();
+      goto('applications');
     } catch (e) {
       if (e.status === 401) return show('login');
       if (e.status === 403) return show('forbidden');
@@ -131,15 +131,34 @@
   });
 
   // ---------------------------------------------------------------- 셸 (내비게이션)
+  // 화면은 js/admin-*.js 가 window.ADMIN_SCREENS[name] = { open(content, opts) } 로 등록합니다.
+  const SCREENS = (window.ADMIN_SCREENS = window.ADMIN_SCREENS || {});
   const NAV = [
-    ['applications', '신청', true],
-    ['dashboard', '대시보드', false],
-    ['parties', '파티', false],
-    ['stores', '점포·적립금', false],
-    ['guests', '게스트', false],
+    ['dashboard', '대시보드'],
+    ['applications', '신청'],
+    ['parties', '파티'],
+    ['stores', '점포·적립금'],
+    ['guests', '게스트'],
   ];
 
   let content = null;
+  let current = 'applications';
+
+  function goto(name, opts) {
+    if (!content) return;
+    current = name;
+    Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'), function (b) {
+      const on = b.getAttribute('data-nav') === name;
+      b.classList.toggle('active', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    if (name === 'applications') {
+      if (opts && opts.status !== undefined) view.status = opts.status;
+      if (opts && opts.slotId !== undefined) view.slotId = opts.slotId;
+      return openApplications();
+    }
+    if (SCREENS[name]) { clear(content); return SCREENS[name].open(content, opts || {}); }
+  }
 
   function shellView() {
     content = h('section', { class: 'content', id: 'content', 'aria-live': 'polite' });
@@ -149,10 +168,12 @@
         h('button', { class: 'btn small', id: 'logout-btn', type: 'button', onclick: logout, text: '로그아웃' })),
       h('nav', { class: 'nav', 'aria-label': '관리자 메뉴' },
         NAV.map(function (n) {
+          const ready = n[0] === 'applications' || !!SCREENS[n[0]];
           return h('button', {
-            class: 'nav-item' + (n[0] === 'applications' ? ' active' : ''), type: 'button', 'data-nav': n[0],
-            disabled: !n[2], 'aria-current': n[0] === 'applications' ? 'page' : false,
-            text: n[1] + (n[2] ? '' : ' (준비 중)'),
+            class: 'nav-item' + (n[0] === current ? ' active' : ''), type: 'button', 'data-nav': n[0],
+            disabled: !ready, 'aria-current': n[0] === current ? 'page' : false,
+            onclick: function () { goto(n[0]); },
+            text: n[1] + (ready ? '' : ' (준비 중)'),
           });
         })),
       content);
@@ -327,5 +348,17 @@
     });
   }
 
-  boot();
+  // 다른 화면 스크립트(js/admin-*.js)가 먼저 등록되도록 DOM 준비 후 시작
+  window.ADMIN_UI = {
+    h: h, clear: clear, toast: toast, fmtDate: fmtDate, won: won, dialog: dialog, goto: goto, row: row,
+    api: api, state: state,
+    field: function (label, input) { return h('label', { class: 'field' }, h('span', { text: label }), input); },
+    // 화면 공통: 요청 실행 후 서버 메시지를 그대로 표시. 성공이면 true
+    attempt: async function (fn, okMsg) {
+      try { await fn(); toast(okMsg, 'ok'); return true; }
+      catch (e) { toast(e.message || '요청을 처리하지 못했습니다.'); return false; }
+    },
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();
