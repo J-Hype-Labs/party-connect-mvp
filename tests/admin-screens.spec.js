@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/test-base.js';
 
 // 관리자 페이지 — 대시보드 / 파티 / 점포·적립금 / 게스트 화면.
 // 실제 Supabase 를 호출하지 않고 SDK 와 /admin/* API 를 모두 mock 합니다. (tests/admin-page.spec.js 와 같은 방식, 독립 파일)
