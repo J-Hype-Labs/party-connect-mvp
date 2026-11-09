@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/test-base.js';
+import { loadLive } from './helpers/live-fixture.js';
 
 test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
@@ -39,13 +40,13 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     // The region filter button has a dropdown SVG, use that to distinguish from reset button
     const regionBtn = page.locator('button:has-text("전체 지역"):has(svg)').first();
     await regionBtn.waitFor({ state: 'visible', timeout: 10000 });
-    await regionBtn.click();
+    await regionBtn.click({ delay: 100 });
     
     // Verify modal is visible (using aria-label on dialog)
     const regionModal = page.locator('div[aria-label="지역 선택"][role="dialog"]');
     await expect(regionModal).toBeVisible({ timeout: 10000 });
-    // Wait for modal animation to complete
-    await page.waitForTimeout(500);
+    // Wait for modal animation to complete - longer on WebKit
+    await page.waitForTimeout(1000);
     
     // Verify region tabs are visible (using role="tab" to be specific)
     await expect(page.locator('button[role="tab"]:has-text("서울")')).toBeVisible();
@@ -59,10 +60,10 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     // Verify modal can be closed by clicking outside (background)
     const regionBtn2 = page.locator('button:has-text("전체 지역"):has(svg)').first();
     await regionBtn2.waitFor({ state: 'visible', timeout: 10000 });
-    await regionBtn2.click();
+    await regionBtn2.click({ delay: 100 });
     await expect(regionModal).toBeVisible({ timeout: 10000 });
     // Wait for modal animation to complete
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
     await page.locator('.fixed.inset-0').click({ position: { x: 10, y: 10 } });
     await expect(regionModal).toBeHidden({ timeout: 5000 });
   });
@@ -77,21 +78,27 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     // Verify modal opens
     const modal = page.locator('div[aria-labelledby="party-detail-title"]');
     await expect(modal).toBeVisible({ timeout: 15000 });
-    // Wait for modal animation to complete (slide-up + fade-in)
-    await page.waitForTimeout(500);
+    // Wait for modal animation to complete (slide-up + fade-in) - longer on WebKit
+    await page.waitForTimeout(1000);
     
     // Verify apply button exists in modal (scoped to modal to avoid matching card buttons)
     const modalApplyBtn = modal.locator('button:has-text("파티 신청하기")');
     await expect(modalApplyBtn).toBeVisible({ timeout: 5000 });
     
     // Verify modal can be closed with close button (X button in top right)
-    await page.locator('button[aria-label="상세 닫기"]').waitFor({ state: 'visible', timeout: 5000 });
-    await page.locator('button[aria-label="상세 닫기"]').click();
+    const closeBtn = page.locator('button[aria-label="상세 닫기"]');
+    await closeBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await closeBtn.click({ delay: 100 });
     await expect(modal).toBeHidden({ timeout: 5000 });
   });
 
   // Test 4: Application flow. Missing form is a failure, not a pass.
+  // 신청은 로그인이 필요하고 데모 모드에서는 카카오 로그인이 비활성이므로,
+  // 로그인된 세션과 API 를 mock 한 실서비스(live) 화면으로 검증한다 (tests/helpers/live-fixture.js).
   test('should complete full application flow', async ({ page }) => {
+    const { calls } = await loadLive(page);
+    await expect(page.locator('article[role="listitem"]').first()).toContainText('서버 전용 테스트 파티', { timeout: 30000 });
+
     // Click the CTA button on first party card to open detail modal
     const firstCardApplyBtn = page.locator('article[role="listitem"]').first().locator('button:has-text("파티 신청하기")');
     await firstCardApplyBtn.waitFor({ state: 'visible', timeout: 10000 });
@@ -100,26 +107,32 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     // Verify modal opens
     const modal = page.locator('div[aria-labelledby="party-detail-title"]');
     await expect(modal).toBeVisible({ timeout: 15000 });
-    // Wait for modal animation to complete
-    await page.waitForTimeout(500);
+    // Wait for modal animation to complete - longer on WebKit
+    await page.waitForTimeout(1000);
     
-    // Click apply button in modal (scoped to modal)
+    // Click apply button in modal (scoped to modal) - use delay for stability
     const modalApplyBtn = modal.locator('button:has-text("파티 신청하기")');
     await modalApplyBtn.waitFor({ state: 'visible', timeout: 5000 });
-    await modalApplyBtn.click();
+    await modalApplyBtn.click({ delay: 100 });
     
     // Wait for form to appear
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
     
     // Fill application form
-    await expect(page.locator('#applicant-name')).toBeVisible();
-    await page.locator('#applicant-name').fill('테스트 사용자');
-    await page.locator('#applicant-phone').fill('01012345678');
-    await expect(page.locator('#applicant-day')).toBeVisible();
-    await page.locator('#applicant-day').selectOption({ index: 0 });
+    // 현재 UI: 입력 id 는 apply-name / apply-phone, 참여 일정은 라디오(name="apply-day"), 제출 버튼은 "신청하기"
+    await expect(page.locator('#apply-name')).toBeVisible({ timeout: 10000 });
+    await page.locator('#apply-name').fill('테스트 사용자');
+    await page.locator('#apply-phone').fill('01012345678');
+    await page.locator('input[name="apply-day"]').first().check();
     await page.locator('form input[type="checkbox"]').check();
-    await page.getByRole('button', { name: '신청 접수하기' }).click();
-    await expect(page.getByText('신청이 접수되었습니다!')).toBeVisible();
+    await page.getByRole('button', { name: '신청하기', exact: true }).click();
+    // 같은 문구가 토스트에도 나오므로 완료 화면의 제목으로 확인한다
+    await expect(page.getByRole('heading', { name: '신청이 접수되었습니다!' })).toBeVisible();
+    // 서버에는 로그인 토큰 기준으로 신청 한 건만 전달된다
+    const posts = calls.filter((c) => c.method === 'POST' && c.path === 'applications');
+    expect(posts.length).toBe(1);
+    expect(posts[0].body.slotId).toBe('9167ab8e-1743-49d4-bb74-7c1accb1fa90');
+    expect(posts[0].body.phone).toBe('01012345678');
   });
 
   // Test 5: Filter functionality
@@ -131,16 +144,16 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     // Open region modal and select a specific region
     const regionBtn = page.locator('button:has-text("전체 지역"):has(svg)').first();
     await regionBtn.waitFor({ state: 'visible', timeout: 10000 });
-    await regionBtn.click();
+    await regionBtn.click({ delay: 100 });
     const regionModal = page.locator('div[aria-label="지역 선택"][role="dialog"]');
     await expect(regionModal).toBeVisible();
-    // Wait for modal animation to complete
-    await page.waitForTimeout(500);
+    // Wait for modal animation to complete - longer on WebKit
+    await page.waitForTimeout(1000);
     
     // Select Seoul tab
     const seoulTab = page.locator('button[role="tab"]:has-text("서울")');
     await seoulTab.waitFor({ state: 'visible', timeout: 5000 });
-    await seoulTab.click();
+    await seoulTab.click({ delay: 100 });
     
     // Wait for filter to apply
     await expect(seoulTab).toBeVisible();
@@ -173,11 +186,11 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(regionBtn).toBeVisible();
     
     // Verify region modal works on mobile
-    await regionBtn.click();
+    await regionBtn.click({ delay: 100 });
     const regionModal = page.locator('div[aria-label="지역 선택"][role="dialog"]');
     await expect(regionModal).toBeVisible({ timeout: 10000 });
-    // Wait for modal animation to complete
-    await page.waitForTimeout(500);
+    // Wait for modal animation to complete - longer on WebKit
+    await page.waitForTimeout(1000);
     await expect(page.locator('button[role="tab"]:has-text("서울")')).toBeVisible();
   });
 
@@ -308,21 +321,22 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     // Click the CTA button on first party card to open detail modal
     const firstCardApplyBtn = page.locator('article[role="listitem"]').first().locator('button:has-text("파티 신청하기")');
     await firstCardApplyBtn.waitFor({ state: 'visible', timeout: 10000 });
-    await firstCardApplyBtn.click();
+    await firstCardApplyBtn.click({ delay: 100 });
     
     // Verify modal opens
     const modal = page.locator('div[aria-labelledby="party-detail-title"]');
     await expect(modal).toBeVisible({ timeout: 15000 });
-    // Wait for modal animation to complete
-    await page.waitForTimeout(500);
+    // Wait for modal animation to complete - longer on WebKit
+    await page.waitForTimeout(1000);
     
     // Verify apply button exists in modal (scoped to modal to avoid matching card buttons)
     const modalApplyBtn = modal.locator('button:has-text("파티 신청하기")');
     await expect(modalApplyBtn).toBeVisible({ timeout: 5000 });
     
     // Close modal using correct close button
-    await page.locator('button[aria-label="상세 닫기"]').waitFor({ state: 'visible', timeout: 5000 });
-    await page.locator('button[aria-label="상세 닫기"]').click();
+    const closeBtn = page.locator('button[aria-label="상세 닫기"]');
+    await closeBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await closeBtn.click({ delay: 100 });
     await expect(modal).toBeHidden({ timeout: 5000 });
   });
 });
