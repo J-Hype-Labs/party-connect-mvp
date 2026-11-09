@@ -89,8 +89,22 @@
     const hint = api.getStatusHint ? api.getStatusHint(status) : '';
     const showMission = api.canSubmitMission ? api.canSubmitMission(status) : false;
 
+    // 서버는 보완 요청 시 status 를 VISITED 로 되돌리고 missionUrl(이전 제출값)은 남겨 둔다.
+    // VISITED + missionUrl = 보완 요청됨, VISITED + 없음 = 미션 제출 전.
+    const revisionRequested = status === 'VISITED' && Boolean(application.missionUrl);
+    const canLink = Boolean(application.missionUrl) && api.isValidMissionUrl && api.isValidMissionUrl(application.missionUrl);
+    const showPrevious = canLink && (revisionRequested || status === 'MISSION_SUBMITTED');
+
     return e('div', { className: 'mt-2 space-y-2', 'data-testid': 'application-extras' }, [
-      hint ? e('p', { key: 'hint', className: 'text-sm text-zinc-600' }, hint) : null,
+      revisionRequested ? e('p', { key: 'revision', role: 'status', className: 'px-3 py-2 rounded-lg bg-amber-50 text-sm font-medium text-amber-700', 'data-testid': 'revision-requested' }, '운영팀이 미션 보완을 요청했어요. 아래에서 다시 제출해 주세요.') : null,
+      revisionRequested && application.revisionNote
+        ? e('p', { key: 'note', className: 'text-sm text-zinc-600' }, '요청 사유: ' + application.revisionNote)
+        : null,
+      hint && !revisionRequested ? e('p', { key: 'hint', className: 'text-sm text-zinc-600' }, hint) : null,
+      showPrevious ? e('p', { key: 'previous', className: 'text-sm text-zinc-500 break-all' }, [
+        '제출한 링크: ',
+        e('a', { key: 'link', href: application.missionUrl, target: '_blank', rel: 'noopener noreferrer', className: 'text-rose-600 underline', 'data-testid': 'mission-previous-link' }, application.missionUrl)
+      ]) : null,
       status === 'REJECTED' && application.rejectReason
         ? e('p', { key: 'reject', className: 'text-sm text-zinc-500' }, '사유: ' + application.rejectReason)
         : null,

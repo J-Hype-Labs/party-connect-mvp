@@ -13,7 +13,7 @@ const app = (over = {}) => ({
 // 두 페이지의 마이페이지 진입 방법이 다르다: 파티커넥트는 헤더 버튼, 메인은 프로필 메뉴.
 async function openMyPage(page, path) {
   if (path === '/') {
-    await page.getByRole('button', { name: /테스트유저/ }).first().click();
+    await page.getByRole('button', { name: '프로필 메뉴' }).click();
     await page.getByRole('button', { name: '마이페이지' }).click();
   } else {
     await expect(page.getByRole('button', { name: /마이페이지/ })).toBeVisible({ timeout: 30000 });
@@ -88,6 +88,9 @@ for (const path of ['/party-connect/', '/']) {
       applications[0].status = 'VISITED';
       await dialog.getByRole('button', { name: '상태 새로고침' }).click();
       await expect(dialog.getByTestId('mission-form')).toHaveCount(1);
+      // 서버는 이전 제출값(missionUrl)을 남겨 두므로 '보완 요청됨'으로 표시된다
+      await expect(dialog.getByTestId('revision-requested')).toBeVisible();
+      await expect(dialog.getByTestId('mission-previous-link')).toHaveAttribute('href', 'https://blog.example.test/first');
 
       await dialog.locator('#mission-url-a-1').fill('https://blog.example.test/second');
       await dialog.getByRole('button', { name: '미션 제출하기' }).click();
@@ -96,6 +99,29 @@ for (const path of ['/party-connect/', '/']) {
         'https://blog.example.test/first',
         'https://blog.example.test/second',
       ]);
+    });
+
+    test('VISITED + missionUrl 은 보완 요청됨, missionUrl 이 없으면 제출 전으로 구분해 그린다', async ({ page }) => {
+      await loadLive(page, {
+        path,
+        applications: [
+          app({ id: 'a-first', status: 'VISITED' }),
+          app({ id: 'a-revise', status: 'VISITED', missionUrl: 'https://blog.example.test/old', revisionNote: '사진을 더 올려 주세요' }),
+          app({ id: 'a-review', status: 'MISSION_SUBMITTED', missionUrl: 'https://blog.example.test/review' }),
+          app({ id: 'a-unsafe', status: 'MISSION_SUBMITTED', missionUrl: 'javascript:alert(1)' }),
+        ],
+      });
+      const dialog = await openMyPage(page, path);
+
+      // 제출 전: 배너 없음, 안내 문구만
+      await expect(dialog.getByTestId('revision-requested')).toHaveCount(1);
+      await expect(dialog.getByText('체험 후기(미션) 링크를 제출해 주세요', { exact: false })).toHaveCount(1);
+      // 보완 요청됨: 배너 + 사유 + 이전 링크
+      await expect(dialog.getByText('요청 사유: 사진을 더 올려 주세요')).toBeVisible();
+      await expect(dialog.getByTestId('mission-previous-link').first()).toHaveAttribute('href', 'https://blog.example.test/old');
+      // 검수 중: 제출한 링크 표시, http(s)가 아닌 값은 링크로 만들지 않는다
+      await expect(dialog.getByTestId('mission-previous-link')).toHaveCount(2);
+      await expect(dialog.locator('a[href^="javascript:"]')).toHaveCount(0);
     });
 
     test('서버가 거절하면 오류 문구를 보여 주고 폼과 입력값을 유지한다', async ({ page }) => {
