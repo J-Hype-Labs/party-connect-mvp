@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/test-base.js';
 
 // 관리자 페이지(/admin/) 테스트.
 // 실제 Supabase/계정/DB 를 호출하지 않고 SDK 와 /admin/* API 를 모두 mock 합니다.
