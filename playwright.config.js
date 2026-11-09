@@ -35,7 +35,8 @@ export default defineConfig({
     reuseExistingServer: true,
     timeout: 120000,
   },
-  timeout: 60000,
+  // CI 의 소프트웨어 렌더링 WebKit 은 모달 열고 닫는 테스트가 60초를 넘길 수 있어 CI 에서만 여유를 둔다.
+  timeout: process.env.CI ? 120000 : 60000,
   expect: {
     timeout: 10000,
   },
