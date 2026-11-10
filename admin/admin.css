@@ -79,3 +79,14 @@ button, select, input, textarea { font: inherit; }
 .tile.warn .tile-num { color: var(--primary); }
 .tile small { color: var(--muted); }
 .filters input[type="search"] { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; min-width: 0; flex: 1 1 180px; }
+
+.fee-summary { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+.fee-summary .title-row { margin-bottom: 8px; }
+.fee-summary h2 { margin: 0; }
+.fee-summary select { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.table-wrap { overflow-x: auto; }
+.fee-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.fee-table th, .fee-table td { padding: 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.fee-table th:first-child, .fee-table td:first-child { text-align: left; white-space: normal; }
+.fee-table thead th { color: var(--muted); font-weight: 600; font-size: 12px; }
+.fee-table tr.total th, .fee-table tr.total td { border-bottom: 0; font-weight: 800; }

@@ -94,6 +94,8 @@ test.describe('관리자 — 대시보드', () => {
     await expect(page.locator('[data-tile="pendingApplications"]')).toHaveClass(/warn/);
     await expect(page.locator('[data-tile="lowBalanceStores"]')).toHaveClass(/warn/);
     await expect(page.locator('[data-tile="openParties"]')).not.toHaveClass(/warn/);
+    // 서버는 점포 기본 수수료가 아니라 다가오는 파티의 인당 수수료 기준으로 센다
+    await expect(page.locator('[data-tile="lowBalanceStores"]')).toContainText('다가오는 파티의 인당 수수료');
   });
 
   test('타일을 누르면 해당 화면으로 이동한다', async ({ page }) => {

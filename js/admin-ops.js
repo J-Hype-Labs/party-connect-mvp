@@ -29,7 +29,7 @@
     ['pendingApplications', '선정 대기 신청', '검토가 필요한 신청', 'applications'],
     ['openParties', '모집 중인 파티', '지금 신청을 받는 파티', 'parties'],
     ['partiesThisWeek', '이번 주 파티', '7일 안에 시작하는 파티', 'parties'],
-    ['lowBalanceStores', '적립금 부족 점포', '잔액이 기본 수수료보다 적은 운영 점포', 'stores'],
+    ['lowBalanceStores', '적립금 부족 점포', '다가오는 파티의 인당 수수료보다 잔액이 적은 점포', 'stores'],
     ['blockedGuests', '차단된 게스트', '수동 차단 상태인 게스트', 'guests'],
   ];
 
