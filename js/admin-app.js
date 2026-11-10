@@ -158,7 +158,7 @@
     content = h('section', { class: 'content', id: 'content', 'aria-live': 'polite' });
     return h('div', { class: 'shell' },
       h('header', { class: 'topbar' },
-        h('strong', { text: '파티커넥트 관리자' }),
+        h('strong', { text: 'HypeConnect 관리자' }),
         h('button', { class: 'btn small', id: 'logout-btn', type: 'button', onclick: logout, text: '로그아웃' })),
       h('nav', { class: 'nav', 'aria-label': '관리자 메뉴' },
         NAV.map(function (n) {
