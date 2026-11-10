@@ -247,3 +247,12 @@ test.describe('관리자 페이지 — 신청 관리', () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 });
+
+test.describe('관리자 페이지 — 서비스 이름', () => {
+  test('탭 제목과 헤더에 HypeConnect 를 표시한다', async ({ page }) => {
+    await setup(page, { apps: [] });
+    await open(page);
+    await expect(page).toHaveTitle('HypeConnect 관리자');
+    await expect(page.locator('.topbar strong')).toHaveText('HypeConnect 관리자');
+  });
+});
