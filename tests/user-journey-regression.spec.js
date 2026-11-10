@@ -2,7 +2,7 @@ import { test, expect } from './helpers/test-base.js';
 import { loadLive } from './helpers/live-fixture.js';
 
 // Front-end contract tests. These deliberately target the existing home page,
-// not the PartyConnect subpage being developed in a separate UI branch.
+// not the HypeConnect subpage being developed in a separate UI branch.
 // 카드는 <article role="listitem"> 이고, 카드 안의 "파티 신청하기" 버튼이 상세를 연다.
 // (카드의 첫 버튼은 찜하기 아이콘이라 상세를 열지 않는다.)
 const partyCards = (page) => page.locator('section#parties article[role="listitem"]');
@@ -10,7 +10,7 @@ const cardOpener = (card) => card.getByRole('button', { name: '파티 신청하�
 const partyDialog = (page) =>
   page.locator('[role="dialog"][aria-labelledby="party-detail-title"]');
 
-test.describe('PartyConnect user journey regression', () => {
+test.describe('HypeConnect user journey regression', () => {
   test('clicking a party card actually opens its detail dialog and can close it (demo mode)', async ({ page }) => {
     await page.goto('/');
     await expect(partyCards(page).first()).toBeVisible({ timeout: 30_000 });

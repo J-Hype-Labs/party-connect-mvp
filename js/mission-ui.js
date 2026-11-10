@@ -1,5 +1,5 @@
 /**
- * PartyConnect My-Page application extras
+ * HypeConnect My-Page application extras
  * - status guidance (what happens next)
  * - reject reason
  * - mission URL submit / re-submit form (shown when status is VISITED)

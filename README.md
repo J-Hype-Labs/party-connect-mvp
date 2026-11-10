@@ -1,10 +1,10 @@
-# PartyConnect (파티커넥트)
+# HypeConnect (HypeConnect)
 
 **운영 사이트:** https://j-hype-labs.github.io/party-connect-mvp/  
 **파티 탐색 페이지:** https://j-hype-labs.github.io/party-connect-mvp/party-connect/  
 **저장소:** https://github.com/J-Hype-Labs/party-connect-mvp
 
-PartyConnect는 오프라인 소셜링 파티와 혼술바 등의 파티를 탐색하고 신청하는 웹 서비스 MVP다.
+HypeConnect는 오프라인 소셜링 파티와 혼술바 등의 파티를 탐색하고 신청하는 웹 서비스 MVP다.
 
 ## 현재 상태
 
@@ -29,7 +29,7 @@ PartyConnect는 오프라인 소셜링 파티와 혼술바 등의 파티를 탐�
 ## 주요 기능
 
 - 메인 페이지의 프로모션 배너, 파티·후기 콘텐츠
-- 파티커넥트 전용 페이지의 파티 탐색
+- HypeConnect 전용 페이지의 파티 탐색
 - 지역·요일·카테고리 필터 및 검색
 - 파티 상세 모달, 이미지, 지도 링크
 - 파티 신청 폼과 입력 검증
@@ -51,7 +51,7 @@ PartyConnect는 오프라인 소셜링 파티와 혼술바 등의 파티를 탐�
 ### 저장소 구조
 
 - index.html: 메인 페이지
-- party-connect/index.html: 파티커넥트 전용 페이지
+- party-connect/index.html: HypeConnect 전용 페이지
 - auth/callback/index.html: OAuth callback 화면
 - js/auth-client.js: Supabase client 및 환경 설정
 - js/auth-service.js: 로그인, 로그아웃, 세션 및 인증 상태
@@ -120,4 +120,4 @@ Node.js 18 이상.
 
 ## 운영 범위 경계
 
-PartyConnect는 카카오 계정 인증과 파티 신청을 처리한다. 회원 인증을 위해 생년월일·나이·연령 확인 정보를 수집하거나 연령 확인 기능을 제공하지 않는다. 성인 여부와 신분증 확인은 파티 현장 운영자가 담당한다.
+HypeConnect는 카카오 계정 인증과 파티 신청을 처리한다. 회원 인증을 위해 생년월일·나이·연령 확인 정보를 수집하거나 연령 확인 기능을 제공하지 않는다. 성인 여부와 신분증 확인은 파티 현장 운영자가 담당한다.

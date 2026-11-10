@@ -1,5 +1,5 @@
 /**
- * PartyConnect Auth Service
+ * HypeConnect Auth Service
  * Core authentication logic: login, logout, session management, state
  * Shared between main page and party-connect page
  */

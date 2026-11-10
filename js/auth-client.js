@@ -1,5 +1,5 @@
 /**
- * PartyConnect Auth Client
+ * HypeConnect Auth Client
  * Supabase client initialization and configuration
  * Shared between main page and party-connect page
  */

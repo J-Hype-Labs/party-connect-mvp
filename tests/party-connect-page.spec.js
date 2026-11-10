@@ -1,7 +1,7 @@
 import { test, expect } from './helpers/test-base.js';
 import { loadLive } from './helpers/live-fixture.js';
 
-test.describe('PartyConnect Page - Dedicated Party Discovery', () => {
+test.describe('HypeConnect Page - Dedicated Party Discovery', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/party-connect/');
     await expect(page.locator('article[data-party-id]').first()).toBeVisible({ timeout: 30000 });
@@ -9,9 +9,9 @@ test.describe('PartyConnect Page - Dedicated Party Discovery', () => {
 
   test('should load party-connect page with h1', async ({ page }) => {
     await expect(page.locator('#root')).toBeVisible();
-    // 페이지의 h1 은 "원하는 파티를 찾아 신청하세요", "파티커넥트"는 로고/섹션 제목(h2)이다.
+    // 페이지의 h1 은 "원하는 파티를 찾아 신청하세요", "HypeConnect"는 로고/섹션 제목(h2)이다.
     await expect(page.locator('h1:has-text("원하는 파티")')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 2, name: '파티커넥트' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'HypeConnect' })).toBeVisible();
   });
 
   test('should have search input', async ({ page }) => {
