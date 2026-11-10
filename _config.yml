@@ -3,9 +3,6 @@
 exclude:
   - README.md
   - SPECIFICATION.md
-  - HYPECONNECT_PAGE_IMPLEMENTATION_SPEC.md
-  - UI_UX_DECISION_RECORD.md
-  - ELI10_REPORT.md
   - docs
   - start.sh
   - .agents

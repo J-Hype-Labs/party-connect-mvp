@@ -1,32 +1,28 @@
 # HypeConnect 문서 안내
 
-이 폴더는 HypeConnect의 제품·인증·UI/UX·배포 기준을 보관한다. 현재 코드 상태와 목표 요구사항을 구분하고, 검증하지 않은 기능을 완료로 표시하지 않는다.
+기준 문서는 저장소 최상위의 **[SPECIFICATION.md](../SPECIFICATION.md)** 하나다. 아래 문서는 그 명세의 상세 참조이며, 각 문서의 "현재 상태" 표는 작성 시점 기록이다. 현재 상태는 SPECIFICATION.md 4장을 따른다.
 
-## 문서 지도
+## 상세 참조
 
-| 문서 | 목적 | 단일 기준 |
+| 문서 | 내용 | 담당 파트 |
 |---|---|---|
-| [AUTH_IMPLEMENTATION_SPEC.md](AUTH_IMPLEMENTATION_SPEC.md) | Kakao OAuth, Supabase Auth, 세션, 회원 동의, API, 보안 | 인증 동작·기술 계약 |
-| [AUTH_UI_UX_SPEC.md](AUTH_UI_UX_SPEC.md) | 로그인, callback, 가입 동의, 신청 복귀, 오류, 반응형 화면 | 인증 화면·상호작용 |
-| [AUTH_DEPLOYMENT_CHECKLIST.md](AUTH_DEPLOYMENT_CHECKLIST.md) | Kakao/Supabase 콘솔, DB migration, Edge Function, 배포 | 운영 담당자 절차 |
+| [admin-page.md](admin-page.md) | 관리자 화면 구성·실행·테스트 | A |
+| [manual-e2e-checklist.md](manual-e2e-checklist.md) | 카카오 로그인 + 운영 DB 실서버 수동 검증 | A·B |
+| [AUTH_IMPLEMENTATION_SPEC.md](AUTH_IMPLEMENTATION_SPEC.md) | 카카오 OAuth, Supabase Auth, 세션, 동의, 보안 계약 | B |
+| [AUTH_UI_UX_SPEC.md](AUTH_UI_UX_SPEC.md) | 로그인·callback·가입 동의·오류 화면 | B |
+| [AUTH_DEPLOYMENT_CHECKLIST.md](AUTH_DEPLOYMENT_CHECKLIST.md) | 카카오·Supabase 콘솔과 배포 절차 | A·B |
+| [MAP_EXPLORATION_DESIGN.md](MAP_EXPLORATION_DESIGN.md) | 지도 기반 탐색 설계 (보류) | B |
 
-## 저장소 최상위 문서
+서버 쪽 문서(`partylink` 저장소): `docs/party-connect-integration.md`(API 계약), `docs/admin-page-spec.md`(관리자 명세 v1.0), `docs/settlement-check.md`(정산 검증 SQL).
 
-- [README](../README.md): 프로젝트 진입점, 현재 상태, 로컬 실행·테스트
-- [SPECIFICATION](../SPECIFICATION.md): 제품 범위, 역할, 기술 구조, 우선순위
-- [전용 페이지 구현 명세](../HYPECONNECT_PAGE_IMPLEMENTATION_SPEC.md): 파티 탐색·신청 화면의 기능 기준
-- [UI/UX 결정 기록](../UI_UX_DECISION_RECORD.md): 브랜드 토큰과 누적 디자인 결정
-- [ELI10 현황 보고](../ELI10_REPORT.md): 기준 시점의 배포·검증·미결 사항
+## 보관 문서
+
+[archive/](archive/)에는 2026-11-10 통합 이전의 명세(전용 페이지 구현 명세, UI/UX 결정 기록, ELI10 현황 보고)가 있다. 기준이 아니다. 여기에 있던 유효한 규칙은 SPECIFICATION.md 5~6장에 옮겼다.
 
 ## 문서 유지 규칙
 
-1. README에는 요약만 둔다. 상세 요구사항을 복제하지 않는다.
-2. 인증 구현 규칙은 AUTH_IMPLEMENTATION_SPEC, 화면 규칙은 AUTH_UI_UX_SPEC, 운영 절차는 AUTH_DEPLOYMENT_CHECKLIST를 기준으로 한다.
-3. 상태는 **구현·검증됨**, **코드 존재·실서비스 미검증**, **미구현**, **차단**으로 구분한다.
-4. CI 성공은 그 테스트가 실행한 범위만 증명한다. 실제 Kakao OAuth·DB 통합을 대체하지 않는다.
-5. main 코드가 바뀌면 README, ELI10 및 관련 명세의 기준 SHA와 상태를 함께 갱신한다.
-6. 운영 DB 변경, 실제 개인정보 처리, 비밀키 변경은 별도 승인 없이 수행하지 않는다.
-7. 생년월일·나이·연령 확인은 HypeConnect 회원 인증 범위가 아니다. 관련 요구사항을 임의로 추가하지 않는다.
-8. .agents/skills 아래 문서는 설치된 에이전트 스킬과 참조 라이브러리다. 제품 명세 정리 과정에서 임의 수정하지 않는다.
-
-최종 수정일: 2026-11-08
+1. 상태나 범위가 바뀌면 SPECIFICATION.md를 같은 PR에서 고친다. 다른 문서에 상태를 복제하지 않는다.
+2. 상태는 "구현·검증됨 / 코드 존재·실서비스 미검증 / 미구현 / 보류"로 구분한다.
+3. CI 성공은 그 테스트가 실행한 범위만 증명한다. 실제 카카오 OAuth·DB 통합을 대체하지 않는다.
+4. 운영 DB 변경, 실제 개인정보 처리, 비밀키 변경은 별도 승인 없이 하지 않는다.
+5. `.agents/skills` 아래 문서는 설치된 에이전트 스킬 자료다. 명세 정리 대상이 아니다.

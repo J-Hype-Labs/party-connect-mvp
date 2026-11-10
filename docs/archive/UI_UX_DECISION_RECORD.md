@@ -1,3 +1,5 @@
+> **보관 문서 (2026-11-10).** 현재 기준은 [SPECIFICATION.md](../../SPECIFICATION.md)입니다. 이 문서는 작성 시점의 기록으로만 남깁니다.
+
 # HypeConnect UI/UX 결정 기록
 
 - 기준일: 2026-11-08
