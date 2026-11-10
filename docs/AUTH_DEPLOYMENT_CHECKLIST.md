@@ -16,7 +16,7 @@
 - OnboardingScreen 컴포넌트는 존재하지만 callback 및 두 앱 페이지에서 실제로 연결되었는지 미검증
 - 프런트엔드가 호출하는 /me 및 /me/onboarding API는 백엔드 PR #1 handler에 없음
 - 백엔드 PR #1은 OPEN, migration/Edge Function은 아직 main에 병합되지 않음
-- index.html에 ADMIN_PASSWORD 상수가 남아 있음
+- (해소) index.html의 데모 관리자·ADMIN_PASSWORD 제거됨
 
 증거:
 - Frontend main CI: https://github.com/J-Hype-Labs/party-connect-mvp/actions/runs/42472346425
@@ -180,7 +180,7 @@ HypeConnect 회원 인증과 DB에는 생년월일·나이·연령 확인 정보
 
 ## 11. 관리자 보안 게이트
 
-- [ ] index.html의 ADMIN_PASSWORD 상수 제거
+- [x] index.html의 ADMIN_PASSWORD 상수 제거
 - [ ] 클라이언트 비밀번호 비교를 관리자 권한으로 사용하지 않음
 - [ ] 서버 측 role 및 권한 검증
 - [ ] 일반 회원의 관리자 API 접근 거부

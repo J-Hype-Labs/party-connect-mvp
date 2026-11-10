@@ -36,6 +36,6 @@ npx playwright test tests/admin-page.spec.js tests/admin-catalog.spec.js tests/a
 
 ## 남은 일
 
-- 메인 `index.html`의 데모 관리자 모달과 하드코딩 비밀번호(`ADMIN_PASSWORD`) 제거 → `/admin/` 링크로 교체 (협업자와 시점 조율 필요)
+- 메인 `index.html`의 데모 관리자 모달과 하드코딩 비밀번호(`ADMIN_PASSWORD`) 제거 완료. `/admin/` 링크는 별도 작업(첫페이지 세션)에서 다룸
 - 실서버(실제 카카오 로그인 + 배포된 Edge Function) 연결 확인
 - 통계 화면, 후기 관리는 명세상 후속 범위

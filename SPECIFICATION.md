@@ -92,7 +92,7 @@ HypeConnect는 사용자가 오프라인 소셜링 파티, 소개팅·혼술바 
 | 실제 Supabase 설정 | 미완료 | URL/공개 키 공란 |
 | PartyLink Edge Function | PR #1에 코드 존재 | OPEN, 미병합 |
 | 실제 DB migration/RLS | 운영 적용 미확인 | 스테이징·운영 검증 필요 |
-| 관리자 인증 | 차단 | index.html에 ADMIN_PASSWORD 상수 존재 |
+| 관리자 인증 | 해소 | 데모 관리자 모달·ADMIN_PASSWORD 제거, /admin/ 화면이 대체 |
 | 실서비스 회원 운영 | 차단 | OAuth·API·관리자 보안 미검증 |
 
 ## 6. 기술 아키텍처
