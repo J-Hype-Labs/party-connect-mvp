@@ -215,14 +215,6 @@ test.describe('HypeConnect MVP - Comprehensive E2E Tests', () => {
     expect(bodyWidth).toBeLessThanOrEqual(viewportWidth + 20);
   });
 
-  // Test 8: Admin modal - no visible trigger in current UI
-  // Admin modal exists but is not exposed via a visible button
-  test('should have admin modal defined', async ({ page }) => {
-    // The admin modal is rendered but hidden (no visible trigger)
-    const adminModal = page.locator('div[aria-label="관리자"]');
-    await expect(adminModal).toBeHidden();
-  });
-
   // Test 9: Console error checking
   test('should have no critical JavaScript errors', async ({ page }) => {
     const errors = [];
@@ -264,15 +256,6 @@ test.describe('HypeConnect MVP - Comprehensive E2E Tests', () => {
     await exploreButton.click();
     // Should scroll to party list section (id="parties", aria-labelledby="parties-heading")
     await expect(page.locator('section[aria-labelledby="parties-heading"]')).toBeVisible();
-  });
-
-  // Test 11: Admin modal - opened via keyboard shortcut (Ctrl+Shift+A) or hidden trigger
-  // Since there's no visible admin button in footer, test the modal directly
-  test('should have admin modal accessible', async ({ page }) => {
-    // Admin modal is not exposed via visible button in current UI
-    // This test documents the current state - modal exists but no visible trigger
-    const adminModal = page.locator('div[aria-label="관리자"]');
-    await expect(adminModal).toBeHidden(); // Modal should be hidden initially
   });
 
   // Test 12: Party cards display key information

@@ -279,7 +279,7 @@ Edge Function은 Authorization Bearer token을 auth.getUser로 검증한다. gue
 5. RLS와 service_role 함수 권한을 함께 검토한다.
 6. CORS는 필요한 origin만 허용한다.
 7. 관리자 권한은 서버 측 role로 검증한다.
-8. index.html의 ADMIN_PASSWORD 상수는 남아 있다. 실서비스 데이터 운영 전에 제거하고 서버 권한으로 대체한다.
+8. (해소) index.html의 데모 관리자 모달과 ADMIN_PASSWORD 상수는 제거되었고 /admin/ 화면이 대체한다.
 9. 정적 프런트엔드 환경변수로 관리자 비밀번호를 숨길 수 있다고 가정하지 않는다.
 10. production의 ?demo=1 override를 제거하고 설정 누락 시 fail-closed 처리한다.
 
