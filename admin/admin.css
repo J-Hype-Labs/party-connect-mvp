@@ -90,3 +90,7 @@ button, select, input, textarea { font: inherit; }
 .fee-table th:first-child, .fee-table td:first-child { text-align: left; white-space: normal; }
 .fee-table thead th { color: var(--muted); font-weight: 600; font-size: 12px; }
 .fee-table tr.total th, .fee-table tr.total td { border-bottom: 0; font-weight: 800; }
+
+/* 헤더 로고 */
+.brand { display: inline-flex; align-items: center; gap: 8px; }
+.brand-logo { display: block; height: 24px; width: auto; }

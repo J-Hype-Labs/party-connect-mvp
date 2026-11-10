@@ -43,6 +43,8 @@
     createStore: function (b) { return request('admin/stores', { method: 'POST', body: b }); },
     updateStore: function (id, b) { return request('admin/stores/' + id, { method: 'PATCH', body: b }); },
     deposits: function (id) { return request('admin/stores/' + id + '/deposits?limit=50'); },
+    // 정산 CSV 내보내기용: 서버가 허용하는 최대 건수(500)
+    depositsForExport: function (id) { return request('admin/stores/' + id + '/deposits?limit=500'); },
     charge: function (id, b) { return request('admin/stores/' + id + '/charge', { method: 'POST', body: b }); },
     refund: function (id, b) { return request('admin/stores/' + id + '/refund', { method: 'POST', body: b }); },
     createParty: function (b) { return request('admin/parties', { method: 'POST', body: b }); },
