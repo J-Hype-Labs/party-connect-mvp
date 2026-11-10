@@ -8,7 +8,7 @@
     "validate:html": "node scripts/validate-html.js",
     "test:unit": "node scripts/validate-all.js",
     "test:e2e": "playwright test",
-    "test:e2e:full": "playwright test tests/comprehensive.spec.js tests/party-connect-page.spec.js tests/user-journey-regression.spec.js tests/mypage-mission.spec.js --reporter=list",
+    "test:e2e:full": "playwright test tests/comprehensive.spec.js tests/party-connect-page.spec.js tests/user-journey-regression.spec.js tests/mypage-mission.spec.js tests/mobile-layout.spec.js --reporter=list",
     "test:party-connect": "npx playwright test tests/party-connect-page.spec.js --reporter=list",
     "test:user-journey": "npx playwright test tests/user-journey-regression.spec.js --reporter=list",
     "test:auth": "npx playwright test tests/auth-*.spec.js --reporter=list"
