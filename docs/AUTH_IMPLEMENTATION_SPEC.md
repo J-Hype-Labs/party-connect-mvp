@@ -124,18 +124,18 @@ Kakao의 Supabase callback과 Supabase의 앱 redirectTo는 서로 다른 주소
 
 따라서 현재 코드만으로는 callback 페이지가 실제 OAuth redirect target으로 사용된다고 단정할 수 없다.
 
-### 목표 구현
+### 목표 구현 (프런트 연결 구현, 서버 API 대기·실검증 전)
 
-1. loginWithKakao()가 중앙 callback URL로 redirectTo를 지정한다.
+1. loginWithKakao()가 중앙 callback URL(basePath + 'auth/callback/')로 redirectTo를 지정한다.
 2. Supabase Auth의 Redirect URL allowlist에 동일한 callback URL을 등록한다.
 3. Kakao provider callback은 Supabase Auth 주소로 유지한다.
 4. callback page는 detectSessionInUrl을 통한 자동 code 처리를 한 번만 수행한다.
 5. 자동 처리와 수동 exchangeCodeForSession을 중복 실행하지 않는다.
-6. 세션 생성 확인 후 회원 상태를 조회한다.
-7. 내부 returnPath/partyId를 복원한다.
-8. 성공 후 URL의 인증 query를 제거한다.
+6. 세션 생성 확인 후 회원 상태를 조회한다 (handleCallback).
+7. 내부 returnPath/partyId를 복원한다 (consumeReturnUrl).
+8. 성공 후 URL의 인증 query를 제거한다 (window.location.href로 clean redirect).
 
-callback page가 실제로 사용되기 전에는 redirect 설정 완료로 표시하지 않는다.
+callback page가 실제 redirect target으로 연결됨 (프런트 구현 완료, 실서버 검증 전).
 
 ## 7. 인증 상태 및 세션
 
@@ -201,12 +201,13 @@ callback page가 실제로 사용되기 전에는 redirect 설정 완료로 표�
 
 ### 현재 연결 문제
 
-- js/auth-ui.js에 OnboardingScreen은 export되어 있다.
-- auth/callback/index.html은 신규 회원이면 /?onboarding=1로 이동한다.
-- 두 앱 페이지에서 onboarding query를 받아 OnboardingScreen을 표시하는 연결은 확인되지 않았다.
-- auth-service.js와 js/party-api.js는 me/onboarding을 호출하지만 백엔드 handler에 해당 route가 없다.
+- js/auth-ui.js에 OnboardingConsent는 export되어 있다.
+- auth/callback/index.html은 신규 회원 시 OnboardingConsent를 콜백 페이지 내에서 직접 렌더링한다 (/?onboarding=1 리다이렉트 제거).
+- completeOnboarding()은 서버 POST /me/onboarding 호출 후 성공 시에만 redirectToReturnPage로 복귀한다.
+- 서버 404/네트워크 오류 시 '가입 동의 저장에 실패했어요' + 재시도 버튼 표시.
+- auth-service.js와 js/party-api.js는 me/onboarding을 호출하지만 백엔드 handler에 해당 route가 없다 (서버 미구현).
 
-따라서 온보딩은 컴포넌트 존재만으로 완료가 아니다. 또한 callback page가 consumeReturnUrl()로 복귀 정보를 먼저 제거한 뒤 신규 회원을 onboarding query로 이동시키므로, 가입 완료 후 원래 partyId가 복구되는지 확인하고 복귀 정보를 보존하도록 수정해야 한다.
+따라서 온보딩은 컴포넌트 존재만으로 완료가 아니다. 서버 미구현 상태에서도 화면이 깨지지 않게 예외 처리 완료. callback page에서 consumeReturnUrl()로 복귀 정보를 읽은 뒤 onboarding 완료 후 redirectToReturnPage(info)로 원래 partyId 복구.
 
 ## 9. 로그인 후 원래 파티 복귀
 
@@ -226,7 +227,7 @@ callback page가 실제로 사용되기 전에는 redirect 설정 완료로 표�
 - callback/가입 완료 후 한 번만 소비하고 제거
 - 인증 취소 시 원래 화면 유지
 
-중요: 현재 callback page는 시작 직후 consumeReturnUrl()로 복귀 정보를 소비한다. 신규 가입 분기에서 main의 onboarding query로 이동할 때 returnInfo가 보존되는지 확인하고, 가입 완료 후 동일 partyId로 복귀하도록 수정해야 한다.
+중요: callback page는 consumeReturnUrl()로 복귀 정보를 읽은 뒤 state에 보관한다. onboarding 완료 후 redirectToReturnPage(info)로 동일 partyId 복귀 구현 완료. 서버 미구현(404/네트워크 오류) 시 에러 화면과 재시도 버튼 표시.
 
 ## 10. PartyLink API 계약
 

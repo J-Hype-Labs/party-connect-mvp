@@ -131,6 +131,21 @@
     }
   }
 
+  // Get base path (e.g., '/party-connect-mvp/' or '/') from current location
+  function getBasePath() {
+    const path = window.location.pathname;
+    // Find the app base: everything before 'auth/callback/' or the first segment if at root
+    const callbackIndex = path.indexOf('/auth/callback/');
+    if (callbackIndex >= 0) {
+      return path.substring(0, callbackIndex + 1); // e.g., '/party-connect-mvp/'
+    }
+    // For pages not in callback: check if we're under a known base
+    if (path.startsWith('/party-connect-mvp/')) {
+      return '/party-connect-mvp/';
+    }
+    // Default to root for GitHub Pages root deployment or local dev
+    return '/';  }
+
   // Kakao OAuth login
   async function loginWithKakao() {
     const { live, client } = getAuthClient();
@@ -143,7 +158,17 @@
     
     notifyStateChange(AUTH_STATE.AUTH_REDIRECTING, null);
 
-    const redirectTo = window.location.origin + window.location.pathname + window.location.search;
+    // Ensure return URL is saved (fallback if caller didn't call saveReturnUrl)
+    try {
+      const existing = sessionStorage.getItem(RETURN_URL_KEY);
+      if (!existing) {
+        saveReturnUrl(null, 'apply'); // saves current pathname+search with null partyId
+      }
+    } catch (e) {}
+
+    // Unified callback URL: base + 'auth/callback/'
+    const basePath = getBasePath();
+    const redirectTo = window.location.origin + basePath + 'auth/callback/';
     
     const { error } = await client.auth.signInWithOAuth({
       provider: "kakao",
@@ -159,9 +184,23 @@
     return { success: true };
   }
 
+  // Fetch onboarding status from GET /me; on ANY error, allow login (needsOnboarding=false) with warning
+  async function fetchOnboardingStatus(api, user) {
+    try {
+      const me = await api('me');
+      const serverOnboardingComplete = me.onboardingComplete ?? me.onboarding_completed ?? (me.onboarding && me.onboarding.completed);
+      const needsOnboarding = serverOnboardingComplete !== undefined ? !serverOnboardingComplete : !user.onboardingComplete;
+      Object.assign(user, me);
+      return { user, needsOnboarding };
+    } catch (e) {
+      console.warn('[fetchOnboardingStatus] GET /me failed, allowing login:', e.message);
+      return { user, needsOnboarding: false };
+    }
+  }
+
   // Handle OAuth callback (called from callback page)
   async function handleCallback() {
-    const { live, client, toAppUser } = getAuthClient();
+    const { live, client, toAppUser, api } = getAuthClient();
     
     if (!live || !client) {
       throw new Error("실서비스 모드가 아닙니다.");
@@ -181,16 +220,16 @@
 
       const user = toAppUser(session.user);
       
-      // Check if onboarding is needed
-      const needsOnboarding = !user.onboardingComplete;
+      // Check onboarding status via GET /me (server is source of truth)
+      const { user: updatedUser, needsOnboarding } = await fetchOnboardingStatus(api, user);
       
       if (needsOnboarding) {
-        notifyStateChange(AUTH_STATE.ONBOARDING_REQUIRED, user);
+        notifyStateChange(AUTH_STATE.ONBOARDING_REQUIRED, updatedUser);
       } else {
-        notifyStateChange(AUTH_STATE.SIGNED_IN, user);
+        notifyStateChange(AUTH_STATE.SIGNED_IN, updatedUser);
       }
       
-      return { user, needsOnboarding };
+      return { user: updatedUser, needsOnboarding };
     } catch (error) {
       notifyStateChange(AUTH_STATE.AUTH_ERROR, null);
       throw error;
@@ -212,10 +251,25 @@
         body: consentData
       });
 
-      // Refresh user to get updated onboarding status
-      const { data: { session } } = await getAuthClient().client.auth.getSession();
-      if (session) {
-        const user = toAppUser(session.user);
+      // Re-fetch GET /me to verify onboarding status from server
+      let user = null;
+      try {
+        const me = await api('me');
+        const { data: { session } } = await getAuthClient().client.auth.getSession();
+        if (session) {
+          user = toAppUser(session.user);
+          // Merge server data (including onboardingComplete) into user
+          Object.assign(user, me);
+        }
+      } catch (meError) {
+        // If GET /me fails, fallback to session metadata
+        const { data: { session } } = await getAuthClient().client.auth.getSession();
+        if (session) {
+          user = toAppUser(session.user);
+        }
+      }
+      
+      if (user) {
         notifyStateChange(AUTH_STATE.SIGNED_IN, user);
         return { success: true, user };
       }
@@ -229,7 +283,7 @@
 
   // Restore session on page load
   async function restoreSession() {
-    const { live, client, toAppUser } = getAuthClient();
+    const { live, client, toAppUser, api } = getAuthClient();
     
     if (!live || !client) {
       notifyStateChange(AUTH_STATE.SIGNED_OUT, null);
@@ -242,11 +296,13 @@
       if (session) {
         const user = toAppUser(session.user);
         
-        // Check if onboarding is needed
-        if (!user.onboardingComplete) {
-          notifyStateChange(AUTH_STATE.ONBOARDING_REQUIRED, user);
+        // Check onboarding status via GET /me (server is source of truth)
+        const { user: updatedUser, needsOnboarding } = await fetchOnboardingStatus(api, user);
+        
+        if (needsOnboarding) {
+          notifyStateChange(AUTH_STATE.ONBOARDING_REQUIRED, updatedUser);
         } else {
-          notifyStateChange(AUTH_STATE.SIGNED_IN, user);
+          notifyStateChange(AUTH_STATE.SIGNED_IN, updatedUser);
         }
         
         // Set up auth state listener for cross-tab session sync
@@ -255,6 +311,7 @@
             notifyStateChange(AUTH_STATE.SIGNED_OUT, null);
           } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             const user = toAppUser(newSession.user);
+            // Use session metadata for real-time events (fast path)
             if (!user.onboardingComplete) {
               notifyStateChange(AUTH_STATE.ONBOARDING_REQUIRED, user);
             } else {
@@ -270,7 +327,7 @@
         if (wasLoginPending) {
           // Show welcome toast via callback
           window.dispatchEvent(new CustomEvent('partylink:welcome', { 
-            detail: { isNewUser: !user.onboardingComplete } 
+            detail: { isNewUser: needsOnboarding } 
           }));
         }
         
@@ -339,6 +396,7 @@
     getProfile,
     saveReturnUrl,
     consumeReturnUrl,
-    clearReturnUrl
+    clearReturnUrl,
+    getBasePath
   };
 })();
