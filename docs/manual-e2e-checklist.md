@@ -12,9 +12,7 @@
 | 게스트 계정 | 관리자와 **같은 계정으로 해도 되지만**, 화면이 헷갈리면 다른 카카오 계정(또는 다른 브라우저 프로필)을 쓰세요 |
 | 사이트 | 게스트: `https://j-hype-labs.github.io/party-connect-mvp/` · 관리자: 같은 주소 뒤에 `admin/` |
 | DB 확인 | Supabase 대시보드 → SQL Editor (아래 쿼리는 모두 읽기 전용 `SELECT`) |
-| API 호출 | 터미널 `curl` (5단계 미션 제출에만 사용. 사이트에 미션 제출 화면이 아직 없음) |
 
-> 사이트 주소·Supabase 프로젝트 주소는 `admin/index.html`의 `PARTYLINK_CONFIG`에 있는 값을 쓰세요. 아래 `<프로젝트>`는 `https://<ref>.supabase.co`입니다.
 
 ### 시간 맞추기 (중요)
 
@@ -49,7 +47,7 @@ WHERE s.name LIKE '[E2E]%' ORDER BY p.created_at DESC;
 | # | 할 일 | 기대 결과 | 확인 |
 |---|---|---|---|
 | 2-1 | 사이트 접속 → 카카오 로그인 | 로그인 성공, 상단에 닉네임. (데모 모드면 `?demo=1` 없이, 배포 주소로 열었는지 확인) | 화면 |
-| 2-2 | 목록에서 `[E2E] 수동 테스트` 찾아 신청: 이름, 연락처(`01012345678` 형식), 개인정보 동의 | 신청 완료. **내 신청 내역**에 `신청` 상태 | 화면 |
+| 2-2 | 목록에서 `[E2E] 수동 테스트` 찾아 신청: 이름, 연락처(`01012345678` 형식), 개인정보 동의 | 신청 완료. **마이페이지 → 신청 내역**에 `신청` 상태 | 화면 |
 | 2-3 | 같은 파티에 다시 신청 | "이미 신청한 파티입니다." | 화면 |
 
 DB 확인:
@@ -66,7 +64,7 @@ WHERE a.slot_id = '<slot_id>';
 |---|---|---|---|
 | 3-1 | **신청 관리** → 파티 필터 `[E2E]…` → 신청 카드의 **선정** | 토스트 "선정했습니다.", 상태 `선정` | 화면 |
 | 3-2 | 파티 목록으로 이동 | 인원 `1 / 2` | 화면 |
-| 3-3 | (게스트) **내 신청 내역** 새로고침 | 상태 `선정`, **방문 인증 코드**가 보임 | 화면 |
+| 3-3 | (게스트) **마이페이지 → 신청 내역** 새로고침 | 상태 `선정`, **방문 인증 코드**가 보임 | 화면 |
 
 DB: 2단계 쿼리 재실행 → `status = APPROVED`, `fee_amount = 10000`(수수료 스냅샷), `approved_at` 채워짐. 코드는 3-3 화면에서 메모하세요.
 
@@ -79,37 +77,34 @@ DB: 2단계 쿼리 재실행 → `status = APPROVED`, `fee_amount = 10000`(수�
 
 DB: `status = VISITED`, `visited_at` 채워짐. 시간대 밖이면 "허용 시간 외" 계열 오류가 나오니 "시간 맞추기"를 다시 확인하세요.
 
-## 5. 미션 제출 (게스트, 터미널)
+## 5. 미션 제출 (게스트)
 
-사이트에 미션 제출 화면이 없어서 API를 직접 부릅니다. 게스트 브라우저 개발자 도구 → Application → Local Storage → `sb-<ref>-auth-token`의 `access_token` 값을 복사하세요. 이 토큰은 **본인 로그인 토큰이므로 어디에도 공유·저장하지 마세요.**
+| # | 할 일 | 기대 결과 | 확인 |
+|---|---|---|---|
+| 5-1 | (게스트) **마이페이지 → 신청 내역**에서 신청 카드 확인 | 상태 `방문 인증 완료` 안내와 **미션 링크** 입력칸이 보임 | 화면 |
+| 5-2 | 입력칸에 `javascript:alert(1)` 또는 `abc` 입력 → **미션 제출하기** | 입력 오류 메시지, 제출되지 않음 | 화면 |
+| 5-3 | `https://www.instagram.com/p/E2E-TEST-1/` 입력 → **미션 제출하기** | "미션이 제출되었어요" 토스트, 상태 `미션 검수 중`, 입력칸 사라지고 제출한 링크 표시 | 화면 |
 
-```bash
-curl -sS -X POST "<프로젝트>/functions/v1/partylink-api/applications/<application_id>/mission" \
-  -H "Authorization: Bearer <access_token>" \
-  -H "apikey: <PARTYLINK_CONFIG의 supabaseAnonKey>" \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://www.instagram.com/p/E2E-TEST-1/"}'
-```
-기대: `{"application_id":"…","status":"MISSION_SUBMITTED"}`. `http(s)://`가 아닌 URL은 400.
-
-| 확인 | 기대 |
+| 관리자 쪽 확인 | 기대 |
 |---|---|
-| 관리자 신청 카드 | 상태 `미션 제출`, 미션 링크가 보이고 클릭하면 새 탭에서 열림. 버튼 **최종 승인**, **보완 요청** |
-| 게스트 내 신청 내역 | `미션 검수 중` |
+| **신청 관리**의 신청 카드 | 상태 `미션 제출`, 미션 링크가 보이고 클릭하면 새 탭에서 열림. 버튼 **최종 승인**, **보완 요청** |
+
+DB: `status = MISSION_SUBMITTED`, `mission_url = https://www.instagram.com/p/E2E-TEST-1/`, `mission_submitted_at` 채워짐.
 
 ## 6. 보완 요청 → 재제출
 
 | # | 할 일 | 기대 결과 | 확인 |
 |---|---|---|---|
 | 6-1 | (관리자) **보완 요청** → 확인 | 상태가 `방문 인증`으로 돌아감. 안내문대로 **적립금은 차감되지 않음** | 화면 |
-| 6-2 | (게스트) 5단계 `curl`을 URL만 `.../E2E-TEST-2/`로 바꿔 다시 실행 | `MISSION_SUBMITTED`, 관리자 화면에 **새 링크**가 보임 | 화면 |
+| 6-2 | (게스트) **마이페이지 → 신청 내역** 새로고침 | **"운영팀이 미션 보완을 요청했어요"** 안내, 이전에 제출한 링크 표시, 미션 링크 입력칸이 다시 보임 | 화면 |
+| 6-3 | `https://www.instagram.com/p/E2E-TEST-2/`로 다시 **미션 제출하기** | 상태 `미션 검수 중`, 관리자 화면에 **새 링크**가 보임 | 화면 |
 
 DB:
 ```sql
 SELECT status, mission_url, mission_submitted_at, settled_at, deposit_history_id
 FROM applications WHERE id = '<application_id>';
 ```
-6-1 직후: `status = VISITED`. 6-2 직후: `mission_url`이 `E2E-TEST-2`, `settled_at` / `deposit_history_id`는 여전히 비어 있음.
+6-1 직후: `status = VISITED`(`mission_url`은 이전 값 유지). 6-3 직후: `status = MISSION_SUBMITTED`, `mission_url`이 `E2E-TEST-2`, `settled_at` / `deposit_history_id`는 계속 비어 있음.
 
 ## 7. 최종 승인 → 적립금 차감
 
@@ -143,7 +138,7 @@ SELECT status, fee_amount, settled_at, completed_at, deposit_history_id FROM app
 | 비관리자 접근 | 관리자 등록이 안 된 계정으로 `/admin/` 접속 | "권한이 없습니다" |
 | 로그아웃 상태 | 로그아웃 후 `/admin/` | 로그인 안내만 보임 |
 | 환불 | 점포 **환불** `5000` → 잔액보다 큰 금액 | `15,000원`이 됨 / 큰 금액은 오류 |
-| 반려 | 파티에 다른 계정으로 신청 → **반려**(사유 입력) | 상태 `반려`, 사유가 카드에 보임 (게스트 화면에 사유가 표시되는지도 확인) |
+| 반려 | 파티에 다른 계정으로 신청 → **반려**(사유 입력) | 상태 `반려`, 관리자 카드에 사유가 보이고 게스트 마이페이지에 `사유: …`가 보임 |
 | 노쇼 | 시작 이후 `선정` 상태 신청에 **노쇼** | 상태 `노쇼`, 관리자 **게스트** 화면에서 노쇼·벌점 증가 |
 
 ## 9. 정리
@@ -167,6 +162,5 @@ SELECT status, fee_amount, settled_at, completed_at, deposit_history_id FROM app
 
 ## 알려진 제약
 
-- 사이트에 **게스트용 미션 제출 화면이 없습니다.** 5·6단계는 API 호출로 대체합니다.
 - 보완 요청 **사유는 저장되지 않습니다**(상태만 되돌림).
 - 점주용 화면이 없어 선정·방문 인증·승인은 모두 관리자 화면에서 대행합니다.
