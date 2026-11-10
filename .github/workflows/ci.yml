@@ -192,7 +192,7 @@ jobs:
             echo "ERROR: Babel script missing"
             exit 1
           fi
-          if ! echo "$CONTENT" | grep -q "파티커넥트"; then
+          if ! echo "$CONTENT" | grep -q "HypeConnect"; then
             echo "ERROR: Korean content not found"
             exit 1
           fi

@@ -10,7 +10,7 @@ const app = (over = {}) => ({
   status: 'VISITED', visitCode: null, rejectReason: null, ...over,
 });
 
-// 두 페이지의 마이페이지 진입 방법이 다르다: 파티커넥트는 헤더 버튼, 메인은 프로필 메뉴.
+// 두 페이지의 마이페이지 진입 방법이 다르다: HypeConnect는 헤더 버튼, 메인은 프로필 메뉴.
 async function openMyPage(page, path) {
   if (path === '/') {
     await page.getByRole('button', { name: '프로필 메뉴' }).click();

@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>매일을 파티로 채우자! 파티커넥트</title>
+  <title>매일을 파티로 채우자! HypeConnect</title>
+  <link rel="icon" type="image/svg+xml" href="assets/hypeconnect-icon.svg">
   
   <!-- SEO & Open Graph -->
   <meta name="description" content="혼술바, 소개팅, 소모임 등 다양한 소셜링 파티를 한 곳에서 만나보세요.">
-  <meta property="og:title" content="매일을 파티로 채우자! 파티커넥트">
+  <meta property="og:title" content="매일을 파티로 채우자! HypeConnect">
   <meta property="og:description" content="혼술바, 소개팅, 소모임 등 다양한 소셜링 파티를 한 곳에서 만나보세요.">
   <meta property="og:type" content="website">
 
@@ -171,7 +172,7 @@
       },
       {
         id: 3,
-        title: "지금 바로 파티커넥트 멤버 되기",
+        title: "지금 바로 HypeConnect 멤버 되기",
         desc: "멤버 등록 후 관심 파티에 신청하고 선정되면 무료 초대 티켓을 받아보세요.",
         badge: "신규 멤버십",
         bgGradient: "from-amber-500/90 to-rose-500/90",
@@ -921,16 +922,14 @@
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between h-16">
                 {/* Logo */}
-                <a href="/" className="flex items-center gap-2" aria-label="PartyConnect 홈">
-                  <span className="text-xl font-extrabold tracking-tighter text-zinc-950">
-                    PARTY<span className="text-rose-600">connect</span>
-                  </span>
+                <a href="/" className="flex items-center gap-2" aria-label="HypeConnect 홈">
+                  <img src="assets/hypeconnect-logo.svg" alt="HypeConnect" width="140" height="26" className="h-7 w-auto" />
                 </a>
 
                 {/* Desktop Nav */}
                 <nav className="hidden items-center gap-6 md:flex">
                   <a href="party-connect/" className="text-sm font-bold text-rose-600 transition hover:text-rose-700">
-                    파티커넥트
+                    HypeConnect
                   </a>
                   <a href="#reviews" className="text-sm font-semibold text-zinc-700 transition hover:text-rose-600">
                     커뮤니티
@@ -1055,7 +1054,7 @@
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                   <h2 id="parties-heading" className="text-2xl font-extrabold text-zinc-950">
-                    파티커넥트
+                    HypeConnect
                   </h2>
                   <p className="text-sm text-zinc-500 mt-1">
                     혼술바, 소개팅, 소셜파티를 한 곳에서 만나보세요
@@ -1310,7 +1309,7 @@
             <section id="partners" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16" aria-labelledby="partners-heading">
               <h2 id="partners-heading" className="text-2xl font-extrabold text-zinc-950 mb-6">제휴 파트너</h2>
               <div className="bg-white rounded-2xl border border-zinc-200 p-6">
-                <p className="text-zinc-600 mb-4">파티커넥트와 함께하는 다양한 파트너들을 소개합니다.</p>
+                <p className="text-zinc-600 mb-4">HypeConnect와 함께하는 다양한 파트너들을 소개합니다.</p>
                 <div className="flex flex-wrap gap-3">
                   {PARTNERS.map((partner, i) => (
                     <span key={i} className="px-3 py-1.5 bg-zinc-50 text-zinc-700 rounded-full text-sm border border-zinc-200">
@@ -1320,7 +1319,7 @@
                 </div>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <a href="#partners" className="px-5 py-2.5 bg-rose-600 text-white font-semibold rounded-xl hover:bg-rose-700 transition">제휴 신청하기</a>
-                  <a href="mailto:partner@partyconnect.kr" className="px-5 py-2.5 border border-zinc-300 text-zinc-700 font-semibold rounded-xl hover:bg-zinc-50 transition">이메일 문의</a>
+                  <a href="mailto:partner@jhypelabs.com" className="px-5 py-2.5 border border-zinc-300 text-zinc-700 font-semibold rounded-xl hover:bg-zinc-50 transition">이메일 문의</a>
                 </div>
               </div>
             </section>
@@ -1329,7 +1328,7 @@
           {/* ================= FOOTER ================= */}
           <footer className="border-t border-zinc-200 bg-white py-8">
             <div className="max-w-7xl mx-auto px-4 text-center text-sm text-zinc-500">
-              <p>© 2024 PartyConnect. All rights reserved.</p>
+              <p>© 2024 HypeConnect. All rights reserved.</p>
               {!live && <p className="mt-1">데모 모드: 현재 로컬스토리지 기반으로 동작합니다. 실제 서비스와 다를 수 있습니다.</p>}
             </div>
           </footer>

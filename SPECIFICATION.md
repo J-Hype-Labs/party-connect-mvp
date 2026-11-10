@@ -1,4 +1,4 @@
-# PartyConnect 통합 제품·기술 명세
+# HypeConnect 통합 제품·기술 명세
 
 - 기준일: 2026-11-08
 - 기준 main: 9949f53567f033e269acc123d47b59cbd22ff254
@@ -11,7 +11,7 @@
 
 ## 1. 제품 목표
 
-PartyConnect는 사용자가 오프라인 소셜링 파티, 소개팅·혼술바 등의 파티를 탐색하고 신청할 수 있도록 연결하는 서비스다.
+HypeConnect는 사용자가 오프라인 소셜링 파티, 소개팅·혼술바 등의 파티를 탐색하고 신청할 수 있도록 연결하는 서비스다.
 
 핵심 사용자 여정:
 
@@ -39,7 +39,7 @@ PartyConnect는 사용자가 오프라인 소셜링 파티, 소개팅·혼술바
 
 ## 3. 서비스 범위와 책임 경계
 
-### PartyConnect가 처리하는 업무
+### HypeConnect가 처리하는 업무
 
 - 카카오 계정 기반 회원 인증
 - Supabase Auth 세션 및 회원 식별
@@ -52,7 +52,7 @@ PartyConnect는 사용자가 오프라인 소셜링 파티, 소개팅·혼술바
 
 - 회원 인증을 위해 생년월일, 나이 또는 연령 확인 자료를 수집하지 않는다.
 - 연령 판정, 성인인증 API, 관련 DB 필드·회원 상태·화면을 구현하지 않는다.
-- 성인 여부와 신분증 확인은 파티 현장 운영자가 담당한다. PartyConnect 회원 인증과 별도 업무다.
+- 성인 여부와 신분증 확인은 파티 현장 운영자가 담당한다. HypeConnect 회원 인증과 별도 업무다.
 - 카카오 로그인을 실명·전화번호 소유 확인으로 간주하지 않는다.
 
 ## 4. 주요 화면
@@ -73,7 +73,7 @@ PartyConnect는 사용자가 오프라인 소셜링 파티, 소개팅·혼술바
 - 상세 모달, 지도 링크, 신청
 - 마이페이지 및 제휴 안내
 
-전용 페이지의 기능 기준은 PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md를 참조한다.
+전용 페이지의 기능 기준은 HYPECONNECT_PAGE_IMPLEMENTATION_SPEC.md를 참조한다.
 
 ## 5. 현재 구현 상태
 
@@ -191,7 +191,7 @@ PartyConnect는 사용자가 오프라인 소셜링 파티, 소개팅·혼술바
 - 인증 구현/API/보안: docs/AUTH_IMPLEMENTATION_SPEC.md
 - 인증 화면/상태: docs/AUTH_UI_UX_SPEC.md
 - 콘솔/배포: docs/AUTH_DEPLOYMENT_CHECKLIST.md
-- 전용 페이지: PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md
+- 전용 페이지: HYPECONNECT_PAGE_IMPLEMENTATION_SPEC.md
 - 디자인 결정: UI_UX_DECISION_RECORD.md
 - 시점별 현황: ELI10_REPORT.md
 

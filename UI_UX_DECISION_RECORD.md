@@ -1,9 +1,9 @@
-# PartyConnect UI/UX 결정 기록
+# HypeConnect UI/UX 결정 기록
 
 - 기준일: 2026-11-08
 - main SHA: 9949f53567f033e269acc123d47b59cbd22ff254
 - 인증 UI 상세: docs/AUTH_UI_UX_SPEC.md
-- 전용 페이지 기준: PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md
+- 전용 페이지 기준: HYPECONNECT_PAGE_IMPLEMENTATION_SPEC.md
 
 ## 1. 디자인 방향
 
@@ -73,7 +73,7 @@
 
 ## 5. 책임 경계
 
-PartyConnect 회원 인증은 카카오 계정과 Supabase Auth를 통한 계정 식별이다. 생년월일·나이·연령 확인 자료를 수집하거나 관련 화면/API/DB 상태를 만들지 않는다. 성인 여부와 신분증 확인은 파티 현장 운영자의 책임이다.
+HypeConnect 회원 인증은 카카오 계정과 Supabase Auth를 통한 계정 식별이다. 생년월일·나이·연령 확인 자료를 수집하거나 관련 화면/API/DB 상태를 만들지 않는다. 성인 여부와 신분증 확인은 파티 현장 운영자의 책임이다.
 
 ## 6. 접근성
 

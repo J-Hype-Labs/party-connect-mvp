@@ -1,7 +1,7 @@
 import { test, expect } from './helpers/test-base.js';
 import { loadLive } from './helpers/live-fixture.js';
 
-test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
+test.describe('HypeConnect MVP - Comprehensive E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     // Wait for React to mount and load initial data
@@ -17,7 +17,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('#root')).toBeVisible();
     
     // Verify Korean content is present (text anywhere in body)
-    await expect(page.locator('body')).toContainText('파티커넥트');
+    await expect(page.locator('body')).toContainText('HypeConnect');
     
     // Verify hero banner exists
     await expect(page.locator('section').first()).toBeVisible();
@@ -180,7 +180,7 @@ test.describe('PartyConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('#root')).toBeVisible();
     
     // Verify Korean content is visible on mobile (text anywhere in body)
-    await expect(page.locator('body')).toContainText('파티커넥트');
+    await expect(page.locator('body')).toContainText('HypeConnect');
     
     // Verify filter buttons are visible on mobile
     await expect(regionBtn).toBeVisible();

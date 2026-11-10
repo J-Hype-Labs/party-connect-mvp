@@ -1,7 +1,7 @@
 {
   "name": "party-connect-mvp",
   "version": "1.0.0",
-  "description": "파티커넥트 MVP - 2030 오프라인 소셜링 파티 예약 플랫폼",
+  "description": "HypeConnect MVP - 2030 오프라인 소셜링 파티 예약 플랫폼",
   "private": true,
   "scripts": {
     "validate:jsx": "node scripts/validate-jsx.js",

@@ -1,5 +1,5 @@
 /**
- * PartyConnect Party API
+ * HypeConnect Party API
  * Party list, application, my applications, cancel APIs
  * Shared between main page and party-connect page
  */

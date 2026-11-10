@@ -1,4 +1,4 @@
-# PartyConnect 카카오 OAuth 실서비스 인증 구현 명세
+# HypeConnect 카카오 OAuth 실서비스 인증 구현 명세
 
 - 버전: 1.1
 - 기준일: 2026-11-08
@@ -41,9 +41,9 @@
 
 ### 명시적 제외
 
-- PartyConnect는 회원 인증을 위해 생년월일, 나이 또는 연령 확인 자료를 수집하지 않는다.
+- HypeConnect는 회원 인증을 위해 생년월일, 나이 또는 연령 확인 자료를 수집하지 않는다.
 - 연령 판정, 성인인증 API, 관련 DB 필드·상태·화면을 구현하지 않는다.
-- 성인 여부와 신분증 확인은 파티 현장 운영자의 책임이다. PartyConnect의 계정 인증과 별도 업무다.
+- 성인 여부와 신분증 확인은 파티 현장 운영자의 책임이다. HypeConnect의 계정 인증과 별도 업무다.
 - 카카오 로그인 성공을 실명 확인이나 전화번호 소유 확인으로 간주하지 않는다.
 
 ## 3. 현재 코드 상태
@@ -84,7 +84,7 @@ main SHA 9949f53에서 확인한 상태:
 
 Kakao Developers: https://developers.kakao.com/
 
-- PartyConnect Kakao 애플리케이션 확인
+- HypeConnect Kakao 애플리케이션 확인
 - Web 플랫폼에 운영 도메인 등록
 - Kakao Login 활성화
 - REST API Key 및 Client Secret 확인
@@ -168,7 +168,7 @@ callback page가 실제로 사용되기 전에는 redirect 설정 완료로 표�
 
 ## 8. 최초 회원 가입과 동의 기록
 
-카카오 인증과 PartyConnect 서비스 가입 완료를 구분한다.
+카카오 인증과 HypeConnect 서비스 가입 완료를 구분한다.
 
 ### 신규 회원
 

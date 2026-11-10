@@ -1,5 +1,5 @@
 /**
- * PartyConnect Auth UI Components
+ * HypeConnect Auth UI Components
  * Login modal, onboarding screen, callback handling, header profile menu
  * Shared between main page and party-connect page
  * NOTE: Uses React.createElement instead of JSX for direct browser execution
@@ -119,7 +119,7 @@
           )
         ),
         e('div', { key: 'content', className: 'flex-1' }, [
-          e('p', { key: 'title', className: 'font-semibold text-zinc-900' }, isNewUser ? '환영합니다! 파티커넥트 멤버가 되셨어요.' : '다시 오신 것을 환영합니다!'),
+          e('p', { key: 'title', className: 'font-semibold text-zinc-900' }, isNewUser ? '환영합니다! HypeConnect 멤버가 되셨어요.' : '다시 오신 것을 환영합니다!'),
           e('p', { key: 'desc', className: 'mt-1 text-sm text-zinc-500' }, '마음에 드는 파티를 찾아 신청해 보세요.'),
           e('div', { key: 'actions', className: 'mt-4 flex gap-2' }, [
             e('a', { key: 'parties', href: 'party-connect/', className: 'flex-1 px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition text-center' }, '파티 둘러보기'),

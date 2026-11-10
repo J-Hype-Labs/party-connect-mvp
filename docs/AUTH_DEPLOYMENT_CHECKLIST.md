@@ -1,4 +1,4 @@
-# PartyConnect Kakao OAuth 및 실서비스 배포 체크리스트
+# HypeConnect Kakao OAuth 및 실서비스 배포 체크리스트
 
 이 문서는 운영 인증과 DB 연동을 활성화하기 위한 절차다. 체크리스트 작성 또는 코드 병합만으로 운영 설정이 완료되는 것은 아니다.
 
@@ -40,7 +40,7 @@ scripts/reset_dev_only.sql은 개발 DB 전용이다. 운영 DB에서 실행하�
 
 https://developers.kakao.com/
 
-1. PartyConnect 애플리케이션 확인
+1. HypeConnect 애플리케이션 확인
 2. Web 플랫폼에 https://j-hype-labs.github.io 등록
 3. 필요 시 로컬 테스트 도메인 등록
 4. Kakao Login 활성화
@@ -176,7 +176,7 @@ PR #1 병합과 코드 리뷰 후 대상 project ref를 확인하고 실행한�
 
 ## 10. 서비스 책임 경계
 
-PartyConnect 회원 인증과 DB에는 생년월일·나이·연령 확인 정보, 연령 판정 API 또는 관련 회원 상태를 추가하지 않는다. 성인 여부와 신분증 확인은 파티 현장 운영자가 담당한다.
+HypeConnect 회원 인증과 DB에는 생년월일·나이·연령 확인 정보, 연령 판정 API 또는 관련 회원 상태를 추가하지 않는다. 성인 여부와 신분증 확인은 파티 현장 운영자가 담당한다.
 
 ## 11. 관리자 보안 게이트
 
