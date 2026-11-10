@@ -2,6 +2,8 @@
 *.png
 *.jpg
 *.jpeg
+# 공유 미리보기 이미지는 커밋 대상
+!assets/og-image.png
 
 # OS
 .DS_Store
