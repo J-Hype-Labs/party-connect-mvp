@@ -114,7 +114,7 @@ Node.js 18 이상.
 - [카카오 OAuth 구현 명세](docs/AUTH_IMPLEMENTATION_SPEC.md)
 - [인증 UI/UX 명세](docs/AUTH_UI_UX_SPEC.md)
 - [인증 배포 체크리스트](docs/AUTH_DEPLOYMENT_CHECKLIST.md)
-- [전용 페이지 구현 명세](PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md)
+- [전용 페이지 구현 명세](HYPECONNECT_PAGE_IMPLEMENTATION_SPEC.md)
 - [UI/UX 결정 기록](UI_UX_DECISION_RECORD.md)
 - [ELI10 현황 보고](ELI10_REPORT.md)
 

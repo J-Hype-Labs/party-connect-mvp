@@ -14,7 +14,7 @@
 
 - [README](../README.md): 프로젝트 진입점, 현재 상태, 로컬 실행·테스트
 - [SPECIFICATION](../SPECIFICATION.md): 제품 범위, 역할, 기술 구조, 우선순위
-- [전용 페이지 구현 명세](../PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md): 파티 탐색·신청 화면의 기능 기준
+- [전용 페이지 구현 명세](../HYPECONNECT_PAGE_IMPLEMENTATION_SPEC.md): 파티 탐색·신청 화면의 기능 기준
 - [UI/UX 결정 기록](../UI_UX_DECISION_RECORD.md): 브랜드 토큰과 누적 디자인 결정
 - [ELI10 현황 보고](../ELI10_REPORT.md): 기준 시점의 배포·검증·미결 사항
 

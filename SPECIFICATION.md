@@ -73,7 +73,7 @@ HypeConnect는 사용자가 오프라인 소셜링 파티, 소개팅·혼술바 
 - 상세 모달, 지도 링크, 신청
 - 마이페이지 및 제휴 안내
 
-전용 페이지의 기능 기준은 PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md를 참조한다.
+전용 페이지의 기능 기준은 HYPECONNECT_PAGE_IMPLEMENTATION_SPEC.md를 참조한다.
 
 ## 5. 현재 구현 상태
 
@@ -191,7 +191,7 @@ HypeConnect는 사용자가 오프라인 소셜링 파티, 소개팅·혼술바 
 - 인증 구현/API/보안: docs/AUTH_IMPLEMENTATION_SPEC.md
 - 인증 화면/상태: docs/AUTH_UI_UX_SPEC.md
 - 콘솔/배포: docs/AUTH_DEPLOYMENT_CHECKLIST.md
-- 전용 페이지: PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md
+- 전용 페이지: HYPECONNECT_PAGE_IMPLEMENTATION_SPEC.md
 - 디자인 결정: UI_UX_DECISION_RECORD.md
 - 시점별 현황: ELI10_REPORT.md
 

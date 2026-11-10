@@ -3,7 +3,7 @@
 - 기준일: 2026-11-08
 - main SHA: 9949f53567f033e269acc123d47b59cbd22ff254
 - 인증 UI 상세: docs/AUTH_UI_UX_SPEC.md
-- 전용 페이지 기준: PARTY_CONNECT_PAGE_IMPLEMENTATION_SPEC.md
+- 전용 페이지 기준: HYPECONNECT_PAGE_IMPLEMENTATION_SPEC.md
 
 ## 1. 디자인 방향
 
