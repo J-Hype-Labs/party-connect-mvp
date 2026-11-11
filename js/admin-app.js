@@ -158,7 +158,10 @@
     content = h('section', { class: 'content', id: 'content', 'aria-live': 'polite' });
     return h('div', { class: 'shell' },
       h('header', { class: 'topbar' },
-        h('strong', { text: 'HypeConnect 관리자' }),
+        h('span', { class: 'brand' },
+          // 로고 SVG 는 <title>/role=img 가 있지만, <img> 로 쓰면 alt 가 이름이 된다
+          h('img', { class: 'brand-logo', src: '../assets/hypeconnect-logo.svg', alt: 'HypeConnect', width: '132', height: '24' }),
+          h('strong', { text: '관리자' })),
         h('button', { class: 'btn small', id: 'logout-btn', type: 'button', onclick: logout, text: '로그아웃' })),
       h('nav', { class: 'nav', 'aria-label': '관리자 메뉴' },
         NAV.map(function (n) {

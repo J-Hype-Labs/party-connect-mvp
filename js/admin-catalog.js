@@ -300,6 +300,7 @@
         h('button', { class: 'btn small primary', type: 'button', 'data-action': 'charge', onclick: function () { moneyDialog(s, 'charge'); }, text: '충전' }),
         h('button', { class: 'btn small', type: 'button', 'data-action': 'refund', onclick: function () { moneyDialog(s, 'refund'); }, text: '환불' }),
         h('button', { class: 'btn small', type: 'button', 'data-action': 'history', onclick: function () { historyDialog(s); }, text: '내역' }),
+        h('button', { class: 'btn small', type: 'button', 'data-action': 'export-csv', onclick: function () { exportLedger(s); }, text: 'CSV 저장' }),
         h('button', { class: 'btn small', type: 'button', 'data-action': 'edit', onclick: function () { storeForm(s); }, text: '수정' }),
         h('button', { class: 'btn small ' + (s.isActive ? 'danger' : ''), type: 'button', 'data-action': 'toggle', onclick: function () { toggleActive(s); }, text: s.isActive ? '운영 중지' : '운영 재개' })));
   }
@@ -391,6 +392,24 @@
   }
 
   const TYPE_LABEL = { CHARGE: '충전', DEDUCT: '차감', REFUND: '환불' };
+  // 점포별 원장을 CSV 로 저장 (정산·입금 대조용). 기존 API 만 사용하며, 서버가 허용하는 최대 500건까지 담는다.
+  const exporting = {};
+  async function exportLedger(s) {
+    const U = ui();
+    if (exporting[s.id]) return;
+    exporting[s.id] = true;
+    try {
+      const rows = await api.depositsForExport(s.id);
+      if (rows.length === 0) return U.toast('내보낼 거래 내역이 없습니다.');
+      window.ADMIN_CSV.download(window.ADMIN_CSV.fileName(s.name), window.ADMIN_CSV.ledgerCsv(s, rows));
+      U.toast('CSV를 저장했습니다.' + (rows.length >= 500 ? ' 최근 500건까지만 포함됩니다.' : ''), 'ok');
+    } catch (e) {
+      U.toast(e.message || 'CSV를 만들지 못했습니다.');
+    } finally {
+      delete exporting[s.id];
+    }
+  }
+
   async function historyDialog(s) {
     const U = ui(), h = U.h;
     const box = h('div', null, h('p', { class: 'state-msg', text: '불러오는 중…' }));
