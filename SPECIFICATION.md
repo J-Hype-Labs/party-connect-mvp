@@ -155,7 +155,7 @@ API 계약 원본은 `partylink/docs/party-connect-integration.md`다. 요약:
 | 담당(제안) | Jacob (`hustlinjh`) | 동료 (`6Soo`) |
 | 저장소·파일 | `partylink` 전체(`supabase/**`, `docs/**`)<br>웹 `admin/**`, `js/admin-*.js`, `tests/admin-*.spec.js`, `docs/admin-page.md`, `docs/manual-e2e-checklist.md` | 웹 `index.html`, `party-connect/**`, `auth/**`, `js/auth-*.js`, `js/party-*.js`, `js/mission-ui.js`, `assets/**`, 사용자 테스트(`tests/comprehensive`, `party-connect-page`, `user-journey-regression`, `mypage-mission`, `mobile-layout`), `docs/AUTH_*.md`, `docs/MAP_EXPLORATION_DESIGN.md` |
 | 공동(PR로 상대에게 알림) | `SPECIFICATION.md`(이 문서), `.github/workflows/ci.yml`, `package.json`, `playwright.config.js`, `tests/helpers/**`, `README.md` | 같음 |
-| 브랜치 접두어 | `a/…` (예: `a/me-onboarding-api`) | `b/…` (예: `b/onboarding-screen`) |
+| 브랜치 접두어 | `a/…` (예: `a/me-onboarding-api`) | `6Soo` (고정 장기 브랜치) |
 
 담당은 제안이다. 바꾸려면 이 표만 고치면 된다.
 
@@ -169,6 +169,32 @@ API 계약 원본은 `partylink/docs/party-connect-integration.md`다. 요약:
 | A4 | **관리자 운영 보강**: 관리자 헤더에 HypeConnect 로고, 정산 내역 CSV 내보내기(수동 정산·입금 대조용) | 화면 확인, 원장과 일치 | M4~M5 |
 | A5 | **실거래 대비 운영 점검**: `docs/settlement-check.md` SQL로 일일 정산 대조 절차 확정, 수수료 집계 500건 초과 시 서버 집계 엔드포인트 | M5 기간 일일 대조 | M5 |
 | A6 | 레거시 `SUPABASE_SERVICE_ROLE_KEY` → 새 시크릿 키 이전 | 재배포 후 정상 | 2027년 초 전 |
+
+### Part B(6Soo) 브랜치 운영 규칙
+
+- Part B(6Soo)는 앞으로 `6Soo` 브랜치 하나에서 계속 개발한다. 작업별 `b/…` 브랜치는 만들지 않는다.
+- 작업 시작 전 `git fetch` 후 `git switch 6Soo; git merge origin/main`으로 동기화한다(공유 브랜치 rebase 금지).
+- PR은 `6Soo` → `main`으로 올린다. 병합 시 브랜치 삭제 옵션을 쓰지 않는다(`gh pr merge --squash`에 `--delete-branch` 금지).
+- squash 병합 후에는 `git fetch; git switch 6Soo; git merge origin/main`으로 main을 6Soo에 합쳐 이어 간다(같은 변경이라 보통 충돌 없이 합쳐지고, 다음 PR에는 새 변경만 나타난다). 강제 push와 `reset --hard`는 쓰지 않는다.
+- 에이전트에게 Part B 작업을 맡길 때 이 브랜치 규칙을 그대로 전달한다.
+
+### 2026-11-11 현재 6Soo 브랜치 진행 상태
+
+| 작업 | 상태 | 남은 실검증 |
+|---|---|---|
+| B2 가입 동의 화면 연결 | 프런트 구현 완료 | A2 배포 후 실서버 확인 |
+| B3 OAuth 복귀 경로 확정 | 프런트 구현 완료 | Supabase·카카오 Redirect에 `/party-connect-mvp/auth/callback/` 등록 확인 — Jacob |
+| B4 운영 모드 고정 | 프런트 구현 완료 | 운영 주소 화면 확인 |
+| B5 요일 필터 정리(대안 A) | 프런트 구현 완료 | 실DB 확인 |
+| B6 메타 태그(og-image 등) | 프런트 구현 완료 | 배포 후 카카오 미리보기·320~1440px 수동 점검 |
+| B1 실서버 전체 흐름 검증 | — | 실제 카카오 계정 필요 |
+| B7 지도 탐색 | 보류 | — |
+
+> 검증: `validate:jsx/html` 통과, Playwright E2E(chromium 회귀 55 passed)
+
+### Part A 요청
+
+- `js/admin-app.js` 로그인 `redirectTo`를 `auth/callback/` 방식으로 통일할지 결정 필요(현재는 현재 페이지 URL 사용).
 
 ### Part B 작업 목록
 
@@ -197,8 +223,8 @@ API 계약 원본은 `partylink/docs/party-connect-integration.md`다. 요약:
 
 ### 규칙
 
-1. `main`에 직접 push하지 않는다. 모든 변경은 `a/…` 또는 `b/…` 브랜치 → PR.
-2. **CI가 초록일 때만 squash 병합**한다. 병합 후 브랜치는 삭제한다.
+1. `main`에 직접 push하지 않는다. 모든 변경은 `a/…` 또는 `6Soo` 브랜치 → PR.
+2. **CI가 초록일 때만 squash 병합**한다. 병합 후 브랜치는 삭제한다(6Soo 장기 브랜치 제외).
 3. 작업 시작 전과 PR 올리기 전에 최신 `main`을 받는다.
 4. 오래된 브랜치를 지울 때는 먼저 `archive/<브랜치명>` 태그를 남긴다(2026-11-10 정리 때 25개 보관).
 
@@ -208,7 +234,7 @@ API 계약 원본은 `partylink/docs/party-connect-integration.md`다. 요약:
 git fetch --prune
 git switch main
 git pull --ff-only
-git switch -c a/작업이름        # Part B는 b/작업이름
+git switch -c a/작업이름        # Part B는 git switch 6Soo; git merge origin/main
 ```
 
 ### PR 올리기 전

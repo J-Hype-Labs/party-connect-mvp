@@ -162,25 +162,47 @@
     });
   }
 
+  // Get KST weekday short name (월~일) from ISO string
+  function kstWeekday(iso) {
+    try {
+      const d = new Date(iso);
+      if (isNaN(d)) return null;
+      return new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', weekday: 'short' }).format(d);
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Normalize server party data to match local format
   function normalizeServerParties(serverParties) {
     if (!Array.isArray(serverParties)) return [];
     
-    return serverParties.map(p => ({
-      id: String(p.id),
-      title: p.title,
-      region: p.region,
-      category: p.category,
-      days: Array.isArray(p.days) ? p.days : [],
-      recruit: Number(p.recruit) || 0,
-      currentRecruit: Number(p.currentRecruit) || 0,
-      venue: p.venue,
-      address: p.address,
-      desc: p.desc || p.description || '',
-      images: Array.isArray(p.images) ? p.images : (p.image ? [p.image] : []),
-      badges: Array.isArray(p.badges) ? p.badges : [],
-      isFeatured: Boolean(p.isFeatured)
-    }));
+    return serverParties.map(p => {
+      // Use server-provided days if available, otherwise compute from startsAt/starts_at
+      let days = Array.isArray(p.days) && p.days.length > 0 ? p.days : [];
+      if (days.length === 0) {
+        const iso = p.startsAt || p.starts_at;
+        if (iso) {
+          const wd = kstWeekday(iso);
+          if (wd) days = [wd];
+        }
+      }
+      return {
+        id: String(p.id),
+        title: p.title,
+        region: p.region,
+        category: p.category,
+        days,
+        recruit: Number(p.recruit) || 0,
+        currentRecruit: Number(p.currentRecruit) || 0,
+        venue: p.venue,
+        address: p.address,
+        desc: p.desc || p.description || '',
+        images: Array.isArray(p.images) ? p.images : (p.image ? [p.image] : []),
+        badges: Array.isArray(p.badges) ? p.badges : [],
+        isFeatured: Boolean(p.isFeatured)
+      };
+    });
   }
 
   // Normalize server application data

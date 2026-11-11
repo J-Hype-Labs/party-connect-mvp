@@ -10,17 +10,30 @@
   // Configuration from window.PARTYLINK_CONFIG
   const cfg = window.PARTYLINK_CONFIG || {};
   const params = new URLSearchParams(window.location.search);
-  const isLocal = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
-  
+  const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
+  const isLocal = LOCAL_HOSTS.includes(window.location.hostname);
+
   // Ensure Supabase is available (loaded via CDN before this script)
   if (!window.supabase) {
     console.warn('[auth-client.js] Supabase not available on window.supabase');
     window.supabase = { createClient: function() { return null; } };
   }
-  
-  // Production mode: configured + not demo + (not local OR live=1)
+
+  // Pure mode resolver (exposed for tests): keeps hosted production sites honest.
+  //  - local hosts keep the old contract: live only when ?live=1 (and ?demo=1 off)
+  //  - every other host (GitHub Pages, staging, ...): configured wins; ?demo=1
+  //    must NOT be usable to drop a configured production site into demo mode
+  //  - unconfigured hosted site: not live => callers must fail closed (no demo data)
+  // @param {{ configured: boolean, hostname: string, searchParams?: URLSearchParams }} opts
+  function resolveLiveMode({ configured, hostname, searchParams = new URLSearchParams() } = {}) {
+    if (LOCAL_HOSTS.includes(hostname)) {
+      return Boolean(configured) && searchParams.get("demo") !== "1" && searchParams.get("live") === "1";
+    }
+    return Boolean(configured);
+  }
+
   const configured = Boolean(cfg.supabaseUrl && cfg.supabaseAnonKey && window.supabase && window.supabase.createClient);
-  const live = configured && params.get("demo") !== "1" && (!isLocal || params.get("live") === "1");
+  const live = resolveLiveMode({ configured, hostname: window.location.hostname, searchParams: params });
 
   // Supabase client (only created in live mode)
   let client = null;
@@ -100,12 +113,15 @@
   // Expose globally
   window.PARTYLINK_AUTH = {
     live,
+    configured,
     client,
     api,
     toAppUser,
     cfg,
     isLocal,
     isProduction,
-    getEnvironment
+    getEnvironment,
+    environment: getEnvironment(),
+    resolveLiveMode
   };
 })();

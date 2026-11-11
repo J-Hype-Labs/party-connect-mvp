@@ -9,7 +9,13 @@
   <meta property="og:title" content="HypeConnect - 파티 탐색 및 신청">
   <meta property="og:description" content="혼술바, 소개팅, 소모임 등 다양한 소셜링 파티를 한 곳에서 만나보세요.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80">
+  <meta property="og:url" content="https://j-hype-labs.github.io/party-connect-mvp/party-connect/">
+  <meta property="og:image" content="https://j-hype-labs.github.io/party-connect-mvp/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="HypeConnect">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://j-hype-labs.github.io/party-connect-mvp/party-connect/">
 
   <!-- Pretendard Font -->
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
@@ -55,12 +61,14 @@
   <!-- Supabase & Auth Modules -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script>
-    // PartyLink 연동 설정 — 두 값을 비워 두면 기존 데모 모드(localStorage)로 동작합니다.
+    // PartyLink 연동 설정 — 두 값이 있으면 실서비스 모드로 동작합니다.
     //   supabaseUrl     : Supabase 대시보드 → Project Settings → API 의 Project URL
     //   supabaseAnonKey : 같은 화면의 anon(또는 publishable) 키. 공개돼도 되는 키입니다.
     //                     ⚠️ service_role / secret 키는 절대 넣지 마세요.
-    // 실서비스 모드 조건: 두 값이 있고, localhost 가 아니거나 주소에 ?live=1 이 있을 때
-    //   (로컬/CI 테스트는 데모 모드 유지, ?demo=1 로 배포 사이트에서도 데모 강제 가능)
+    // 모드 판정(js/auth-client.js 의 resolveLiveMode):
+    //   - 로컬(localhost/127.0.0.1): ?live=1 일 때만 실서비스, 그 외 데모
+    //   - 그 외(운영 사이트 등): 두 값이 있으면 실서비스 — ?demo=1 로 우회 불가
+    //   - 그 외 + 설정 없음: 데모 대체 금지, 파티 목록 오류 표시(fail-closed)
     window.PARTYLINK_CONFIG = {
       supabaseUrl: "https://cpctedhhojmbycnqhzli.supabase.co",
       supabaseAnonKey: "sb_publishable_JEWNbxlUSWRkyVePlejC_A_I0WlLi6e",
@@ -91,7 +99,7 @@
     // Using shared data from ../js/party-data.js (PARTY_LIST, REGION_CATEGORIES, DAYS, CATEGORIES)
 
     // Auth & API modules (with fallbacks for robustness)
-    const { live = false, client = null, api = null, toAppUser = (u) => u } = window.PARTYLINK_AUTH || {};
+    const { live = false, isLocal = false, client = null, api = null, toAppUser = (u) => u } = window.PARTYLINK_AUTH || {};
     const { 
       AUTH_STATE = {}, 
       getState = () => 'SIGNED_OUT', 
@@ -121,6 +129,11 @@
       isActiveApplication = () => false 
     } = window.PARTYLINK_PARTY_API || {};
     const { ApplicationExtras = () => null } = window.PARTYLINK_MISSION_UI || {};
+
+    // 데모 데이터(PARTY_LIST·localStorage)는 로컬에서만 쓴다. 호스팅 사이트에서
+    // 실서비스 설정이 없으면 데모로 대체하지 않고 오류를 표시한다(fail-closed).
+    const demoMode = !live && isLocal;
+    const settingsError = !live && !isLocal;
 
     const REGION_CATEGORIES = [
       { id: "all", name: "전체 지역", subRegions: ["전체"] },
@@ -156,12 +169,14 @@
       });
       const [applications, setApplications] = useState(() => {
         if (live) return [];
-        try {
-          const saved = JSON.parse(localStorage.getItem('partyconnect:applications') || '[]');
-          return Array.isArray(saved) ? saved : [];
-        } catch (e) { return []; }
-      });
-      const [parties, setParties] = useState(live ? [] : PARTY_LIST);
+        if (!demoMode) return []; // 설정 없는 호스팅 사이트: 데모(로컬스토리지) 대체 금지(fail-closed)
+         try {
+           const saved = JSON.parse(localStorage.getItem('partyconnect:applications') || '[]');
+           return Array.isArray(saved) ? saved : [];
+         } catch (e) { return []; }
+       });
+      const [parties, setParties] = useState(live ? [] : (demoMode ? PARTY_LIST : []));
+
       const [partiesLoading, setPartiesLoading] = useState(live);
       const [partiesError, setPartiesError] = useState(null);
       const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -264,7 +279,8 @@
       }, [wishlist]);
 
       useEffect(() => {
-        if (!live) {
+        if (demoMode) {
+
           try {
             localStorage.setItem('partyconnect:applications', JSON.stringify(applications));
           } catch (e) {}
@@ -715,7 +731,26 @@
               </div>
 
               {/* Loading / Error / Empty States */}
+              {settingsError ? (
+
+                <div role="alert" data-testid="parties-load-error" className="text-center py-12 bg-white rounded-2xl border border-rose-200">
+
+                  <svg className="mx-auto w-16 h-16 text-rose-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v6M12 19h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+
+                  </svg>
+
+                  <h3 className="mt-4 text-lg font-semibold text-zinc-900">실서비스 설정이 없어 파티 목록을 표시할 수 없습니다</h3>
+
+                  <p className="mt-1 text-sm text-zinc-500">운영 설정(Supabase URL·publishable key)을 확인해 주세요. 데모 데이터로 대체하지 않습니다.</p>
+
+                </div>
+
+              ) : null}
+
               {partiesLoading && (
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" role="list" aria-label="파티 목록">
                   {[...Array(6)].map((_, i) => (
                     <article key={i} className="bg-white rounded-2xl border border-zinc-200 overflow-hidden animate-pulse">
@@ -748,7 +783,8 @@
               )}
 
               {/* Party Cards Grid */}
-              {filteredParties.length === 0 && !partiesLoading && !partiesError && (
+              {filteredParties.length === 0 && !partiesLoading && !partiesError && !settingsError && (
+
                 <div className="col-span-full text-center py-12">
                   <svg className="mx-auto w-16 h-16 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />

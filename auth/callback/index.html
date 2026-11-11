@@ -79,8 +79,8 @@
 
   <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
-    const { AuthProcessingScreen } = window.PARTYLINK_AUTH_UI;
-    const { handleCallback, restoreSession, AUTH_STATE, saveReturnUrl, consumeReturnUrl } = window.PARTYLINK_AUTH_SERVICE;
+    const { AuthProcessingScreen, OnboardingConsent } = window.PARTYLINK_AUTH_UI;
+    const { handleCallback, restoreSession, AUTH_STATE, saveReturnUrl, consumeReturnUrl, completeOnboarding } = window.PARTYLINK_AUTH_SERVICE;
     const { live, client } = window.PARTYLINK_AUTH;
 
     function CallbackApp() {
@@ -88,6 +88,11 @@
       const [message, setMessage] = useState('카카오 로그인을 확인하고 있어요.');
       const [subMessage, setSubMessage] = useState('잠시 후 자동으로 이동해요.');
       const [returnInfo, setReturnInfo] = useState(null);
+      const [errorInfo, setErrorInfo] = useState(null);
+      const [onboardingUser, setOnboardingUser] = useState(null);
+      const [onboardingError, setOnboardingError] = useState(null);
+      const [onboardingLoading, setOnboardingLoading] = useState(false);
+      const basePath = window.PARTYLINK_AUTH_SERVICE.getBasePath();
 
       useEffect(() => {
         // Consume return URL info
@@ -97,22 +102,25 @@
         // Handle OAuth callback
         const processCallback = async () => {
           try {
-            // Check for error params from Kakao/Supabase
+            // Check for error params from Kakao/Supabase (login cancelled or error)
             const params = new URLSearchParams(window.location.search);
             const error = params.get('error');
             const errorDescription = params.get('error_description');
             
             if (error) {
-              throw new Error(errorDescription || '인증 과정에서 오류가 발생했습니다.');
+              setErrorInfo({ error, errorDescription });
+              setState('error');
+              setMessage('로그인이 취소되었거나 실패했습니다.');
+              setSubMessage(errorDescription || '다시 시도해 주세요.');
+              return;
             }
 
             // Process callback - this will wait for session via detectSessionInUrl
             const result = await handleCallback();
             
             if (result.needsOnboarding) {
+              setOnboardingUser(result.user);
               setState('onboarding');
-              setMessage('회원가입을 완료해 주세요.');
-              setSubMessage('필수 약관에 동의하면 바로 시작할 수 있어요.');
             } else {
               setState('success');
               setMessage('로그인이 완료되었습니다!');
@@ -127,7 +135,7 @@
             console.error('Callback error:', error);
             setState('error');
             setMessage('로그인에 실패했어요.');
-            setSubMessage(error.message || '다시 시도해 주세요.');
+              setSubMessage(error.message || '다시 시도해 주세요.');
           }
         };
 
@@ -135,12 +143,15 @@
       }, []);
 
       const redirectToReturnPage = (info) => {
-        let targetPath = '/';
+        let targetPath = basePath;
         
         if (info && info.returnPath) {
-          // Validate it's an internal path
+          // Validate it's an internal path (same origin, no open redirect)
           if (info.returnPath.startsWith('/') && !info.returnPath.startsWith('//')) {
-            targetPath = info.returnPath;
+            // Only allow paths under our base path
+            if (info.returnPath.startsWith(basePath)) {
+              targetPath = info.returnPath;
+            }
           }
         }
         
@@ -148,7 +159,7 @@
         if (info && info.partyId && info.intent === 'apply') {
           // Ensure we're on the party-connect page
           if (!targetPath.includes('/party-connect/')) {
-            targetPath = '/party-connect-mvp/party-connect/';
+            targetPath = basePath + 'party-connect/';
           }
         }
         
@@ -160,22 +171,94 @@
         setState('processing');
         setMessage('카카오 로그인을 확인하고 있어요.');
         setSubMessage('잠시 후 자동으로 이동해요.');
+        setErrorInfo(null);
         // Reload to restart OAuth flow
         window.location.reload();
       };
 
       const handleGoHome = () => {
-        window.location.href = '/party-connect-mvp/';
+        window.location.href = basePath;
       };
 
-      // Render based on state
-      if (state === 'onboarding') {
-        // Onboarding will be handled by the parent page after redirect
-        // For now, redirect to main with onboarding flag
-        window.location.href = '/party-connect-mvp/?onboarding=1';
-        return null;
+      const handleOnboardingSubmit = async (consentData) => {
+        setOnboardingLoading(true);
+        setOnboardingError(null);
+        try {
+          await completeOnboarding(consentData);
+          // Success - redirect to return page
+          redirectToReturnPage(returnInfo);
+        } catch (error) {
+          console.error('Onboarding error:', error);
+          // Check if it's a 404 or network error
+          const isNetworkError = error instanceof TypeError || error.message.includes('fetch') || error.message.includes('network') || error.message.includes('Failed to fetch');
+          const is404 = error.status === 404 || error.message.includes('404');
+          if (isNetworkError || is404) {
+            setOnboardingError('가입 동의 저장에 실패했어요. 서버가 준비되면 다시 시도해 주세요.');
+          } else {
+            setOnboardingError(error.message || '가입 동의 저장에 실패했어요. 다시 시도해 주세요.');
+          }
+        } finally {
+          setOnboardingLoading(false);
+        }
+      };
+
+      const handleOnboardingClose = () => {
+        // User clicked '나중에 하기' - redirect to base path
+        window.location.href = basePath;
+      };
+
+      // Render error state with user-friendly screen
+      if (state === 'error') {
+        return (
+          <div className="min-h-screen flex items-center justify-center p-4 bg-white">
+            <div className="text-center animate-fade-in max-w-md">
+              <div className="text-xl font-extrabold tracking-tighter text-zinc-950 mb-4">
+                {'PARTY'}<span className="text-rose-600">connect</span>
+              </div>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-50 flex items-center justify-center">
+                <svg className="w-8 h-8 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <p className="text-zinc-700 mb-2">{message}</p>
+              <p className="text-zinc-500 text-sm mb-6">{subMessage}</p>
+              {errorInfo && (
+                <details className="text-left text-xs text-zinc-400 mb-4 p-3 bg-zinc-50 rounded-lg">
+                  <summary className="cursor-pointer font-medium text-zinc-500">오류 상세 보기</summary>
+                  <pre className="mt-2 whitespace-pre-wrap">{'코드: ' + errorInfo.error + '\n메시지: ' + (errorInfo.errorDescription || '없음')}</pre>
+                </details>
+              )}
+              <div className="space-y-3">
+                <button onClick={handleRetry} className="w-full px-4 py-3 rounded-xl text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 transition min-h-[48px]">
+                  다시 로그인 시도
+                </button>
+                <button onClick={handleGoHome} className="w-full px-4 py-3 rounded-xl text-sm font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 transition min-h-[48px]">
+                  메인으로 돌아가기
+                </button>
+              </div>
+            </div>
+          </div>
+        );
       }
 
+      // Render onboarding state
+      if (state === 'onboarding') {
+        if (!onboardingUser) {
+          // Fallback if user not set
+          window.location.href = basePath;
+          return null;
+        }
+        return (
+          <OnboardingConsent
+            user={onboardingUser}
+            onSubmit={handleOnboardingSubmit}
+            onClose={handleOnboardingClose}
+            isLoading={onboardingLoading}
+          />
+        );
+      }
+
+      // Render processing/success state
       return (
         <AuthProcessingScreen 
           message={message} 
