@@ -96,10 +96,17 @@
   }
 
   // ---------------------------------------------------------------- 인증
+  // 사용자 화면과 같은 방식: 공용 /auth/callback/ 으로 돌아온 뒤 저장해 둔 경로(/admin/)로 이동합니다.
+  // auth-service.js 는 읽기 전용으로 재사용합니다 (수정 금지, 공개 API 만 사용).
   async function login() {
-    const redirectTo = window.location.origin + window.location.pathname + window.location.search;
-    const { error } = await auth.client.auth.signInWithOAuth({ provider: 'kakao', options: { redirectTo: redirectTo } });
-    if (error) toast('로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    const svc = window.PARTYLINK_AUTH_SERVICE;
+    if (!svc) return toast('로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    try {
+      svc.saveReturnUrl(null, 'admin'); // returnPath = 현재 /admin/ + 쿼리
+      await svc.loginWithKakao();
+    } catch (e) {
+      toast('로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    }
   }
 
   async function logout() {
