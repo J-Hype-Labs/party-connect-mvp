@@ -146,6 +146,43 @@
     // Default to root for GitHub Pages root deployment or local dev
     return '/';  }
 
+  // Consume OAuth error from URL query or hash (e.g., bad_oauth_state)
+  // Returns { code, message } or null if no error
+  function consumeOAuthError() {
+    try {
+      // window.location.hash includes the leading '#' (and can be a '?'
+      // fragment in some flows), strip it so URLSearchParams sees real keys.
+      const search = window.location.search || '';
+      const hash = (window.location.hash || '').replace(/^[#?]/, '');
+      const searchParams = new URLSearchParams(search);
+      const hashParams = new URLSearchParams(hash);
+      const error = searchParams.get('error') || hashParams.get('error');
+      if (!error) return null;
+      const errorCode = searchParams.get('error_code') || hashParams.get('error_code');
+      const errorDescription = searchParams.get('error_description') || hashParams.get('error_description');
+
+      // Log raw description for debugging (not shown to user)
+      if (errorDescription) console.warn('[consumeOAuthError]', errorDescription);
+
+      let message = '로그인이 완료되지 않았어요. 다시 시도해 주세요.';
+      if (errorCode === 'bad_oauth_state') {
+        message = '로그인 시간이 지나 다시 시도가 필요해요.';
+      }
+
+      // Remove only error-related params, keep others (search and hash alike).
+      const isErrorKey = (k) => ['error', 'error_code', 'error_description', 'error_uri'].includes(k);
+      const keptSearch = [...searchParams.entries()].filter(([k]) => !isErrorKey(k));
+      const keptHash = [...hashParams.entries()].filter(([k]) => !isErrorKey(k));
+      const newSearch = keptSearch.length ? '?' + new URLSearchParams(keptSearch) : '';
+      const newHash = keptHash.length ? '#' + new URLSearchParams(keptHash) : '';
+      history.replaceState(null, '', window.location.pathname + newSearch + newHash);
+
+      return { code: errorCode || error, message };
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Kakao OAuth login
   async function loginWithKakao() {
     const { live, client } = getAuthClient();
@@ -397,6 +434,7 @@
     saveReturnUrl,
     consumeReturnUrl,
     clearReturnUrl,
-    getBasePath
+    getBasePath,
+    consumeOAuthError
   };
 })();

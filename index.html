@@ -344,7 +344,8 @@
         restoreSession = async () => ({ user: null }), 
         logout = async () => {}, 
         saveReturnUrl = () => {}, 
-        consumeReturnUrl = () => null 
+        consumeReturnUrl = () => null,
+        consumeOAuthError = () => null
       } = window.PARTYLINK_AUTH_SERVICE || {};
       const { 
         LoginModal = () => null, 
@@ -617,6 +618,13 @@
           setIsLoginModalOpen(false);
           setLoginLoading(false);
         });
+
+        // Consume OAuth error from URL (e.g., bad_oauth_state from Kakao)
+        const oauthError = consumeOAuthError();
+        if (oauthError) {
+          console.warn('[OAuth Error]', oauthError.code, oauthError.message);
+          showToast(oauthError.message);
+        }
 
         // Restore session on mount
         restoreSession().then(({ user }) => {
