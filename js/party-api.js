@@ -173,6 +173,28 @@
     }
   }
 
+  // 파티 일시 표시: 서버 파티는 1회성 일시라 '11. 13.(금) 19:05 ~ 21:30'처럼 보여 주고,
+  // 일시가 없는 데모 데이터는 기존처럼 반복 요일을 보여 준다.
+  function formatPartySchedule(party) {
+    if (!party) return '';
+    const days = Array.isArray(party.days) ? party.days.join(', ') : '';
+    if (!party.startsAt) return days;
+    try {
+      const s = new Date(party.startsAt);
+      if (isNaN(s)) return days;
+      const tz = { timeZone: 'Asia/Seoul' };
+      const md = new Intl.DateTimeFormat('ko-KR', { ...tz, month: 'numeric', day: 'numeric' }).format(s);
+      const wd = new Intl.DateTimeFormat('ko-KR', { ...tz, weekday: 'short' }).format(s);
+      const hm = (d) => new Intl.DateTimeFormat('ko-KR', { ...tz, hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+      let out = `${md}(${wd}) ${hm(s)}`;
+      const e = party.endsAt ? new Date(party.endsAt) : null;
+      if (e && !isNaN(e)) out += ` ~ ${hm(e)}`;
+      return out;
+    } catch (err) {
+      return days;
+    }
+  }
+
   // Normalize server party data to match local format
   function normalizeServerParties(serverParties) {
     if (!Array.isArray(serverParties)) return [];
@@ -200,7 +222,10 @@
         desc: p.desc || p.description || '',
         images: Array.isArray(p.images) ? p.images : (p.image ? [p.image] : []),
         badges: Array.isArray(p.badges) ? p.badges : [],
-        isFeatured: Boolean(p.isFeatured)
+        isFeatured: Boolean(p.isFeatured),
+        startsAt: p.startsAt || p.starts_at || null,
+        endsAt: p.endsAt || p.ends_at || null,
+        recruitDeadline: p.recruitDeadline || p.recruit_deadline || null
       };
     });
   }
@@ -260,6 +285,7 @@
     getProfile,
     completeOnboarding,
     normalizeServerParties,
+    formatPartySchedule,
     normalizeServerApplications,
     getStatusLabel,
     isActiveApplication,
