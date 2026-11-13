@@ -42,6 +42,14 @@
 
   <!-- Shared Config & Auth Modules -->
   <script src="../../js/party-data.js"></script>
+  <script>
+    // 콜백 페이지도 메인·관리자와 같은 Supabase 설정이 있어야 실서비스 모드로 로그인을 마칠 수 있다.
+    // 값은 index.html, admin/index.html과 동일하게 유지한다 (publishable key만, 비밀키 금지).
+    window.PARTYLINK_CONFIG = {
+      supabaseUrl: "https://cpctedhhojmbycnqhzli.supabase.co",
+      supabaseAnonKey: "sb_publishable_JEWNbxlUSWRkyVePlejC_A_I0WlLi6e",
+    };
+  </script>
   <script src="../../js/auth-client.js"></script>
   <script src="../../js/auth-service.js"></script>
   <script src="../../js/auth-ui.js"></script>
