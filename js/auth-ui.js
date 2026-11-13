@@ -76,7 +76,7 @@
         className: 'p-6 sm:p-8 text-center'
       }, [
         e('div', { key: 'logo', className: 'text-xl font-extrabold tracking-tighter text-zinc-950 mb-4' }, [
-          'PARTY', e('span', { key: 'connect', className: 'text-rose-600' }, 'connect')
+          'Hype', e('span', { key: 'connect', className: 'text-rose-600' }, 'Connect')
         ]),
         e('p', { key: 'desc1', className: 'mt-2 text-sm text-zinc-500 mb-6' }, '파티에 참여할 준비가 됐나요?'),
         e('p', { key: 'desc2', className: 'text-sm text-zinc-500 mb-6' }, '카카오 계정으로 간편하게 시작하고 마음에 드는 파티에 신청하세요.'),
@@ -98,7 +98,7 @@
     return e('div', { className: 'min-h-screen flex items-center justify-center p-4 bg-white' },
       e('div', { className: 'text-center animate-fade-in' }, [
         e('div', { key: 'logo', className: 'text-xl font-extrabold tracking-tighter text-zinc-950 mb-4' }, [
-          'PARTY', e('span', { key: 'connect', className: 'text-rose-600' }, 'connect')
+          'Hype', e('span', { key: 'connect', className: 'text-rose-600' }, 'Connect')
         ]),
         e('div', { key: 'spinner', className: 'w-12 h-12 border-4 border-zinc-200 border-t-rose-600 rounded-full mx-auto mb-4 animate-spin' }),
         e('p', { key: 'msg', className: 'text-zinc-700 mb-2' }, message),
@@ -122,7 +122,7 @@
           e('p', { key: 'title', className: 'font-semibold text-zinc-900' }, isNewUser ? '환영합니다! HypeConnect 멤버가 되셨어요.' : '다시 오신 것을 환영합니다!'),
           e('p', { key: 'desc', className: 'mt-1 text-sm text-zinc-500' }, '마음에 드는 파티를 찾아 신청해 보세요.'),
           e('div', { key: 'actions', className: 'mt-4 flex gap-2' }, [
-            e('a', { key: 'parties', href: 'party-connect/', className: 'flex-1 px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition text-center' }, '파티 둘러보기'),
+            e('a', { key: 'parties', href: ((window.PARTYLINK_AUTH_SERVICE && window.PARTYLINK_AUTH_SERVICE.getBasePath) ? window.PARTYLINK_AUTH_SERVICE.getBasePath() : '/') + 'party-connect/', className: 'flex-1 px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition text-center' }, '파티 둘러보기'),
             e('button', { key: 'close', onClick: onClose, className: 'px-4 py-2 text-sm font-semibold border border-zinc-200 text-zinc-700 rounded-xl hover:bg-zinc-50 transition' }, '닫기')
           ])
         ]),
@@ -207,7 +207,7 @@
       e('div', { className: 'relative w-full max-w-md max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col animate-slide-up', onClick: function(e) { e.stopPropagation(); } }, [
         e('div', { key: 'header', className: 'p-6 border-b border-zinc-100' }, [
           e('div', { key: 'logo', className: 'text-xl font-extrabold tracking-tighter text-zinc-950 mb-4' }, [
-            'PARTY', e('span', { key: 'connect', className: 'text-rose-600' }, 'connect')
+            'Hype', e('span', { key: 'connect', className: 'text-rose-600' }, 'Connect')
           ]),
           e('h2', { key: 'title', className: 'text-lg font-bold text-zinc-900' }, '회원가입을 위해 약관에 동의해 주세요'),
           e('p', { key: 'desc', className: 'mt-2 text-sm text-zinc-500' }, user.name + '님, 환영합니다! 서비스 이용을 위해 다음 약관에 동의가 필요합니다.')
