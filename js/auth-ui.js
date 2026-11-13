@@ -122,7 +122,7 @@
           e('p', { key: 'title', className: 'font-semibold text-zinc-900' }, isNewUser ? '환영합니다! HypeConnect 멤버가 되셨어요.' : '다시 오신 것을 환영합니다!'),
           e('p', { key: 'desc', className: 'mt-1 text-sm text-zinc-500' }, '마음에 드는 파티를 찾아 신청해 보세요.'),
           e('div', { key: 'actions', className: 'mt-4 flex gap-2' }, [
-            e('a', { key: 'parties', href: 'party-connect/', className: 'flex-1 px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition text-center' }, '파티 둘러보기'),
+            e('a', { key: 'parties', href: ((window.PARTYLINK_AUTH_SERVICE && window.PARTYLINK_AUTH_SERVICE.getBasePath) ? window.PARTYLINK_AUTH_SERVICE.getBasePath() : '/') + 'party-connect/', className: 'flex-1 px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition text-center' }, '파티 둘러보기'),
             e('button', { key: 'close', onClick: onClose, className: 'px-4 py-2 text-sm font-semibold border border-zinc-200 text-zinc-700 rounded-xl hover:bg-zinc-50 transition' }, '닫기')
           ])
         ]),
