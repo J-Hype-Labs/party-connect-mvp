@@ -75,7 +75,11 @@ test.describe('관리자 페이지 — 접근 통제', () => {
     await page.locator('#login-btn').click();
     const oauth = await page.evaluate(() => window.__oauth);
     expect(oauth.provider).toBe('kakao');
-    expect(oauth.options.redirectTo).toContain('/admin/');
+    // 사용자 화면과 같은 공용 콜백으로 돌아오고, 로그인 후 /admin/?live=1 로 복귀할 경로를 저장한다
+    expect(new URL(oauth.options.redirectTo).pathname).toBe('/auth/callback/');
+    const saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem('partylink:returnUrl')));
+    expect(saved.returnPath).toBe('/admin/?live=1');
+    expect(saved.intent).toBe('admin');
   });
 
   test('관리자가 아니면(403) 권한 없음 화면과 다른 계정 로그인만 보인다', async ({ page }) => {
@@ -249,10 +253,12 @@ test.describe('관리자 페이지 — 신청 관리', () => {
 });
 
 test.describe('관리자 페이지 — 서비스 이름', () => {
-  test('탭 제목과 헤더에 HypeConnect 를 표시한다', async ({ page }) => {
+  test('탭 제목과 헤더 로고에 HypeConnect 를 표시한다', async ({ page }) => {
     await setup(page, { apps: [] });
     await open(page);
     await expect(page).toHaveTitle('HypeConnect 관리자');
-    await expect(page.locator('.topbar strong')).toHaveText('HypeConnect 관리자');
+    // 헤더: HypeConnect 로고(이미지, alt 로 이름 제공) + 관리자
+    await expect(page.locator('.topbar').getByRole('img', { name: 'HypeConnect' })).toBeVisible();
+    await expect(page.locator('.topbar strong')).toHaveText('관리자');
   });
 });

@@ -96,10 +96,17 @@
   }
 
   // ---------------------------------------------------------------- 인증
+  // 사용자 화면과 같은 방식: 공용 /auth/callback/ 으로 돌아온 뒤 저장해 둔 경로(/admin/)로 이동합니다.
+  // auth-service.js 는 읽기 전용으로 재사용합니다 (수정 금지, 공개 API 만 사용).
   async function login() {
-    const redirectTo = window.location.origin + window.location.pathname + window.location.search;
-    const { error } = await auth.client.auth.signInWithOAuth({ provider: 'kakao', options: { redirectTo: redirectTo } });
-    if (error) toast('로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    const svc = window.PARTYLINK_AUTH_SERVICE;
+    if (!svc) return toast('로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    try {
+      svc.saveReturnUrl(null, 'admin'); // returnPath = 현재 /admin/ + 쿼리
+      await svc.loginWithKakao();
+    } catch (e) {
+      toast('로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    }
   }
 
   async function logout() {
@@ -158,7 +165,10 @@
     content = h('section', { class: 'content', id: 'content', 'aria-live': 'polite' });
     return h('div', { class: 'shell' },
       h('header', { class: 'topbar' },
-        h('strong', { text: 'HypeConnect 관리자' }),
+        h('span', { class: 'brand' },
+          // 로고 SVG 는 <title>/role=img 가 있지만, <img> 로 쓰면 alt 가 이름이 된다
+          h('img', { class: 'brand-logo', src: '../assets/hypeconnect-logo.svg', alt: 'HypeConnect', width: '132', height: '24' }),
+          h('strong', { text: '관리자' })),
         h('button', { class: 'btn small', id: 'logout-btn', type: 'button', onclick: logout, text: '로그아웃' })),
       h('nav', { class: 'nav', 'aria-label': '관리자 메뉴' },
         NAV.map(function (n) {
