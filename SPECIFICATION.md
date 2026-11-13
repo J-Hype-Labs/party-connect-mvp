@@ -178,17 +178,18 @@ API 계약 원본은 `partylink/docs/party-connect-integration.md`다. 요약:
 - 작업 시작 전 `git fetch` 후 `git switch 6Soo; git merge origin/main`으로 동기화한다(공유 브랜치 rebase 금지).
 - PR은 `6Soo` → `main`으로 올린다. 병합 시 브랜치 삭제 옵션을 쓰지 않는다(`gh pr merge --squash`에 `--delete-branch` 금지).
 - squash 병합 후에는 `git fetch; git switch 6Soo; git merge origin/main`으로 main을 6Soo에 합쳐 이어 간다(같은 변경이라 보통 충돌 없이 합쳐지고, 다음 PR에는 새 변경만 나타난다). 강제 push와 `reset --hard`는 쓰지 않는다.
+- main을 합칠 때 충돌이 나면 6Soo에 아직 PR로 올리지 않은 변경이 그 파일에 없는지 `git log origin/main..6Soo -- <파일>`로 확인하고, 없으면 `git checkout --theirs <파일>`로 `main` 쪽을 택한다(squash 병합 뒤 같은 줄을 다시 고치면 충돌한다. 2026-11-13 `SPECIFICATION.md`·`.gitignore`에서 발생).
 - 에이전트에게 Part B 작업을 맡길 때 이 브랜치 규칙을 그대로 전달한다.
 
-### 2026-11-11 현재 6Soo 브랜치 진행 상태
+### 6Soo 브랜치 진행 상태(2026-11-14)
 
 | 작업 | 상태 | 남은 실검증 |
 |---|---|---|
-| B2 가입 동의 화면 연결 | 프런트 구현 완료 | A2 배포 후 실서버 확인 |
-| B3 OAuth 복귀 경로 확정 | 프런트 구현 완료 | Supabase·카카오 Redirect에 `/party-connect-mvp/auth/callback/` 등록 확인 — Jacob |
-| B4 운영 모드 고정 | 프런트 구현 완료 | 운영 주소 화면 확인 |
-| B5 요일 필터 정리(대안 A) | 프런트 구현 완료 | 실DB 확인 |
-| B6 메타 태그(og-image 등) | 프런트 구현 완료 | 배포 후 카카오 미리보기·320~1440px 수동 점검 |
+| B2 가입 동의 화면 연결 | 프런트·서버 완료(서버 v10 운영 반영) | 실서버 신규 계정 동의 1회 표시 확인 |
+| B3 OAuth 복귀 경로 확정 | 완료, 관리자 복귀 경로 통일(#31), 콜백 설정 누락 수정(#32) | 실서버 카카오 로그인 복귀 확인 |
+| B4 운영 모드 고정 | 완료, 설정 누락 회귀 테스트(#34), 운영 주소에서 ?demo=1 데모 미표시 확인(2026-11-13) | — |
+| B5 요일 필터 정리(대안 A) | 완료 | 운영 DB 파티 0개로 미확인 — 파티 등록 후 확인 |
+| B6 메타 태그(og-image 등) | 완료, 빈 목록 안내 분리·푸터 연도(이번 PR) | 운영 320~1440px 가로 스크롤 없음·og 이미지 200 확인(2026-11-13). 카카오 미리보기 실기기 확인 |
 | B1 실서버 전체 흐름 검증 | — | 실제 카카오 계정 필요 |
 | B7 지도 탐색 | 보류 | — |
 
@@ -205,6 +206,10 @@ API 계약 원본은 `partylink/docs/party-connect-integration.md`다. 요약:
 | B5 | **요일 필터 정리**: 1회성 일시 기반(날짜/이번 주) 필터로 전환할지 PM과 결정 후 구현 | 실제 DB 파티가 필터에 맞게 노출 | M4 전 |
 | B6 | **M4 모집용 화면 보강**: 파트너십 안내 문구·연락처 점검, 공유 링크(og 태그) 점검, 320~1440px 전체 수동 점검 | 모바일 캡처 확인 | M4 |
 | B7 | 지도 기반 탐색(설계: `docs/MAP_EXPLORATION_DESIGN.md`). 카카오 JS 키·도메인 등록 필요 | — | **보류**(M6 이후) |
+
+### Part A 요청
+
+- `js/admin-app.js` 로그인 `redirectTo`를 `auth/callback/` 방식으로 통일할지 결정 필요(현재는 현재 페이지 사용). (완료, #31)
 
 ### 파트 간 계약
 

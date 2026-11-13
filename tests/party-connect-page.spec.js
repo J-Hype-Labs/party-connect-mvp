@@ -121,10 +121,34 @@ test('live parties: API rows, not demo fallback, drive rendered cards', async ({
   expect(errors).toEqual([]);
 });
 
-test('live parties: empty API response must stay empty, never show fixtures', async ({ page }) => {
+test('live parties: empty API response shows empty-state with no reset button', async ({ page }) => {
   await loadLiveFixture(page, { parties: [] });
-  await expect(page.getByText('검색 결과가 없습니다')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('아직 모집 중인 파티가 없어요')).toBeVisible({ timeout: 30000 });
   await expect(page.locator('article[data-party-id]')).toHaveCount(0);
+  // 필터 초기화 버튼이 없어야 함 (empty list 시)
+  await expect(page.getByRole('button', { name: '필터 초기화하고 다시 보기' })).not.toBeVisible();
+});
+
+test('live parties: filtered to zero shows not-found with reset button', async ({ page }) => {
+  const serverParty = {
+    id: '11111111-1111-1111-1111-111111111111',
+    title: '테스트 파티',
+    region: '강남/서초', category: '소개팅', days: ['금'],
+    recruit: 8, currentRecruit: 1, venue: '테스트 장소',
+    address: '서울 강남구', desc: '통합 테스트', images: [],
+    badges: [], isFeatured: false,
+  };
+  await loadLiveFixture(page, { parties: [serverParty] });
+  // 파티가 1개 로드됨
+  await expect(page.locator('article[data-party-id]')).toHaveCount(1, { timeout: 30000 });
+  // 요일 필터 '월'로 변경 → 결과 0건
+  await page.click('button:has-text("월")');
+  await expect(page.getByText('검색 결과가 없습니다')).toBeVisible({ timeout: 5000 });
+  // 필터 초기화 버튼이 보여야 함 (filtered empty 시)
+  await expect(page.getByRole('button', { name: '필터 초기화하고 다시 보기' })).toBeVisible();
+  // 초기화 버튼 클릭 → 전체 복구
+  await page.getByRole('button', { name: '필터 초기화하고 다시 보기' }).click();
+  await expect(page.locator('article[data-party-id]')).toHaveCount(1);
 });
 
 test('live parties: API error displays retry, never fake party cards', async ({ page }) => {
