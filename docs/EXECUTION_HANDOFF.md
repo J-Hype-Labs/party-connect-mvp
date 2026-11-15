@@ -89,3 +89,12 @@
 - 두 임시 workspace archive 후 활성 목록 제외, 디렉터리 부재 및 `git worktree list`에서 원본 하나만 남은 것을 직접 확인했다. 테스트 workspace archive 응답은 300초 시간 초과였으나 실제 정리는 완료됐다. stash 두 개는 유지한다.
 - GitHub CI 첫 실행 `43736939809`: Validate & Lint PASS, comprehensive 36/39 PASS. 나머지 3개는 카드 제목의 신규 버튼과 기존 `button:has-text("혼술바")` 선택자 충돌로 실패했다. 필터의 정확한 accessible name을 사용하도록 수정했다. 제품 동작·기대 조건을 약화하지 않았다.
 - CI에서 실패한 핵심 화면 검사 단독 로컬 재검사: Chromium/Mobile Chrome/Mobile Safari 3/3 PASS. 후속 커밋으로 CI를 다시 실행한다.
+
+### 2026-11-16 CI 최종 확인 (인수 세션 `0d1de8d8`)
+
+- 선택자 수정 커밋 `e911899`가 origin/6Soo에 반영됨을 확인했다(로컬 HEAD와 원격 일치, 작업 트리에는 기존 사용자 미추적 파일만 존재).
+- GitHub CI 재실행 `43737484454`(head `e911899`): 완료, 결론 **success**. Validate & Lint SUCCESS, E2E Browser Tests(Chromium·Mobile Chrome·WebKit) SUCCESS. Deployment Readiness는 main push 전용이라 PR에서 SKIPPED.
+- 이로써 F0-1·F0-2·F0-3·G-06 구현과 로컬·원격 CI 검증이 모두 완료됐다. 초안 PR #38 본문에 최종 CI 통과를 반영한다.
+- 이 문서 갱신은 문서 전용 후속 커밋으로 반영하며, 해당 커밋의 CI 재실행 결과는 PR #38 본문과 최종 보고에 남긴다.
+- 남은 항목: L-01(운영 승인 본문·확정 보관기간·개인정보 보호책임자 성명·연락처), L-03(Q-12 사업자 정보 값). 사용자 지시(2026-11-16)대로 자료 대기 유지, 재질문 없음. 법률 문구를 임의 확정하지 않는다.
+- 다음 행동: 사용자의 PR #38 검토. 운영 DB 변경·운영 배포·main 병합은 실행하지 않는다.
