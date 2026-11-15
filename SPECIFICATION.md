@@ -233,6 +233,18 @@ API 계약 원본은 `partylink/docs/party-connect-integration.md`다. 요약:
 3. 작업 시작 전과 PR 올리기 전에 최신 `main`을 받는다.
 4. 오래된 브랜치를 지울 때는 먼저 `archive/<브랜치명>` 태그를 남긴다(2026-11-10 정리 때 25개 보관).
 
+### 기다리지 않고 일하는 규칙 (2026-11-15 Jacob 승인)
+
+1. **사람마다 에이전트 세션을 따로 쓴다.** Jacob은 Part A, 6Soo는 `6Soo` 브랜치에서 자기 세션을 돌린다. 두 세션이 공유하는 것은 대화가 아니라 이 저장소의 문서(이 명세, `docs/FEATURE_SPEC.md`, `docs/DECISIONS_NEEDED.md`)다.
+2. **오래 걸리는 작업은 별도 세션에 맡긴다.** PM 세션은 질문·결정·현황 보고만 받는다.
+3. **병합 승인은 규칙으로 한다.**
+   - 문서만 바꾼 PR(`*.md`만 변경)은 CI가 초록이면 승인 없이 병합한다.
+   - Part B PR은 6Soo가 CI 초록 확인 후 직접 병합한다.
+   - 그 밖의 Part A 코드 PR은 Jacob이 승인한다.
+   - 운영 DB 변경, 배포, 삭제, 시크릿 변경은 지금처럼 건별로 Jacob이 승인한다.
+4. **결정은 기한을 두고 문서로 한다.** `docs/DECISIONS_NEEDED.md`의 예시 답변에 기한까지 이견이 없으면 그대로 확정한다.
+5. **PM 세션은 길어지면 새로 시작한다.** 현황은 문서에 있으므로 인계 메모(`docs/PM_HANDOFF.md`)만 갱신하고 새 세션이 그것을 읽고 이어 간다.
+
 ### 매일 시작할 때 (두 PC 공통)
 
 ```bash
@@ -275,7 +287,7 @@ git clone https://github.com/J-Hype-Labs/partylink.git
 
 ## 10. 사람이 직접 해야 하는 일
 
-- 카카오 개발자 콘솔의 앱 이름·동의 화면 문구를 HypeConnect로 변경
+- 사업자 정보 값 제공과 통신판매업 신고 대상 확인(Q-12, 보류 중)
 - 실서버 전체 흐름 검증(카카오 로그인 필요)
 - M2 영업 현황과 Notion 마일스톤 상태 갱신
 - 운영 DB 마이그레이션 적용, Edge Function 배포, 시크릿 변경 승인
@@ -292,6 +304,8 @@ git clone https://github.com/J-Hype-Labs/partylink.git
 | `docs/manual-e2e-checklist.md` | 실서버 수동 검증 절차 |
 | `docs/AUTH_IMPLEMENTATION_SPEC.md`, `AUTH_UI_UX_SPEC.md`, `AUTH_DEPLOYMENT_CHECKLIST.md` | 인증 상세 계약·화면·콘솔 절차 |
 | `docs/MAP_EXPLORATION_DESIGN.md` | 지도 탐색 설계(보류) |
+| `docs/FEATURE_SPEC.md` | 전체 기능 목록·담당(A/B)·우선순위, 1단계(예시+실데이터 하이브리드), 보완점·한계점 |
+| `docs/DECISIONS_NEEDED.md` | 기획·운영 결정 질문 목록(답을 정하면 결정 칸에 기록) |
 | `docs/archive/` | 이전 명세(전용 페이지 명세, UI/UX 결정 기록, ELI10 보고). 참고용, 기준 아님 |
 
 문서를 고칠 때: 상태가 바뀌면 이 문서의 4장과 7장을 같은 PR에서 갱신한다. 상태는 "구현·검증됨 / 코드 존재·실서비스 미검증 / 미구현 / 보류"로 구분한다.
