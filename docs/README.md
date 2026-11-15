@@ -6,6 +6,9 @@
 
 | 문서 | 내용 | 담당 파트 |
 |---|---|---|
+| [FEATURE_SPEC.md](FEATURE_SPEC.md) | 전체 기능 목록·담당·우선순위, 1단계 하이브리드, 보완점·한계점 | A·B |
+| [DECISIONS_NEEDED.md](DECISIONS_NEEDED.md) | 기획·운영 결정 질문 목록 | A·B |
+| [PM_HANDOFF.md](PM_HANDOFF.md) | PM 세션 인계 메모(지금 상태·다음 할 일) | A·B |
 | [admin-page.md](admin-page.md) | 관리자 화면 구성·실행·테스트 | A |
 | [manual-e2e-checklist.md](manual-e2e-checklist.md) | 카카오 로그인 + 운영 DB 실서버 수동 검증 | A·B |
 | [AUTH_IMPLEMENTATION_SPEC.md](AUTH_IMPLEMENTATION_SPEC.md) | 카카오 OAuth, Supabase Auth, 세션, 동의, 보안 계약 | B |
