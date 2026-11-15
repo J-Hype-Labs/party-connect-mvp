@@ -292,6 +292,8 @@ git clone https://github.com/J-Hype-Labs/partylink.git
 | `docs/manual-e2e-checklist.md` | 실서버 수동 검증 절차 |
 | `docs/AUTH_IMPLEMENTATION_SPEC.md`, `AUTH_UI_UX_SPEC.md`, `AUTH_DEPLOYMENT_CHECKLIST.md` | 인증 상세 계약·화면·콘솔 절차 |
 | `docs/MAP_EXPLORATION_DESIGN.md` | 지도 탐색 설계(보류) |
+| `docs/FEATURE_SPEC.md` | 전체 기능 목록·담당(A/B)·우선순위, 1단계(예시+실데이터 하이브리드), 보완점·한계점 |
+| `docs/DECISIONS_NEEDED.md` | 기획·운영 결정 질문 목록(답을 정하면 결정 칸에 기록) |
 | `docs/archive/` | 이전 명세(전용 페이지 명세, UI/UX 결정 기록, ELI10 보고). 참고용, 기준 아님 |
 
 문서를 고칠 때: 상태가 바뀌면 이 문서의 4장과 7장을 같은 PR에서 갱신한다. 상태는 "구현·검증됨 / 코드 존재·실서비스 미검증 / 미구현 / 보류"로 구분한다.
