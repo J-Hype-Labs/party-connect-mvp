@@ -81,6 +81,7 @@
   <script src="js/auth-service.js"></script>
   <script src="js/auth-ui.js"></script>
   <script src="js/party-api.js"></script>
+  <script src="js/party-showcase.js"></script>
   <script src="js/mission-ui.js"></script>
 
   <style>
@@ -165,8 +166,8 @@
     const BANNER_SLIDES = [
       {
         id: 1,
-        title: "무료 체험단 모집 중",
-        desc: "혼술바·소셜 파티를 무료로 즐기고 솔직한 후기만 남겨주세요. 지금 신청하세요.",
+        title: "체험단 모집 중",
+        desc: "파티별 혜택과 참여 조건을 확인하고 체험단에 신청해 보세요.",
         badge: "체험단 모집",
         bgGradient: "from-rose-500/90 to-pink-600/90",
         img: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=1200&q=80"
@@ -179,112 +180,6 @@
         bgGradient: "from-purple-600/90 to-indigo-600/90",
         img: "https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=1200&q=80"
       },
-      {
-        id: 3,
-        title: "HypeConnect 체험 신청",
-        desc: "파티에 신청하고 선정되면 무료로 방문할 수 있어요. 지금 바로 시작하세요.",
-        badge: "체험 신청",
-        bgGradient: "from-amber-500/90 to-rose-500/90",
-        img: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80"
-      }
-    ];
-
-    const REVIEWS = [
-      {
-        id: 1,
-        avatar: "따",
-        avatarBg: "bg-amber-100 text-amber-700",
-        name: "따뜻한리듬헌터8090",
-        time: "6시간 전",
-        venue: "OO 혼술바",
-        address: "서울 중구 예시로 60-1 (가명)",
-        comment: "너무나도 따뜻하고 또 가고 싶은 혼술바였습니다!! 단골분들이 많은 데에는 분명 이유가 있네요~ 따뜻한 온정을 느끼고 싶을 때 또 찾게 될 것 같습니다. 완전 추천합니다!",
-        rating: 5
-      },
-      {
-        id: 2,
-        avatar: "유",
-        avatarBg: "bg-blue-100 text-blue-700",
-        name: "유쾌한산책러2175",
-        time: "22시간 전",
-        venue: "XX 와인바",
-        address: "서울 마포구 예시로6길 57 (가명)",
-        comment: "처음 와인파티였는데 기대 이상으로 너무 좋았습니다. 와인 셀렉션도 훌륭하고 모이신 분들 매너도 최고였어요. 개인적으로 또 방문할 예정입니다!",
-        rating: 5
-      },
-      {
-        id: 3,
-        avatar: "센",
-        avatarBg: "bg-rose-100 text-rose-700",
-        name: "센스있는파티러버7561",
-        time: "1일 전",
-        venue: "XX 소셜라운지",
-        address: "서울 서대문구 예시로7안길 10-4 (가명)",
-        comment: "진행자분이 어색할 틈 없이 너무 스무스하게 분위기 이끌어주셔서 진짜 편하게 대화 나누고 왔습니다. 2차까지 다들 같이 갈 정도로 훈훈했어요!",
-        rating: 5
-      },
-      {
-        id: 4,
-        avatar: "시",
-        avatarBg: "bg-emerald-100 text-emerald-700",
-        name: "시크한무드메이커3410",
-        time: "1일 전",
-        venue: "XX 혼술바",
-        address: "서울 송파구 올림픽로32길 22-13 (가명)",
-        comment: "혼자 처음 다녀왔는데 매장 분위기 너무 아늑하고 사장님, 직원분들 다 친절하셔서 시간 가는 줄 몰랐네요. 혼술 초보자분들께 강추합니다.",
-        rating: 5
-      },
-      {
-        id: 5,
-        avatar: "달",
-        avatarBg: "bg-violet-100 text-violet-700",
-        name: "달콤한와인러버5521",
-        time: "2일 전",
-        venue: "OO 와인바",
-        address: "서울 강남구 예시로 14길 8 (가명)",
-        comment: "와인 4종을 비교해서 마셔볼 수 있어서 좋았고, 핑거푸드도 계속 채워주셔서 만족스러웠어요. 대화 주제 카드 덕분에 어색함 없이 이야기할 수 있었습니다.",
-        rating: 5
-      },
-      {
-        id: 6,
-        avatar: "조",
-        avatarBg: "bg-sky-100 text-sky-700",
-        name: "조용한탐험가9042",
-        time: "3일 전",
-        venue: "OO 혼술바 을지로",
-        address: "서울 중구 예시로 42 (가명)",
-        comment: "퇴근 후 혼자 들렀는데 사장님이 취향을 잘 물어봐 주셔서 딱 맞는 술을 추천받았어요. 좌석 간격도 넉넉하고 음악도 과하지 않아서 편안했습니다.",
-        rating: 4
-      },
-      {
-        id: 7,
-        avatar: "초",
-        avatarBg: "bg-teal-100 text-teal-700",
-        name: "초록빛대화가3388",
-        time: "4일 전",
-        venue: "XX 소셜라운지 신촌",
-        address: "서울 서대문구 예시로7안길 10-4 (가명)",
-        comment: "내향적인 편이라 긴장했는데 진행자분이 리드해 주셔서 금방 풀렸어요. 대화 카드 주제가 좋아서 2차까지 자연스럽게 이어졌습니다. 재참여 의사 있어요!",
-        rating: 5
-      },
-      {
-        id: 8,
-        avatar: "밤",
-        avatarBg: "bg-orange-100 text-orange-700",
-        name: "밤하늘산책자1176",
-        time: "5일 전",
-        venue: "XX 아지트",
-        address: "서울 관악구 예시로59길 14 (가명)",
-        comment: "신림에서 이렇게 조용한 혼술바가 있다니 놀랐어요. 안주도 깔끔하고 무엇보다 혼자 와도 눈치 보이지 않는 분위기가 최고입니다. 다음엔 친구도 데려올게요.",
-        rating: 5
-      }
-    ];
-
-    const PARTNERS = [
-      "XX 아지트 왕십리점", "홍대 혼술바 시점", "일반 모임 space", "OO 와인바", 
-      "XX 소셜라운지", "OO 혼술바 분당", "OO 혼술바 천호점", "라이트 파티", 
-      "XX 혼술바 을지로점", "동네 혼술바", "지역 명소 인천", "XX 와인라운지",
-      "지역 카페 모임", "XX 혼술바 잠실"
     ];
 
 
@@ -309,7 +204,7 @@
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.reviews) || "[]");
         if (Array.isArray(saved) && saved.length > 0) return saved;
       } catch (e) {}
-      return REVIEWS;
+      return [];
     };
 
     // Application status labels
@@ -422,8 +317,7 @@
       const [applyError, setApplyError] = useState("");
       const [applySubmitting, setApplySubmitting] = useState(false);
 
-      // Reviews "전체보기" toggle
-      const [showAllReviews, setShowAllReviews] = useState(false);
+      const [searchQuery, setSearchQuery] = useState("");
 
       // Region modal helper state
       const [modalSelectedCategory, setModalSelectedCategory] = useState("seoul");
@@ -802,14 +696,27 @@
       };
 
       // Render filtered parties
+      const displayParties = useMemo(() => {
+        if (live) {
+          if (partiesLoading || partiesError) return [];
+          return window.PartyShowcase ? window.PartyShowcase.build(parties) : parties;
+        }
+        return demoMode ? parties : [];
+      }, [live, demoMode, parties, partiesLoading, partiesError]);
+
       const filteredParties = useMemo(() => {
-        return parties.filter((party) => {
+        const query = searchQuery.trim().toLocaleLowerCase();
+        return displayParties.filter((party) => {
           const regionMatch = selectedRegion === "전체 지역" || party.region === selectedRegion;
-          const dayMatch = selectedDay === "전체" || party.days.includes(selectedDay);
+          const dayMatch = selectedDay === "전체" || (party.days || []).includes(selectedDay);
           const categoryMatch = selectedCategory === "전체" || party.category === selectedCategory;
-          return regionMatch && dayMatch && categoryMatch;
+          const searchMatch = !query || [party.title, party.venue, party.region].some((value) => String(value || "").toLocaleLowerCase().includes(query));
+          return regionMatch && dayMatch && categoryMatch && searchMatch;
         });
-      }, [parties, selectedRegion, selectedDay, selectedCategory]);
+      }, [displayParties, selectedRegion, selectedDay, selectedCategory, searchQuery]);
+
+      const exampleCount = filteredParties.filter((party) => party.isExample).length;
+      const actualCount = filteredParties.length - exampleCount;
 
       // Check if user has applied to a party
       const hasApplied = (partyId) => {
@@ -931,11 +838,11 @@
                   <a href="party-connect/" className="text-sm font-bold text-rose-600 transition hover:text-rose-700">
                     HypeConnect
                   </a>
-                  <a href="#reviews" className="text-sm font-semibold text-zinc-700 transition hover:text-rose-600">
-                    커뮤니티
+                  <a href="#how-it-works" className="text-sm font-semibold text-zinc-700 transition hover:text-rose-600">
+                    참여 방법
                   </a>
-                  <a href="#partners" className="text-sm font-semibold text-zinc-500 transition hover:text-zinc-900">
-                    제휴신청
+                  <a href="mailto:partner@jhypelabs.com" className="text-sm font-semibold text-zinc-500 transition hover:text-zinc-900">
+                    점주 문의
                   </a>
                 </nav>
 
@@ -1059,6 +966,9 @@
                   <p className="text-sm text-zinc-500 mt-1">
                     혼술바, 소개팅, 소셜파티를 한 곳에서 만나보세요
                   </p>
+                  {!partiesLoading && !partiesError && (live || demoMode) && (
+                    <p className="text-xs text-zinc-500 mt-2" aria-live="polite">실제 {actualCount}개 · 예시 {exampleCount}개</p>
+                  )}
                 </div>
                 <a 
                   href="party-connect/" 
@@ -1080,7 +990,7 @@
                   </svg>
                   <input
                     type="text"
-                    placeholder="파티명, 장소, 지역으로 검색"
+                    placeholder="파티명, 업체명, 지역 검색"
                     className="w-full pl-10 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
                     onChange={(e) => setSearchQuery(e.target.value)}
                     aria-label="파티 검색"
@@ -1183,7 +1093,7 @@
                 {partiesLoading ? (
                   <div className="col-span-full text-center py-12 text-zinc-500">불러오는 중…</div>
                 ) : null}
-                {parties.length === 0 && !partiesLoading && !partiesError ? (
+                {displayParties.length === 0 && !partiesLoading && !partiesError ? (
 
                   <div className="col-span-full text-center py-12">
                     <svg className="mx-auto w-16 h-16 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1232,14 +1142,15 @@
                         />
                         {/* Badges */}
                         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                          {party.badges.slice(0, 2).map((badge, i) => (
+                          {party.isExample && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 shadow-sm">예시</span>}
+                          {(party.badges || []).slice(0, 2).map((badge, i) => (
                             <span key={i} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/90 backdrop-blur-sm text-zinc-800 shadow-sm">
                               {badge}
                             </span>
                           ))}
                         </div>
                         {/* Wishlist */}
-                        <button
+                        {!party.isExample && <button
                           onClick={(e) => toggleWishlist(e, party.id)}
                           className="absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-zinc-100 transition"
                           aria-label={wishlist.has(party.id) ? "관심 파티에서 제거" : "관심 파티에 추가"}
@@ -1247,7 +1158,7 @@
                           <svg className={`w-5 h-5 ${wishlist.has(party.id) ? 'text-rose-600 fill-current' : 'text-zinc-500'}`} fill={wishlist.has(party.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                           </svg>
-                        </button>
+                        </button>}
                       </div>
 
                       {/* Content */}
@@ -1259,8 +1170,11 @@
                         </div>
 
                         {/* Title */}
-                        <h3 className="font-bold text-zinc-900 text-base line-clamp-2 mb-2 group-hover:text-rose-600 transition">
-                          {party.title}
+                        <h3 className="font-bold text-zinc-900 text-base line-clamp-2 mb-2">
+                          <button type="button" onClick={() => openPartyDetail(party)} className="text-left hover:text-rose-600 focus-visible:rounded">
+                            {party.title}
+                            {party.isExample && <span className="sr-only"> (예시 파티 상세 보기)</span>}
+                          </button>
                         </h3>
 
                         {/* Description */}
@@ -1283,7 +1197,7 @@
                           </span>
                         </div>
 
-                        {/* Recruit Status */}
+                      {/* Recruit Status */}
                         <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
                           <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${party.currentRecruit >= party.recruit ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
                             {party.currentRecruit >= party.recruit ? '모집 마감' : `모집 ${party.currentRecruit}/${party.recruit}`}
@@ -1292,17 +1206,18 @@
 
                         {/* CTA Button */}
                         <button
+                          type="button"
                           onClick={() => openPartyDetail(party)}
-                          disabled={party.currentRecruit >= party.recruit || hasApplied(party.id)}
+                          disabled={party.isExample || party.currentRecruit >= party.recruit || hasApplied(party.id)}
                           className={`w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition min-h-[44px] ${
-                            party.currentRecruit >= party.recruit
+                            party.isExample ? 'bg-zinc-200 text-zinc-600 cursor-not-allowed' : party.currentRecruit >= party.recruit
                               ? 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
                               : hasApplied(party.id)
                                 ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed'
                                 : 'bg-rose-600 text-white hover:bg-rose-700 shadow-md'
                           }`}
                         >
-                          {party.currentRecruit >= party.recruit
+                          {party.isExample ? "신청 오픈 예정" : party.currentRecruit >= party.recruit
                             ? "모집 마감"
                             : hasApplied(party.id)
                               ? "신청 완료"
@@ -1343,24 +1258,7 @@
               </div>
             </section>
 
-            {/* Partners Section */}
-            <section id="partners" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16" aria-labelledby="partners-heading">
-              <h2 id="partners-heading" className="text-2xl font-extrabold text-zinc-950 mb-6">제휴 파트너</h2>
-              <div className="bg-white rounded-2xl border border-zinc-200 p-6">
-                <p className="text-zinc-600 mb-4">HypeConnect와 함께하는 다양한 파트너들을 소개합니다.</p>
-                <div className="flex flex-wrap gap-3">
-                  {PARTNERS.map((partner, i) => (
-                    <span key={i} className="px-3 py-1.5 bg-zinc-50 text-zinc-700 rounded-full text-sm border border-zinc-200">
-                      {partner}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <a href="#partners" className="px-5 py-2.5 bg-rose-600 text-white font-semibold rounded-xl hover:bg-rose-700 transition">제휴 신청하기</a>
-                  <a href="mailto:partner@jhypelabs.com" className="px-5 py-2.5 border border-zinc-300 text-zinc-700 font-semibold rounded-xl hover:bg-zinc-50 transition">이메일 문의</a>
-                </div>
-              </div>
-            </section>
+
           </main>
 
           {/* ================= FOOTER ================= */}
@@ -1457,6 +1355,7 @@
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[10px] font-medium">{activePartyDetail.category}</span>
                         <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 text-[10px] font-medium">{activePartyDetail.region}</span>
+                        {activePartyDetail.isExample && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">예시</span>}
                       </div>
                       <h3 id="party-detail-title" className="text-lg font-bold text-zinc-900 line-clamp-2">{activePartyDetail.title}</h3>
                     </div>
@@ -1464,6 +1363,8 @@
                       <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
+
+                  {activePartyDetail.isExample && <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">제휴 매장이 확정되면 실제 파티로 열려요.</p>}
 
                   {/* Application Flow */}
                   {applyStep === 'detail' && (
@@ -1499,6 +1400,11 @@
                         <p className="text-sm text-zinc-700 whitespace-pre-line">{activePartyDetail.desc}</p>
                       </div>
 
+                      {activePartyDetail.missionRequirements && <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                        <p className="text-xs text-zinc-600 mb-1">미션 조건</p>
+                        <p className="text-sm text-zinc-800 whitespace-pre-line">{activePartyDetail.missionRequirements}</p>
+                      </div>}
+
                       {/* Recruit Status */}
                       <div className="p-3 rounded-xl bg-white border border-zinc-200">
                         <div className="flex items-center justify-between">
@@ -1514,7 +1420,7 @@
 
                       {/* Action Buttons */}
                       <div className="space-y-2">
-                        <button
+                        {activePartyDetail.isExample ? <button type="button" disabled className="w-full py-3 rounded-xl text-sm font-bold bg-zinc-200 text-zinc-600 cursor-not-allowed min-h-[48px]">신청 오픈 예정</button> : <button
                           onClick={() => setApplyStep('form')}
                           disabled={activePartyDetail.currentRecruit >= activePartyDetail.recruit || hasApplied(activePartyDetail.id)}
                           className={`w-full py-3 rounded-xl text-sm font-bold transition min-h-[48px] ${
@@ -1530,8 +1436,8 @@
                             : hasApplied(activePartyDetail.id)
                               ? "신청 완료"
                               : "파티 신청하기"}
-                        </button>
-                        {currentUser && hasApplied(activePartyDetail.id) && !reviews.some(r => r.userId === currentUser.id && r.venue === activePartyDetail.venue) && (
+                        </button>}
+                        {!activePartyDetail.isExample && currentUser && hasApplied(activePartyDetail.id) && !reviews.some(r => r.userId === currentUser.id && r.venue === activePartyDetail.venue) && (
                           <button
                             onClick={() => openReviewWrite(activePartyDetail)}
                             className="w-full py-3 rounded-xl text-sm font-semibold border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition min-h-[48px]"
@@ -1539,13 +1445,13 @@
                             후기 작성하기
                           </button>
                         )}
-                        <button
+                        {!activePartyDetail.isExample && <button
                           onClick={() => openMap(activePartyDetail)}
                           className="w-full py-3 rounded-xl text-sm font-semibold border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition min-h-[48px] flex items-center justify-center gap-2"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                           카카오맵에서 보기
-                        </button>
+                        </button>}
                       </div>
                     </div>
                   )}
