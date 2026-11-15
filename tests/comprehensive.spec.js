@@ -26,7 +26,7 @@ test.describe('HypeConnect MVP - Comprehensive E2E Tests', () => {
     await expect(page.locator('button:has-text("전체 지역")')).toBeVisible();
     
     // Category filter - "혼술바"
-    await expect(page.locator('button:has-text("혼술바")')).toBeVisible();
+    await expect(page.getByRole('button', { name: '혼술바', exact: true })).toBeVisible();
     
     // Verify party cards exist
     const cards = page.locator('article[role="listitem"]');

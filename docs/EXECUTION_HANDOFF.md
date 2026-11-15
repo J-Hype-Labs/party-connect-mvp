@@ -85,3 +85,7 @@
 - 모바일 Safari 빈 응답 재검사(홈/탐색) 2/2 PASS. 모바일 16개 주요 시나리오 전체의 통과 근거 확보(최초 15 PASS + 실패 시나리오 재검사 PASS).
 - 임시 UI workspace `wks_5770d1dcb4a38bad` 공식 archive 완료(`removedDirectory=true`); stash·브랜치로 복원 가능.
 - 다음 외부 의존 항목은 L-01 운영 문안/보관기간/책임자 및 L-03 사업자 정보다. 그 전까지 법무 문구를 임의 확정하지 않는다.
+- 최終 원격 검토: 초안 PR https://github.com/J-Hype-Labs/party-connect-mvp/pull/38, 구현 커밋 `4221d39`, origin/6Soo 일치 확인.
+- 두 임시 workspace archive 후 활성 목록 제외, 디렉터리 부재 및 `git worktree list`에서 원본 하나만 남은 것을 직접 확인했다. 테스트 workspace archive 응답은 300초 시간 초과였으나 실제 정리는 완료됐다. stash 두 개는 유지한다.
+- GitHub CI 첫 실행 `43736939809`: Validate & Lint PASS, comprehensive 36/39 PASS. 나머지 3개는 카드 제목의 신규 버튼과 기존 `button:has-text("혼술바")` 선택자 충돌로 실패했다. 필터의 정확한 accessible name을 사용하도록 수정했다. 제품 동작·기대 조건을 약화하지 않았다.
+- CI에서 실패한 핵심 화면 검사 단독 로컬 재검사: Chromium/Mobile Chrome/Mobile Safari 3/3 PASS. 후속 커밋으로 CI를 다시 실행한다.
