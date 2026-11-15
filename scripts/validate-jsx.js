@@ -109,7 +109,10 @@ function main() {
     path.join(__dirname, '..', 'js', 'auth-ui.js'),
     path.join(__dirname, '..', 'js', 'party-api.js'),
     path.join(__dirname, '..', 'js', 'party-data.js'),
-    path.join(__dirname, '..', 'js', 'party-showcase.js')
+    path.join(__dirname, '..', 'js', 'party-showcase.js'),
+    path.join(__dirname, '..', 'js', 'party-share.js'),
+    path.join(__dirname, '..', 'js', 'party-date-filter.js'),
+    path.join(__dirname, '..', 'js', 'party-qr.js')
   ];
   
   let allPassed = true;

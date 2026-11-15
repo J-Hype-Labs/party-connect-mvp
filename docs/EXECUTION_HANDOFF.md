@@ -98,3 +98,31 @@
 - 이 문서 갱신은 문서 전용 후속 커밋으로 반영하며, 해당 커밋의 CI 재실행 결과는 PR #38 본문과 최종 보고에 남긴다.
 - 남은 항목: L-01(운영 승인 본문·확정 보관기간·개인정보 보호책임자 성명·연락처), L-03(Q-12 사업자 정보 값). 사용자 지시(2026-11-16)대로 자료 대기 유지, 재질문 없음. 법률 문구를 임의 확정하지 않는다.
 - 다음 행동: 사용자의 PR #38 검토. 운영 DB 변경·운영 배포·main 병합은 실행하지 않는다.
+
+## 2026-11-16 P1 웹 전용 구현 (현 세션, ANUS 병렬 위임 + 감독자 통합)
+
+사용자 지시 "계속 anus free auto에 위임하여 구현"에 따라 Part B P1 중 웹 전용 항목을 Paseo ANUS Free Auto에 병렬 위임하고 감독자가 통합·검증했다. 서버 API가 필요한 S-02 제휴 신청·G-18 탈퇴 화면(Part A 선행)과 운영 DB 기록 위험이 있는 G-14 취소 실서버 검증은 범위에서 제외했다.
+
+| 요구사항 | 현재 상태 | 구현 및 실제 근거 |
+|---|---|---|
+| G-08 파티 공유 링크 | 구현·검증 완료 | `js/party-share.js`(window.PartyShare). 실제 파티 상세에 공유 버튼, `?party=id` 딥링크로 상세 진입 후 URL 정리. 예시 파티는 공유 버튼 없음. 단위 22/22, 통합 6/6(3브라우저) |
+| G-16 방문 QR | 구현·검증 완료 | `js/party-qr.js`(window.PartyQR, qrcode-generator MIT 내장, 네트워크 의존 없음). 마이페이지 승인+방문코드 신청에 emerald QR 렌더. 단위 17/17, 통합 4/4(3브라우저) |
+| G-05 날짜 필터 | 구현·검증 완료 | `js/party-date-filter.js`(window.PartyDateFilter, KST 기준). 전체/이번 주/주말/날짜 지정 칩. 단위 44/44, 통합 2/2(3브라우저) |
+| L-06 반응형 점검 | 구현·검증 완료 | 새 UI(날짜 칩·방문 QR) 320~1440px 가로 넘침 없음. `tests/p1-responsive.spec.js` 8/8(chromium) |
+| L-01 약관 본문 | BLOCKED / 자료 대기 | 운영 승인 본문·확정 보관기간·개인정보 보호책임자 성명·연락처 없음. 재질문 없음 |
+| L-03 사업자 표기 | BLOCKED / 값 제공 대기 | Q-12 대표자·사업자번호·주소 미제공 |
+
+위임·통합 방식:
+- 작업자 3명을 각각 격리 worktree에 배정해 새 파일만 작성하게 했다(공유 HTML 편집 금지). 감독자가 양쪽 HTML 배선·통합을 소유해 이전 세션의 공유 파일 충돌을 피했다.
+  - 공유 `wks_c1decc32ce91ce28`(p1-share-20261116), 날짜 `wks_c1cdf4b96dcd62e5`(p1-datefilter-20261116), QR `wks_c01279ca657a5053`(p1-qr-20261116).
+- 완료 보고를 그대로 신뢰하지 않고 실제 파일·테스트로 검증했다. QR 작업자 중간본에서 디버그 `console.log`와 vm 테스트 멈춤을 발견했으나, 최종본에서 제거됨을 확인한 뒤 통합했다.
+
+검사 기록:
+- `npm run validate:jsx`(신규 3모듈 포함 9개 JS + 양쪽 HTML), `npm run validate:html` PASS.
+- 단위 테스트 메인 실행: 공유 22/22, 날짜 필터 44/44, QR 17/17 PASS.
+- 신규 통합 `tests/p1-share.spec.js`·`p1-date-filter.spec.js`·`p1-qr.spec.js` 36/36 PASS(chromium·mobile-chrome·mobile-safari, workers=1).
+- 신규 반응형 `tests/p1-responsive.spec.js` 8/8 PASS(chromium 320·1440px).
+- 회귀: showcase·mypage-mission·mobile-layout·party-connect-page 65/65, comprehensive·user-journey·app·production-mode·oauth-error·admin 4종 77/77 PASS(chromium workers=1). 합계 142/142.
+- 로컬 6워커 병렬 실행에서 단일 정적 서버 과부하(ECONNREFUSED)로 5건 실패했으나, CI와 동일한 workers=1에서 전부 통과함을 확인했다(코드 결함 아님). CI는 workers=1이다.
+- `tests/helpers/live-fixture.js`에 딥링크용 `search` 옵션을 추가했다(기본 빈 문자열, 기존 호출 동작 불변).
+- 운영 DB 쓰기·운영 배포·main 병합은 실행하지 않았다. 원격 동기화는 기존 승인대로 6Soo에만 반영한다.

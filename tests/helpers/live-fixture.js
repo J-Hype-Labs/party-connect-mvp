@@ -24,10 +24,10 @@ const CORS = {
 
 /**
  * @param {import('@playwright/test').Page} page
- * @param {{ path?: string, parties?: object[], signedIn?: boolean, partiesStatus?: number }} [opts]
+ * @param {{ path?: string, parties?: object[], signedIn?: boolean, partiesStatus?: number, search?: string }} [opts]
  * @returns {Promise<{ calls: {method: string, path: string, body: any}[], applications: object[] }>}
  */
-export async function loadLive(page, { path = '/', parties = [FIXTURE_PARTY], signedIn = true, partiesStatus = 200, applications = [] } = {}) {
+export async function loadLive(page, { path = '/', parties = [FIXTURE_PARTY], signedIn = true, partiesStatus = 200, applications = [], search = '' } = {}) {
   const calls = [];
   const state = { applications: applications.map((a) => ({ ...a })) };
   const session = signedIn
@@ -45,7 +45,7 @@ export async function loadLive(page, { path = '/', parties = [FIXTURE_PARTY], si
     } }; } };`,
   }));
 
-  const pagePattern = '**' + path.replace(/\/$/, '') + '/?live=1';
+  const pagePattern = '**' + path.replace(/\/$/, '') + '/?live=1' + (search ? '*' : '');
   await page.route(pagePattern, async (route) => {
     const res = await route.fetch();
     const original = await res.text();
@@ -92,6 +92,6 @@ export async function loadLive(page, { path = '/', parties = [FIXTURE_PARTY], si
     return json(404, { message: 'unexpected ' + req.method() + ' ' + apiPath });
   });
 
-  await page.goto(path.replace(/\/$/, '') + '/?live=1');
+  await page.goto(path.replace(/\/$/, '') + '/?live=1' + search);
   return { calls, applications: state.applications };
 }

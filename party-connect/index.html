@@ -58,6 +58,9 @@
   <!-- Shared Party Data -->
   <script src="../js/party-data.js"></script>
   <script src="../js/party-showcase.js"></script>
+  <script src="../js/party-share.js"></script>
+  <script src="../js/party-date-filter.js"></script>
+  <script src="../js/party-qr.js"></script>
 
   <!-- Supabase & Auth Modules -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -153,6 +156,16 @@
       const [selectedDay, setSelectedDay] = useState('전체');
       const [selectedCategory, setSelectedCategory] = useState('전체');
       const [searchQuery, setSearchQuery] = useState('');
+
+      // Date filter (G-05): all / this week / weekend / specific date (KST)
+      const [selectedDateMode, setSelectedDateMode] = useState('all');
+      const [selectedDate, setSelectedDate] = useState(() => {
+        if (window.PartyDateFilter) {
+          const parts = window.PartyDateFilter.kstDateParts(new Date().toISOString());
+          return parts ? parts.date : '';
+        }
+        return '';
+      });
       const [searchInput, setSearchInput] = useState('');
       const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
       const [modalSelectedCategory, setModalSelectedCategory] = useState('all');
@@ -181,6 +194,9 @@
 
       const [partiesLoading, setPartiesLoading] = useState(live);
       const [partiesError, setPartiesError] = useState(null);
+      const [pendingDeepLink, setPendingDeepLink] = useState(() =>
+        window.PartyShare ? window.PartyShare.getPartyIdFromSearch(window.location.search) : null
+      );
       const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
       const [isMyPageOpen, setIsMyPageOpen] = useState(false);
       const [notifications, setNotifications] = useState(() => {
@@ -364,6 +380,22 @@
         setApplyError("");
       };
 
+      // Share a real party via a ?party=id deep link. Example parties are not shareable.
+      const handleShareParty = async (party) => {
+        if (!window.PartyShare || !window.PartyShare.isShareable(party)) return;
+        const url = window.PartyShare.buildShareUrl(party, window.location.origin, window.location.pathname);
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: party.title, text: party.title, url });
+            return;
+          } catch (err) {
+            if (err && err.name === 'AbortError') return;
+          }
+        }
+        const ok = await window.PartyShare.copyText(url);
+        showToast(ok ? '파티 링크가 복사되었어요.' : '링크 복사에 실패했어요. 주소창의 링크를 복사해 주세요.');
+      };
+
       // Auth functions
       const handleLogin = async () => {
         setLoginLoading(true);
@@ -478,8 +510,11 @@
 
       // Filter actual and example parties together so search and every filter apply equally.
       const filteredParties = useMemo(() => {
-        return displayParties.filter((party) => {
-          const searchMatch = searchQuery === '' || 
+        const dateFiltered = window.PartyDateFilter
+          ? window.PartyDateFilter.filter(displayParties, selectedDateMode, { date: selectedDate })
+          : displayParties;
+        return dateFiltered.filter((party) => {
+          const searchMatch = searchQuery === '' ||
             party.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             party.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
             party.region.toLowerCase().includes(searchQuery.toLowerCase());
@@ -488,10 +523,22 @@
           const categoryMatch = selectedCategory === '전체' || party.category === selectedCategory;
           return searchMatch && regionMatch && dayMatch && categoryMatch;
         });
-      }, [displayParties, searchQuery, selectedRegion, selectedDay, selectedCategory]);
+      }, [displayParties, searchQuery, selectedRegion, selectedDay, selectedCategory, selectedDateMode, selectedDate]);
 
       const visibleActualCount = filteredParties.filter((party) => !party.isExample).length;
       const visibleExampleCount = filteredParties.filter((party) => party.isExample).length;
+
+      // Open a shared party (?party=id) once the list is ready, then clean the URL.
+      useEffect(() => {
+        if (!pendingDeepLink || partiesLoading || partiesError) return;
+        const target = displayParties.find((party) => String(party.id) === String(pendingDeepLink));
+        if (!target) return;
+        openPartyDetail(target);
+        setPendingDeepLink(null);
+        if (window.history.replaceState) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      }, [pendingDeepLink, displayParties, partiesLoading, partiesError]);
 
       // Check if user has applied
       const hasApplied = (partyId) => {
@@ -742,6 +789,36 @@
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* Date */}
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-500 mb-2 block">날짜</label>
+                    <div className="flex flex-wrap gap-2 no-scrollbar" role="group" aria-label="날짜 필터">
+                      {[{ value: 'all', label: '전체' }, { value: 'week', label: '이번 주' }, { value: 'weekend', label: '주말' }, { value: 'date', label: '날짜 지정' }].map((mode) => (
+                        <button
+                          key={mode.value}
+                          onClick={() => setSelectedDateMode(mode.value)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                            selectedDateMode === mode.value
+                              ? 'bg-rose-600 text-white shadow-sm'
+                              : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
+                          }`}
+                          aria-pressed={selectedDateMode === mode.value}
+                        >
+                          {mode.label}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedDateMode === 'date' && (
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="mt-2 w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-sm font-medium text-zinc-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                        aria-label="필터 날짜 지정"
+                      />
+                    )}
                   </div>
 
                   {/* Region */}
@@ -1151,6 +1228,14 @@
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                           카카오맵에서 보기
                         </button>
+                        {window.PartyShare && <button
+                          onClick={() => handleShareParty(activePartyDetail)}
+                          className="w-full py-3 rounded-xl text-sm font-semibold border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition min-h-[48px] flex items-center justify-center gap-2"
+                          aria-label="파티 공유하기"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                          공유하기
+                        </button>}
                         </>}
                       </div>
                     </div>
@@ -1365,7 +1450,20 @@
                                 <button onClick={() => handleMyApplicationCancel(app)} className="mt-2 w-full py-2 text-sm font-medium text-rose-600 hover:text-rose-700 transition">신청 취소</button>
                               )}
                               {app.status === 'APPROVED' && app.visitCode && (
-                                <div className="mt-2 p-2 bg-emerald-50 rounded-lg text-sm text-emerald-700">방문 인증 코드: <span className="font-mono font-bold">{app.visitCode}</span></div>
+                                <div className="mt-2 p-3 bg-emerald-50 rounded-lg text-sm text-emerald-700">
+                                  <div>방문 인증 코드: <span className="font-mono font-bold">{app.visitCode}</span></div>
+                                  {window.PartyQR && (
+                                    <div className="mt-2 flex flex-col items-center gap-1">
+                                      <div
+                                        className="bg-white p-2 rounded-lg border border-emerald-100"
+                                        dangerouslySetInnerHTML={{ __html: window.PartyQR.toSVG(app.visitCode, { size: 140, margin: 2 }) }}
+                                        role="img"
+                                        aria-label={`방문 인증 QR 코드 ${app.visitCode}`}
+                                      />
+                                      <span className="text-[11px] text-emerald-600">현장에서 이 QR을 보여주세요</span>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                               <ApplicationExtras application={app} onChanged={handleMissionSubmitted} />
                             </div>
