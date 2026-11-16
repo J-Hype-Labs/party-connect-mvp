@@ -10,6 +10,38 @@
   const api = window.ADMIN_API;
   const ui = function () { return window.ADMIN_UI; };
 
+  // party-connect/index.html REGIONS 와 동일하게 유지
+  // REGION_CATEGORIES의 subRegions에서 '전체' 제외, 평탄화
+  const REGION_OPTIONS = [
+    ['강남/서초', '강남/서초'],
+    ['교대/사당', '교대/사당'],
+    ['홍대/마포', '홍대/마포'],
+    ['용산/이태원', '용산/이태원'],
+    ['명동/을지로', '명동/을지로'],
+    ['잠실/송파', '잠실/송파'],
+    ['강북/성북', '강북/성북'],
+    ['마포/상암', '마포/상암'],
+    ['여의도/영등포', '여의도/영등포'],
+    ['강서/목동', '강서/목동'],
+    ['건대/성수/왕십리', '건대/성수/왕십리'],
+    ['강동/천호', '강동/천호'],
+    ['종로/광화문', '종로/광화문'],
+    ['신촌/이대', '신촌/이대'],
+    ['압구정/청담', '압구정/청담'],
+    ['관악/신림', '관악/신림'],
+    ['노원/도봉', '노원/도봉'],
+    ['일산/파주', '일산/파주'],
+    ['인천/부천', '인천/부천'],
+    ['수원/성남', '수원/성남'],
+    ['안양/군포', '안양/군포'],
+    ['하남/광주', '하남/광주'],
+    ['대전/충청', '대전/충청'],
+    ['대구/경북', '대구/경북'],
+    ['부산/경남', '부산/경남'],
+    ['광주/전라', '광주/전라'],
+    ['제주', '제주']
+  ];
+
   // ---------------------------------------------------------------- 공통 유틸
   function toKstLocal(iso) {
     if (!iso) return '';
@@ -110,6 +142,7 @@
         p.isFeatured ? kv('추천', '추천 파티') : null),
       h('div', { class: 'actions' },
         h('button', { class: 'btn small', type: 'button', disabled: busy, 'data-action': 'edit', onclick: function () { partyForm(p); }, text: '수정' }),
+        h('button', { class: 'btn small', type: 'button', disabled: busy, 'data-action': 'duplicate', onclick: function () { partyForm(p, true); }, text: '복제' }),
         flow));
   }
 
@@ -134,35 +167,46 @@
     });
   }
 
-  function partyForm(p) {
+  function partyForm(p, isDuplicate) {
     const U = ui(), h = U.h;
-    const isNew = !p;
+    const isNew = !p || !!isDuplicate;
     const f = {};
+    // 복제는 원본 점포를 미리 선택하고, 새 등록은 빈 값으로 시작한다.
     f.store = select('pf-store', [['', '점포 선택']].concat(pv.stores.filter(function (s) { return s.isActive; }).map(function (s) { return [s.id, s.name]; })), p ? p.storeId : '');
     f.store.required = true;
-    f.title = input('pf-title', 'text', p && p.title, { maxlength: '100', required: true });
-    f.benefit = input('pf-benefit', 'text', p && p.benefit, { maxlength: '500', required: true });
-    f.description = h('textarea', { id: 'pf-description', rows: '3', maxlength: '2000', text: p && p.description || '' });
-    f.category = select('pf-category', [['', '선택 안 함']].concat(CATEGORIES.map(function (c) { return [c, c]; })), p && p.category || '');
-    f.startsAt = input('pf-starts', 'datetime-local', toKstLocal(p && p.startsAt), { required: true });
-    f.endsAt = input('pf-ends', 'datetime-local', toKstLocal(p && p.endsAt), { required: true });
-    f.deadline = input('pf-deadline', 'datetime-local', toKstLocal(p && p.recruitDeadline), { required: true });
-    f.capacity = input('pf-capacity', 'number', p && p.capacity, { min: '1', max: '1000', required: true });
-    f.fee = input('pf-fee', 'number', p && p.feePerGuest, { min: '0', max: '10000000' });
-    f.featured = h('input', { id: 'pf-featured', type: 'checkbox', checked: !!(p && p.isFeatured) });
+    const src = p || {};
+    f.title = input('pf-title', 'text', src.title, { maxlength: '100', required: true });
+    f.benefit = input('pf-benefit', 'text', src.benefit, { maxlength: '500', required: true });
+    f.description = h('textarea', { id: 'pf-description', rows: '3', maxlength: '2000', text: src.description || '' });
+    f.category = select('pf-category', [['', '선택 안 함']].concat(CATEGORIES.map(function (c) { return [c, c]; })), src.category || '');
+    f.startsAt = input('pf-starts', 'datetime-local', isNew ? '' : toKstLocal(src.startsAt), { required: true });
+    f.endsAt = input('pf-ends', 'datetime-local', isNew ? '' : toKstLocal(src.endsAt), { required: true });
+    f.deadline = input('pf-deadline', 'datetime-local', isNew ? '' : toKstLocal(src.recruitDeadline), { required: true });
+    f.capacity = input('pf-capacity', 'number', src.capacity, { min: '1', max: '1000', required: true });
+    f.fee = input('pf-fee', 'number', src.feePerGuest, { min: '0', max: '10000000' });
+    f.featured = h('input', { id: 'pf-featured', type: 'checkbox', checked: !!src.isFeatured });
+    f.image = input('pf-image', 'url', src.images && src.images[0] || '', { placeholder: 'https://...' });
+    f.badges = input('pf-badges', 'text', src.badges && src.badges.join(', ') || '', { placeholder: '예: 신규, 인기, 한정' });
+    // missionRequirements는 문자열만 유효(party-api.js 정규화와 동일). 객체 등을 그대로 넣으면 '[object Object]'가 저장돼 데이터가 오염된다.
+    const missionText = typeof src.missionRequirements === 'string' ? src.missionRequirements : '';
+    f.mission = h('textarea', { id: 'pf-mission', rows: '3', maxlength: '1000', text: missionText || (isNew ? '체험단으로 혜택을 제공받아 작성했습니다. (협찬 표시)' : '') });
     f.status = select('pf-status', [['DRAFT', '작성 중 (비공개)'], ['OPEN', '바로 공개']], 'DRAFT');
 
+    const isEdit = p && !isDuplicate;
     const body = h('div', { class: 'form' },
-      isNew ? field('점포', f.store) : h('p', { text: '점포: ' + (p.storeName || '-') }),
+      isEdit ? h('p', { text: '점포: ' + (p.storeName || '-') }) : field('점포', f.store),
       field('제목', f.title), field('혜택', f.benefit, '게스트에게 보이는 혜택 문구'),
       field('설명 (선택)', f.description), field('카테고리', f.category),
       field('시작 (한국 시간)', f.startsAt), field('종료 (한국 시간)', f.endsAt), field('모집 마감 (한국 시간)', f.deadline),
       field('정원', f.capacity),
       field('인당 수수료 (원)', f.fee, isNew ? '비우면 점포 기본 수수료가 적용됩니다.' : '이미 선정된 신청에는 영향이 없습니다.'),
       h('label', { class: 'field check' }, f.featured, h('span', { text: '추천 파티로 표시' })),
+      field('이미지 URL (선택)', f.image, '비우면 이미지 없음. 첫 번째 이미지만 사용합니다.'),
+      field('배지 (선택)', f.badges, '쉼표로 구분. 예: 신규, 인기, 한정'),
+      field('미션 조건 (선택)', f.mission, '게스트가 따라야 할 미션/협찬 표시 문구'),
       isNew ? field('등록 상태', f.status) : null);
 
-    U.dialog(isNew ? '새 파티 등록' : '파티 수정', body, isNew ? '등록' : '저장', false, async function () {
+    U.dialog(isNew ? '파티 복제' : isEdit ? '파티 수정' : '새 파티 등록', body, isNew ? '등록' : '저장', false, async function () {
       const starts = fromKstLocal(f.startsAt.value), ends = fromKstLocal(f.endsAt.value), deadline = fromKstLocal(f.deadline.value);
       const cap = intOrNull(f.capacity.value), fee = intOrNull(f.fee.value);
       if (isNew && !f.store.value) return '점포를 선택해 주세요.';
@@ -179,6 +223,12 @@
         isFeatured: f.featured.checked,
       };
       if (fee !== null) payload.feePerGuest = fee;
+      const img = f.image.value.trim();
+      if (img) payload.images = [img];
+      const badges = f.badges.value.trim();
+      if (badges) payload.badges = badges.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+      const mission = f.mission.value.trim();
+      if (mission) payload.missionRequirements = mission;
       try {
         if (isNew) {
           payload.storeId = f.store.value; payload.status = f.status.value;
@@ -187,7 +237,7 @@
           await api.updateParty(p.id, payload);
         }
       } catch (e) { return e.message || '저장하지 못했습니다.'; }
-      U.toast(isNew ? '파티를 등록했습니다.' : '저장했습니다.', 'ok');
+      U.toast(isNew ? (isDuplicate ? '파티를 복제했습니다.' : '파티를 등록했습니다.') : '저장했습니다.', 'ok');
       openParties();
       return '';
     });
@@ -328,7 +378,15 @@
       brn: input('sf-brn', 'text', '', { maxlength: '12', required: true, placeholder: '123-45-67890' }),
       address: input('sf-address', 'text', '', { maxlength: '200', required: isNew }),
       detail: input('sf-detail', 'text', '', { maxlength: '200' }),
-      region: input('sf-region', 'text', s && s.region, { maxlength: '50', placeholder: '예: 강남' }),
+      region: (function () {
+        const current = s && s.region ? String(s.region).trim() : '';
+        const opts = REGION_OPTIONS.slice();
+        if (current && !REGION_OPTIONS.some(function (o) { return o[0] === current; })) {
+          opts.unshift([current, current + ' (레거시)']);
+        }
+        opts.unshift(['', '지역 선택']);
+        return select('sf-region', opts, current);
+      })(),
       insta: input('sf-insta', 'text', '', { maxlength: '50' }),
       fee: input('sf-fee', 'number', s && s.defaultFeePerGuest, { min: '0', max: '10000000' }),
     };
