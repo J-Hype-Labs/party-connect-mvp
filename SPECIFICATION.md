@@ -174,6 +174,7 @@ API 계약 원본은 `partylink/docs/party-connect-integration.md`다. 요약:
 
 ### Part B(6Soo) 브랜치 운영 규칙
 
+- **개발 단계 병합 정책(2026-11-16 사용자 승인 "모두 승인")**: 홈페이지는 운영 중이 아닌 개발 단계이므로, 검증(CI 통과) 후에는 언제나 main으로 병합한다. 초안 PR도 CI 통과 확인 후 병합하며, 병합 후 아래 규칙대로 6Soo에 main을 합쳐 이어 간다. (운영 DB 쓰기·운영 배포·시크릿 변경은 여전히 Jacob 명시 승인 필요.)
 - Part B(6Soo)는 앞으로 `6Soo` 브랜치 하나에서 계속 개발한다. 작업별 `b/…` 브랜치는 만들지 않는다.
 - 작업 시작 전 `git fetch` 후 `git switch 6Soo; git merge origin/main`으로 동기화한다(공유 브랜치 rebase 금지).
 - PR은 `6Soo` → `main`으로 올린다. 병합 시 브랜치 삭제 옵션을 쓰지 않는다(`gh pr merge --squash`에 `--delete-branch` 금지).
@@ -196,6 +197,7 @@ API 계약 원본은 `partylink/docs/party-connect-integration.md`다. 요약:
 > 검증: `validate:jsx/html` 통과, Playwright E2E(chromium 회귀 55 passed)
 
 - 카카오 개발자 콘솔 앱 이름이 아직 PartyLink로 표시된다(2026-11-14 확인). HypeConnect로 변경 필요(사용자 담당).
+- 2026-11-16 갱신: F0-1~6(쇼케이스·관리자 카탈로그), P1 웹(G-05 날짜 필터·G-08 공유·G-16 방문 QR), P2 관리자 신청(M-04 일괄 선정·M-11 연락처/문구 복사·M-13 잔액 경고)·접근성(L-06)·프로필(G-17) 구현·검증 완료. 기능별 상태는 `docs/FEATURE_SPEC.md`, 통합 기록은 `docs/EXECUTION_HANDOFF.md`.
 
 ### Part B 작업 목록
 
