@@ -30,7 +30,7 @@ test.describe('HypeConnect user journey regression', () => {
     await expect(dialog).toContainText('주소');
     expect(cardText.trim()).not.toBe('');
 
-    await dialog.getByRole('button', { name: '상세 닫기' }).click();
+    await dialog.getByRole('button', { name: '파티 상세 모달 닫기' }).click();
     await expect(dialog).toBeHidden();
 
     await opener.press('Enter');

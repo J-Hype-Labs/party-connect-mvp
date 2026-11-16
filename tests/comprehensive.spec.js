@@ -86,7 +86,7 @@ test.describe('HypeConnect MVP - Comprehensive E2E Tests', () => {
     await expect(modalApplyBtn).toBeVisible({ timeout: 5000 });
     
     // Verify modal can be closed with close button (X button in top right)
-    const closeBtn = page.locator('button[aria-label="상세 닫기"]');
+    const closeBtn = page.locator('button[aria-label="파티 상세 모달 닫기"]');
     await closeBtn.waitFor({ state: 'visible', timeout: 5000 });
     await closeBtn.click({ delay: 100 });
     await expect(modal).toBeHidden({ timeout: 5000 });
@@ -317,7 +317,7 @@ test.describe('HypeConnect MVP - Comprehensive E2E Tests', () => {
     await expect(modalApplyBtn).toBeVisible({ timeout: 5000 });
     
     // Close modal using correct close button
-    const closeBtn = page.locator('button[aria-label="상세 닫기"]');
+    const closeBtn = page.locator('button[aria-label="파티 상세 모달 닫기"]');
     await closeBtn.waitFor({ state: 'visible', timeout: 5000 });
     await closeBtn.click({ delay: 100 });
     await expect(modal).toBeHidden({ timeout: 5000 });

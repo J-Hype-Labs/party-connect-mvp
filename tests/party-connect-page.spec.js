@@ -56,7 +56,7 @@ test.describe('HypeConnect Page - Dedicated Party Discovery', () => {
     await expect(applyBtn).toBeVisible({ timeout: 5000 });
     
     // Close modal with close button (in the modal) - no force
-    await modal.locator('button[aria-label="닫기"]').click();
+    await modal.locator('button[aria-label="파티 상세 모달 닫기"]').click();
     await expect(modal).toBeHidden({ timeout: 5000 });
   });
 

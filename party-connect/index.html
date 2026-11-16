@@ -92,6 +92,51 @@
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* ===== L-06: Touch targets ≥ 44×44px ===== */
+    button, [role="button"], input[type="checkbox"], input[type="radio"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    /* Filter chips: ensure 44px touch target */
+    .filter-chip, button[aria-pressed] {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+    /* Icon buttons: ensure 44×44 hit area */
+    .icon-btn {
+      min-height: 44px;
+      min-width: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem;
+    }
+    /* Radio/checkbox labels in form: expand touch area */
+    .radio-label, .checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-height: 44px;
+      padding: 0.5rem 0;
+    }
+    /* Modal focus trap helper */
+    .modal-content:focus-within {
+      outline: none;
+    }
+    /* Prevent horizontal overflow on filter containers */
+    .filter-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .filter-container::-webkit-scrollbar { display: none; }
+    /* Ensure no color-only state: add text/pattern indicators */
+    .status-badge { display: inline-flex; align-items: center; gap: 0.25rem; }
   </style>
 </head>
 <body class="bg-zinc-50 text-zinc-900 antialiased min-h-screen flex flex-col">
@@ -149,6 +194,24 @@
 
     const DAYS = ["전체", "월", "화", "수", "목", "금", "토", "일"];
     const CATEGORIES = ["전체", "혼술바", "소개팅", "소셜파티"];
+
+    // L-06: 모달 열림 시 포커스를 모달 내부로 이동하고, 닫힘 시 트리거로 복귀한다.
+    function useModalFocus(isOpen, selector) {
+      const triggerRef = React.useRef(null);
+      useEffect(() => {
+        if (!isOpen) return;
+        triggerRef.current = document.activeElement;
+        const modal = document.querySelector(selector);
+        if (modal) {
+          const target = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+          if (target) target.focus();
+        }
+        return () => {
+          const t = triggerRef.current;
+          if (t && typeof t.focus === 'function') t.focus();
+        };
+      }, [isOpen, selector]);
+    }
 
     // ===== MAIN APP COMPONENT =====
     function PartyConnectApp() {
@@ -226,6 +289,48 @@
         mq.addEventListener('change', handler);
         return () => mq.removeEventListener('change', handler);
       }, []);
+
+      // Form ref for focus management
+      const formRef = React.useRef(null);
+
+      // Profile storage key
+      const PROFILE_STORAGE_KEY = 'partyconnect:profile';
+
+      // Load saved profile on form open
+      const loadSavedProfile = React.useCallback(() => {
+        try {
+          const saved = localStorage.getItem(PROFILE_STORAGE_KEY);
+          if (saved) {
+            const profile = JSON.parse(saved);
+            if (profile.name || profile.phone) {
+              setApplyForm(prev => ({
+                ...prev,
+                name: profile.name || '',
+                phone: profile.phone || '',
+              }));
+            }
+          }
+        } catch (e) {}
+      }, []);
+
+      // Save profile on submit
+      const saveProfile = React.useCallback((name, phone) => {
+        try {
+          localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify({ name, phone, savedAt: new Date().toISOString() }));
+        } catch (e) {}
+      }, []);
+
+      // Load profile when form opens
+      React.useEffect(() => {
+        if (applyStep === 'form') {
+          loadSavedProfile();
+          // Focus first input
+          setTimeout(() => {
+            const nameInput = document.getElementById('apply-name');
+            if (nameInput) nameInput.focus();
+          }, 0);
+        }
+      }, [applyStep, loadSavedProfile]);
 
       // Subscribe to auth state changes
       useEffect(() => {
@@ -311,6 +416,12 @@
           } catch (e) {}
         }
       }, [applications, live]);
+
+      // L-06: 모달 포커스 이동·복귀 (열림 시 모달 내부 첫 컨트롤, 닫힘 시 트리거)
+      useModalFocus(isRegionModalOpen, '[role="dialog"][aria-label="지역 선택"]');
+      useModalFocus(Boolean(activePartyDetail), '[role="dialog"][aria-labelledby="party-detail-title"]');
+      useModalFocus(isNotificationOpen, '[role="dialog"][aria-labelledby="notification-title"]');
+      useModalFocus(isMyPageOpen, '[role="dialog"][aria-label="마이페이지"]');
 
       // Close modals on ESC
       useEffect(() => {
@@ -589,6 +700,7 @@
             }
             setApplyStep('done');
             showToast("신청이 접수되었습니다!");
+            saveProfile(name, phone);
           } else {
             const application = {
               id: activePartyDetail.id + "-" + Date.now(),
@@ -604,6 +716,7 @@
             setApplications((prev) => [application, ...prev]);
             setApplyStep('done');
             showToast('신청이 접수되었습니다! (데모 모드)');
+            saveProfile(name, phone);
           }
           addNotification({
             type: 'apply',
@@ -643,7 +756,7 @@
                   {/* Notification Bell */}
                   <button 
                     onClick={() => setIsNotificationOpen(true)}
-                    className="relative p-2 rounded-full hover:bg-zinc-100 transition text-zinc-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                    className="icon-btn relative p-2 rounded-full hover:bg-zinc-100 transition text-zinc-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
                     aria-label={`알림${unreadCount > 0 ? `, ${unreadCount}개 읽지 않음` : ''}`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -742,7 +855,7 @@
                     placeholder="파티명, 장소, 지역으로 검색"
                     value={searchInput}
                     onChange={(e) => { setSearchInput(e.target.value); setSearchQuery(e.target.value); }}
-                    className="w-full pl-10 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent min-h-[44px]"
                     aria-label="파티 검색"
                   />
                 </div>
@@ -752,12 +865,12 @@
                   {/* Category */}
                   <div>
                     <label className="text-xs font-semibold text-zinc-500 mb-2 block">카테고리</label>
-                    <div className="flex flex-wrap gap-2 no-scrollbar" role="group" aria-label="카테고리 필터">
+                    <div className="flex flex-wrap gap-2 filter-container" role="group" aria-label="카테고리 필터">
                       {CATEGORIES.map((cat) => (
                         <button
                           key={cat}
                           onClick={() => setSelectedCategory(cat)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition filter-chip ${
                             selectedCategory === cat
                               ? 'bg-rose-600 text-white shadow-sm'
                               : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
@@ -773,12 +886,12 @@
                   {/* Day */}
                   <div>
                     <label className="text-xs font-semibold text-zinc-500 mb-2 block">요일</label>
-                    <div className="flex flex-wrap gap-2 no-scrollbar" role="group" aria-label="요일 필터">
+                    <div className="flex flex-wrap gap-2 filter-container" role="group" aria-label="요일 필터">
                       {DAYS.map((day) => (
                         <button
                           key={day}
                           onClick={() => setSelectedDay(day)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition min-w-[44px] ${
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition filter-chip min-w-[44px] ${
                             selectedDay === day
                               ? 'bg-rose-600 text-white shadow-sm'
                               : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
@@ -794,12 +907,12 @@
                   {/* Date */}
                   <div>
                     <label className="text-xs font-semibold text-zinc-500 mb-2 block">날짜</label>
-                    <div className="flex flex-wrap gap-2 no-scrollbar" role="group" aria-label="날짜 필터">
+                    <div className="flex flex-wrap gap-2 filter-container" role="group" aria-label="날짜 필터">
                       {[{ value: 'all', label: '전체' }, { value: 'week', label: '이번 주' }, { value: 'weekend', label: '주말' }, { value: 'date', label: '날짜 지정' }].map((mode) => (
                         <button
                           key={mode.value}
                           onClick={() => setSelectedDateMode(mode.value)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition filter-chip ${
                             selectedDateMode === mode.value
                               ? 'bg-rose-600 text-white shadow-sm'
                               : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
@@ -815,7 +928,7 @@
                         type="date"
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
-                        className="mt-2 w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-sm font-medium text-zinc-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                        className="mt-2 w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-sm font-medium text-zinc-900 focus:outline-none focus:ring-2 focus:ring-rose-500 min-h-[44px]"
                         aria-label="필터 날짜 지정"
                       />
                     )}
@@ -826,7 +939,7 @@
                     <label className="text-xs font-semibold text-zinc-500 mb-2 block">지역</label>
                     <button
                       onClick={() => setIsRegionModalOpen(true)}
-                      className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-left text-sm font-medium text-zinc-900 hover:bg-zinc-50 transition flex items-center justify-between"
+                      className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-left text-sm font-medium text-zinc-900 hover:bg-zinc-50 transition flex items-center justify-between min-h-[44px]"
                     >
                       <span>{selectedRegion}</span>
                       <svg className="w-4 h-4 text-zinc-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -956,7 +1069,7 @@
                         {/* Wishlist */}
                         {!party.isExample && <button
                           onClick={(e) => toggleWishlist(e, party.id)}
-                          className="absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-zinc-100 transition"
+                          className="icon-btn absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-zinc-100 transition"
                           aria-label={wishlist.has(party.id) ? "관심 파티에서 제거" : "관심 파티에 추가"}
                         >
                           <svg className={`w-5 h-5 ${wishlist.has(party.id) ? 'text-rose-600 fill-current' : 'text-zinc-500'}`} fill={wishlist.has(party.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -975,11 +1088,9 @@
 
                         {/* Title */}
                         <h3 className="font-bold text-zinc-900 text-base line-clamp-2 mb-2 group-hover:text-rose-600 transition">
-                          {party.isExample ? (
-                            <button type="button" onClick={() => openPartyDetail(party)} className="text-left focus:outline-none focus:ring-2 focus:ring-rose-500 rounded" aria-label={party.title}>
-                              {party.title}
-                            </button>
-                          ) : party.title}
+                          <button type="button" onClick={() => openPartyDetail(party)} className="text-left focus:outline-none focus:ring-2 focus:ring-rose-500 rounded" aria-label={party.title}>
+                            {party.title}
+                          </button>
                         </h3>
 
                         {/* Description */}
@@ -1050,20 +1161,20 @@
           {/* Region Modal */}
           {isRegionModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="지역 선택" onClick={() => setIsRegionModalOpen(false)}>
-              <div className="relative w-full max-w-md max-h-[80vh] bg-white rounded-2xl shadow-2xl flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-md max-h-[80vh] bg-white rounded-2xl shadow-2xl flex flex-col animate-slide-up modal-content" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b border-zinc-100">
                   <h3 className="text-base font-bold text-zinc-900">지역 선택</h3>
-                  <button onClick={() => setIsRegionModalOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기">
+                  <button onClick={() => setIsRegionModalOpen(false)} className="icon-btn rounded-full hover:bg-zinc-100 transition" aria-label="지역 선택 모달 닫기">
                     <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
-                  <div className="flex gap-2 border-b border-zinc-100 pb-3 mb-4 no-scrollbar" role="tablist">
+                  <div className="flex gap-2 border-b border-zinc-100 pb-3 mb-4 no-scrollbar filter-container" role="tablist">
                     {REGION_CATEGORIES.map((cat) => (
                       <button
                         key={cat.id}
                         onClick={() => setModalSelectedCategory(cat.id)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap ${
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap filter-chip ${
                           modalSelectedCategory === cat.id
                             ? 'bg-rose-600 text-white'
                             : 'text-zinc-700 hover:bg-zinc-100'
@@ -1080,7 +1191,7 @@
                       <button
                         key={sub}
                         onClick={() => { setSelectedRegion(sub); setIsRegionModalOpen(false); }}
-                        className={`w-full px-4 py-2 rounded-xl text-left text-sm font-medium transition ${
+                        className={`w-full px-4 py-2.5 rounded-xl text-left text-sm font-medium transition min-h-[44px] ${
                           selectedRegion === sub
                             ? 'bg-rose-50 text-rose-600'
                             : 'text-zinc-700 hover:bg-zinc-50'
@@ -1098,7 +1209,7 @@
           {/* Party Detail Modal */}
           {activePartyDetail && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="party-detail-title" onClick={closePartyDetail}>
-              <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up modal-content" onClick={e => e.stopPropagation()}>
                 {/* Image Gallery */}
                 <div className="relative aspect-[16/9] bg-zinc-100">
                   <img
@@ -1109,10 +1220,10 @@
                   />
                   {activePartyDetail.images.length > 1 && (
                     <>
-                      <button onClick={() => setSelectedDetailImage((prev) => (prev - 1 + activePartyDetail.images.length) % activePartyDetail.images.length)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 shadow-lg hover:bg-white transition" aria-label="이전 이미지">
+                      <button onClick={() => setSelectedDetailImage((prev) => (prev - 1 + activePartyDetail.images.length) % activePartyDetail.images.length)} className="icon-btn absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 shadow-lg hover:bg-white transition" aria-label="이전 이미지">
                         <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                       </button>
-                      <button onClick={() => setSelectedDetailImage((prev) => (prev + 1) % activePartyDetail.images.length)} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 shadow-lg hover:bg-white transition" aria-label="다음 이미지">
+                      <button onClick={() => setSelectedDetailImage((prev) => (prev + 1) % activePartyDetail.images.length)} className="icon-btn absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 shadow-lg hover:bg-white transition" aria-label="다음 이미지">
                         <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                       </button>
                       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
@@ -1135,7 +1246,7 @@
                       </div>
                       <h3 id="party-detail-title" className="text-lg font-bold text-zinc-900 line-clamp-2">{activePartyDetail.title}</h3>
                     </div>
-                    <button onClick={closePartyDetail} className="p-2 rounded-full hover:bg-zinc-100 transition flex-shrink-0" aria-label="닫기">
+                    <button onClick={closePartyDetail} className="icon-btn p-2 rounded-full hover:bg-zinc-100 transition flex-shrink-0" aria-label="파티 상세 모달 닫기">
                       <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
@@ -1243,7 +1354,7 @@
 
                   {/* Application Form */}
                   {applyStep === 'form' && (
-                    <form onSubmit={submitApplication} className="space-y-4">
+                    <form onSubmit={submitApplication} className="space-y-4" ref={formRef}>
                       <h3 className="text-lg font-bold text-zinc-900">파티 신청</h3>
                       <p className="text-sm text-zinc-500">{activePartyDetail.title}</p>
                       
@@ -1261,7 +1372,7 @@
                           value={applyForm.name}
                           onChange={(e) => setApplyForm({...applyForm, name: e.target.value})}
                           placeholder="이름을 입력해 주세요"
-                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent min-h-[44px]"
                           autoComplete="name"
                           required
                         />
@@ -1275,7 +1386,7 @@
                           value={applyForm.phone}
                           onChange={(e) => setApplyForm({...applyForm, phone: e.target.value})}
                           placeholder="010-0000-0000"
-                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent min-h-[44px]"
                           autoComplete="tel"
                           required
                         />
@@ -1285,7 +1396,7 @@
                         <label className="block text-sm font-medium text-zinc-700 mb-1">참여 일정 <span className="text-rose-600">*</span></label>
                         <div className="flex flex-wrap gap-2">
                           {activePartyDetail.days.map((day) => (
-                            <label key={day} className="flex items-center gap-2 cursor-pointer">
+                            <label key={day} className="radio-label flex items-center gap-2 cursor-pointer">
                               <input
                                 type="radio"
                                 name="apply-day"
@@ -1300,7 +1411,7 @@
                         </div>
                       </div>
 
-                      <label className="flex items-start gap-3 cursor-pointer">
+                      <label className="checkbox-label flex items-start gap-3 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={applyForm.agree}
@@ -1360,14 +1471,14 @@
           {/* Notification Center */}
           {isNotificationOpen && (
             <div className="fixed inset-0 z-[60] flex items-start justify-end bg-black/60 p-4 backdrop-blur-sm animate-fade-in" onClick={() => setIsNotificationOpen(false)}>
-              <div role="dialog" aria-modal="true" aria-labelledby="notification-title" onClick={e => e.stopPropagation()} className="animate-slide-up relative w-full max-w-md max-h-[80vh] rounded-2xl bg-white shadow-2xl flex flex-col">
+              <div role="dialog" aria-modal="true" aria-labelledby="notification-title" onClick={e => e.stopPropagation()} className="animate-slide-up relative w-full max-w-md max-h-[80vh] rounded-2xl bg-white shadow-2xl flex flex-col modal-content">
                 <div className="flex items-center justify-between border-b border-zinc-100 p-4">
                   <h3 id="notification-title" className="text-base font-bold text-zinc-900">알림</h3>
                   <div className="flex items-center gap-2">
                     {unreadCount > 0 && (
                       <button onClick={markAllAsRead} className="text-xs font-semibold text-rose-600 hover:underline">전체 읽음</button>
                     )}
-                    <button onClick={() => setIsNotificationOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기">
+                    <button onClick={() => setIsNotificationOpen(false)} className="icon-btn p-2 rounded-full hover:bg-zinc-100 transition" aria-label="알림 센터 닫기">
                       <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
@@ -1389,7 +1500,7 @@
                               <p className="text-sm text-zinc-600 mt-0.5">{notif.message}</p>
                               <p className="text-xs text-zinc-400 mt-1">{new Date(notif.createdAt).toLocaleString('ko-KR')}</p>
                             </div>
-                            <button onClick={() => { markAsRead(notif.id); deleteNotification(notif.id); }} className="p-1 text-zinc-400 hover:text-zinc-600" aria-label="알림 삭제">
+                            <button onClick={() => { markAsRead(notif.id); deleteNotification(notif.id); }} className="icon-btn p-1 text-zinc-400 hover:text-zinc-600" aria-label="알림 삭제">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                           </div>
@@ -1405,10 +1516,10 @@
           {/* My Page Modal */}
           {isMyPageOpen && currentUser && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="마이페이지" onClick={() => setIsMyPageOpen(false)}>
-              <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col animate-slide-up modal-content" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b border-zinc-200">
                   <h2 className="text-lg font-bold text-zinc-900">마이페이지</h2>
-                  <button onClick={() => setIsMyPageOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기"><svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                  <button onClick={() => setIsMyPageOpen(false)} className="icon-btn p-2 rounded-full hover:bg-zinc-100 transition" aria-label="마이페이지 모달 닫기"><svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </div>
                 <div className="p-4 border-b border-zinc-200">
                   <div className="flex items-center gap-3">
