@@ -183,14 +183,22 @@
   }
 
   // ---------------------------------------------------------------- 신청 관리 (A3)
-  const view = { status: '', slotId: '', parties: [], items: [], busy: {}, loaded: false, failed: '' };
+  const view = { status: '', slotId: '', parties: [], items: [], busy: {}, loaded: false, failed: '', stores: [], selectedIds: new Set() };
 
   async function openApplications() {
     view.loaded = false;
+    view.selectedIds.clear();
     renderApplications();
     try {
-      const [parties, items] = await Promise.all([api.parties(), api.applications(filters())]);
-      view.parties = parties; view.items = items; view.failed = '';
+      const [parties, items, stores] = await Promise.all([
+        api.parties(),
+        api.applications(filters()),
+        api.stores().catch(function () { return []; })
+      ]);
+      view.parties = parties;
+      view.items = items;
+      view.stores = stores || [];
+      view.failed = '';
     } catch (e) {
       view.failed = e.message || '목록을 불러오지 못했습니다.';
     }
@@ -199,6 +207,92 @@
   }
 
   function filters() { return { status: view.status, slotId: view.slotId }; }
+
+  // 클립보드 복사 유틸 (navigator.clipboard 우선, 폴백으로 textarea+execCommand)
+  async function copyToClipboard(text) {
+    if (!text) return false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) { /* 폴백으로 진행 */ }
+    // 폴백: 보이지 않는 textarea 사용
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'absolute';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // 일괄 선정 실행
+  async function bulkApproveSelected() {
+    const ids = Array.from(view.selectedIds);
+    if (ids.length === 0) return;
+    const dlg = dialog('일괄 선정', h('p', { text: '선택한 ' + ids.length + '건을 선정하시겠습니까? 실패한 건은 건너뛰고 계속 진행합니다.' }), '선정', false, async function () {
+      let okCount = 0, failCount = 0;
+      for (const id of ids) {
+        try {
+          await api.approve(id);
+          okCount++;
+        } catch (e) {
+          failCount++;
+          console.error('bulk approve failed for', id, e);
+        }
+      }
+      const msg = okCount + '건 선정, ' + failCount + '건 실패';
+      toast(msg, failCount ? 'error' : 'ok');
+      await reload();
+      return '';
+    });
+  }
+
+  // APPLIED 카드 체크박스 변경 핸들러
+  function onCheckboxChange(a, checked) {
+    if (checked) view.selectedIds.add(a.id);
+    else view.selectedIds.delete(a.id);
+    // 전체선택 체크박스 상태 업데이트
+    const allApplied = view.items.filter(function (i) { return i.status === 'APPLIED'; });
+    const allChecked = allApplied.length > 0 && allApplied.every(function (i) { return view.selectedIds.has(i.id); });
+    const selectAllCb = document.getElementById('select-all-applied');
+    if (selectAllCb) selectAllCb.checked = allChecked;
+    // 일괄 선정 버튼 상태 업데이트
+    const bulkBtn = document.getElementById('bulk-approve-btn');
+    if (bulkBtn) {
+      bulkBtn.disabled = view.selectedIds.size === 0;
+      bulkBtn.textContent = '선택 ' + view.selectedIds.size + '건 일괄 선정';
+    }
+  }
+
+  // 전체선택 토글
+  function onSelectAllApplied(checked) {
+    const appliedItems = view.items.filter(function (i) { return i.status === 'APPLIED'; });
+    if (checked) {
+      appliedItems.forEach(function (i) { view.selectedIds.add(i.id); });
+    } else {
+      appliedItems.forEach(function (i) { view.selectedIds.delete(i.id); });
+    }
+    // 개별 체크박스 업데이트
+    appliedItems.forEach(function (i) {
+      const cb = document.getElementById('cb-' + i.id);
+      if (cb) cb.checked = checked;
+    });
+    // 버튼 상태 업데이트
+    const bulkBtn = document.getElementById('bulk-approve-btn');
+    if (bulkBtn) {
+      bulkBtn.disabled = view.selectedIds.size === 0;
+      bulkBtn.textContent = '선택 ' + view.selectedIds.size + '건 일괄 선정';
+    }
+  }
 
   async function reload() {
     try { view.items = await api.applications(filters()); view.failed = ''; }
@@ -218,8 +312,25 @@
     const partySel = h('select', { id: 'filter-party', 'aria-label': '파티 필터', onchange: function (e) { view.slotId = e.target.value; view.loaded = false; renderApplications(); reload(); } },
       h('option', { value: '', text: '전체 파티' }),
       view.parties.map(function (p) { return h('option', { value: p.id, text: p.title + ' · ' + fmtDate(p.startsAt), selected: view.slotId === p.id }); }));
-    content.appendChild(h('div', { class: 'filters' }, statusSel, partySel,
-      h('button', { class: 'btn small', id: 'refresh-btn', type: 'button', onclick: function () { view.loaded = false; renderApplications(); reload(); }, text: '새로고침' })));
+
+    // APPLIED 필터일 때만 전체선택 + 일괄 선정 버튼 표시
+    const appliedCount = view.items.filter(function (i) { return i.status === 'APPLIED'; }).length;
+    const allApplied = view.items.filter(function (i) { return i.status === 'APPLIED'; });
+    const allChecked = appliedCount > 0 && allApplied.every(function (i) { return view.selectedIds.has(i.id); });
+
+    const filterControls = [statusSel, partySel];
+    if (view.status === '' || view.status === 'APPLIED') {
+      filterControls.push(
+        h('label', { class: 'select-all' },
+          h('input', { type: 'checkbox', id: 'select-all-applied', checked: allChecked, onchange: function (e) { onSelectAllApplied(e.target.checked); } }),
+          h('span', { text: '전체선택 (APPLIED)' })
+        ),
+        h('button', { class: 'btn primary small', id: 'bulk-approve-btn', type: 'button', disabled: view.selectedIds.size === 0, onclick: bulkApproveSelected, text: '선택 ' + view.selectedIds.size + '건 일괄 선정' })
+      );
+    }
+    filterControls.push(h('button', { class: 'btn small', id: 'refresh-btn', type: 'button', onclick: function () { view.loaded = false; renderApplications(); reload(); }, text: '새로고침' }));
+
+    content.appendChild(h('div', { class: 'filters' }, filterControls));
 
     if (!view.loaded) return content.appendChild(h('p', { class: 'state-msg', text: '불러오는 중…' }));
     if (view.failed) {
@@ -237,27 +348,81 @@
     const st = STATUS[a.status] || [a.status, 'st-muted'];
     const g = a.guest || {};
     const busy = !!view.busy[a.id];
+    const isApplied = a.status === 'APPLIED';
+    const isApproved = a.status === 'APPROVED';
+
     const actions = [];
     const btn = function (label, cls, fn, id) {
       return h('button', { class: 'btn small ' + cls, type: 'button', disabled: busy, 'data-action': id, onclick: fn, text: label });
     };
-    if (a.status === 'APPLIED') {
+
+    // APPLIED: 체크박스 + 선정/반려
+    if (isApplied) {
       actions.push(btn('선정', 'primary', function () { run(a, 'approve', function () { return api.approve(a.id); }, '선정했습니다.'); }, 'approve'));
       actions.push(btn('반려', '', function () { rejectDialog(a); }, 'reject'));
     }
-    if (a.status === 'APPROVED') {
+    if (isApproved) {
       actions.push(btn('방문 인증', 'primary', function () { visitDialog(a); }, 'verify-visit'));
       actions.push(btn('노쇼', 'danger', function () { noshowDialog(a); }, 'noshow'));
+      // 연락처 복사 + 선정 안내 복사
+      const phone = g.phone || '';
+      if (phone) {
+        actions.push(btn('연락처 복사', '', function () {
+          copyToClipboard(phone).then(function (ok) {
+            toast(ok ? '연락처를 복사했습니다.' : '복사에 실패했습니다. 직접 선택해 복사해 주세요.', ok ? 'ok' : 'error');
+          });
+        }, 'copy-phone'));
+      }
+      const visitCode = a.visitCode || '';
+      if (visitCode) {
+        const template = '[HypeConnect] ' + (g.name || '게스트') + '님, \'' + (a.partyTitle || '파티') + '\' 파티에 선정되었습니다. 일시: ' + fmtDate(a.partyStartsAt) + '. 방문 시 아래 코드를 보여주세요: ' + visitCode + '. 미션은 협찬 표시를 포함해 작성해 주세요.';
+        actions.push(btn('선정 안내 복사', '', function () {
+          copyToClipboard(template).then(function (ok) {
+            toast(ok ? '선정 안내 템플릿을 복사했습니다.' : '복사에 실패했습니다. 직접 선택해 복사해 주세요.', ok ? 'ok' : 'error');
+          });
+        }, 'copy-template'));
+      }
     }
     if (a.status === 'MISSION_SUBMITTED') {
       actions.push(btn('최종 승인', 'primary', function () { completeDialog(a); }, 'complete'));
       actions.push(btn('보완 요청', '', function () { revisionDialog(a); }, 'request-revision'));
     }
 
+    // 잔액 경고 계산 (APPLIED만)
+    let balanceWarn = null;
+    if (isApplied) {
+      const store = view.stores.find(function (s) { return s.id === a.storeId; });
+      const party = view.parties.find(function (p) { return p.id === a.slotId; });
+      const fee = a.feeAmount || (party && party.feePerGuest) || (store && store.defaultFeePerGuest) || 0;
+      const balance = store && typeof store.prepaidBalance === 'number' ? store.prepaidBalance : 0;
+      // 점포 잔액을 실제로 조회한 경우에만 표시한다. 미조회 시 0원으로 오인해 "잔액 부족"을 띄우지 않는다.
+      if (store && fee > 0) {
+        const n = Math.floor(balance / fee);
+        if (balance < fee) {
+          balanceWarn = h('p', { class: 'balance-warn', text: '\u26a0 잔액 부족: 충전 필요 (' + won(balance) + ' / ' + won(fee) + ')' });
+        } else {
+          balanceWarn = h('p', { class: 'balance-info', text: '잔액 ' + won(balance) + ' \u00b7 약 ' + n + '명분 선정 가능' });
+        }
+      }
+    }
+
+    // 카드 헤드에 체크박스(APPLIED) 또는 빈 공간
+    const headChildren = [];
+    if (isApplied) {
+      headChildren.push(h('input', {
+        type: 'checkbox',
+        id: 'cb-' + a.id,
+        class: 'bulk-select',
+        'aria-label': g.name + ' 님 신청 선택',
+        checked: view.selectedIds.has(a.id),
+        onchange: function (e) { onCheckboxChange(a, e.target.checked); },
+      }));
+    }
+    headChildren.push(h('strong', { text: g.name || '(이름 없음)' }));
+    headChildren.push(h('span', { class: 'badge ' + st[1], text: st[0] }));
+
     return h('li', { class: 'card', 'data-app-id': a.id },
-      h('div', { class: 'card-head' },
-        h('strong', { text: g.name || '(이름 없음)' }),
-        h('span', { class: 'badge ' + st[1], text: st[0] })),
+      h('div', { class: 'card-head' }, headChildren),
       h('dl', { class: 'meta' },
         row('연락처', g.phone || '-'),
         row('파티', (a.partyTitle || '-') + ' · ' + fmtDate(a.partyStartsAt)),
@@ -269,6 +434,7 @@
         a.rejectReason ? row('반려 사유', a.rejectReason) : null,
         g.isBlocked ? row('계정', '차단됨') : null,
         g.noshowCount ? row('노쇼 이력', g.noshowCount + '회') : null),
+      balanceWarn,
       actions.length ? h('div', { class: 'actions' }, actions) : null);
   }
 

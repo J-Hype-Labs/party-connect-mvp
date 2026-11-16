@@ -177,7 +177,7 @@ test.describe('관리자 — 파티', () => {
     await open(page, 'parties');
     await expect(page.locator('[data-party-id="p1"]')).toBeVisible(); // 목록이 로드된 뒤에 읽는다
     const actions = () => page.locator('[data-party-id="p1"] [data-action]').evaluateAll((els) => els.map((e) => e.dataset.action));
-    expect(await actions()).toEqual(['edit', 'to-OPEN', 'to-CANCELLED']);
+    expect(await actions()).toEqual(['edit', 'duplicate', 'to-OPEN', 'to-CANCELLED']);
 
     failNext.value = { status: 409, message: '이미 처리된 파티입니다.' };
     await page.locator('[data-action="to-OPEN"]').click();
@@ -190,7 +190,7 @@ test.describe('관리자 — 파티', () => {
     await page.locator('[data-action="to-OPEN"]').click();
     await page.locator('#dlg-confirm').click();
     await expect(page.locator('[data-party-id="p1"] .badge')).toHaveText('모집 중');
-    expect(await actions()).toEqual(['edit', 'to-CLOSED', 'to-CANCELLED']);
+    expect(await actions()).toEqual(['edit', 'duplicate', 'to-CLOSED', 'to-CANCELLED']);
     expect(calls.filter((c) => c.method === 'PATCH').map((c) => c.body)).toEqual([{ status: 'OPEN' }, { status: 'OPEN' }]);
   });
 

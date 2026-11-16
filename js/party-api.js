@@ -225,6 +225,8 @@
         isFeatured: Boolean(p.isFeatured),
         startsAt: p.startsAt || p.starts_at || null,
         endsAt: p.endsAt || p.ends_at || null,
+        missionRequirements: typeof (p.missionRequirements ?? p.mission_requirements) === 'string'
+          ? (p.missionRequirements ?? p.mission_requirements) : '',
         recruitDeadline: p.recruitDeadline || p.recruit_deadline || null
       };
     });

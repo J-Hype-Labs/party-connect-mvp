@@ -81,6 +81,10 @@
   <script src="js/auth-service.js"></script>
   <script src="js/auth-ui.js"></script>
   <script src="js/party-api.js"></script>
+  <script src="js/party-showcase.js"></script>
+  <script src="js/party-share.js"></script>
+  <script src="js/party-date-filter.js"></script>
+  <script src="js/party-qr.js"></script>
   <script src="js/mission-ui.js"></script>
 
   <style>
@@ -153,6 +157,51 @@
         animation: none;
       }
     }
+
+    /* ===== L-06: Touch targets ≥ 44×44px ===== */
+    button, [role="button"], input[type="checkbox"], input[type="radio"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    /* Filter chips: ensure 44px touch target */
+    .filter-chip, button[aria-pressed] {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+    /* Icon buttons: ensure 44×44 hit area */
+    .icon-btn {
+      min-height: 44px;
+      min-width: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem;
+    }
+    /* Radio/checkbox labels in form: expand touch area */
+    .radio-label, .checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-height: 44px;
+      padding: 0.5rem 0;
+    }
+    /* Modal focus trap helper */
+    .modal-content:focus-within {
+      outline: none;
+    }
+    /* Prevent horizontal overflow on filter containers */
+    .filter-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .filter-container::-webkit-scrollbar { display: none; }
+    /* Ensure no color-only state: add text/pattern indicators */
+    .status-badge { display: inline-flex; align-items: center; gap: 0.25rem; }
   </style>
 </head>
 <body class="min-h-screen bg-white text-zinc-900 selection:bg-rose-100 selection:text-rose-900">
@@ -165,126 +214,20 @@
     const BANNER_SLIDES = [
       {
         id: 1,
-        title: "방문한 파티, 솔직한 평가를 남겨보세요",
-        desc: "별점과 짧은 후기로 경험을 공유하면 더 좋은 모임을 만드는 데 도움이 됩니다.",
-        badge: "리뷰 이벤트",
+        title: "체험단 모집 중",
+        desc: "파티별 혜택과 참여 조건을 확인하고 체험단에 신청해 보세요.",
+        badge: "체험단 모집",
         bgGradient: "from-rose-500/90 to-pink-600/90",
         img: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=1200&q=80"
       },
       {
         id: 2,
-        title: "친구와 함께하면 적립 혜택도 두 배",
-        desc: "추천인 코드로 멤버 등록을 완료하면 나와 친구 모두 적립금을 받아요.",
-        badge: "친구 초대",
+        title: "매장 사장님을 모십니다",
+        desc: "새로운 고객을 만나고 싶으신 매장 사장님, HypeConnect와 함께하세요.",
+        badge: "점주 모집",
         bgGradient: "from-purple-600/90 to-indigo-600/90",
         img: "https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=1200&q=80"
       },
-      {
-        id: 3,
-        title: "지금 바로 HypeConnect 멤버 되기",
-        desc: "멤버 등록 후 관심 파티에 신청하고 선정되면 무료 초대 티켓을 받아보세요.",
-        badge: "신규 멤버십",
-        bgGradient: "from-amber-500/90 to-rose-500/90",
-        img: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1200&q=80"
-      }
-    ];
-
-    const REVIEWS = [
-      {
-        id: 1,
-        avatar: "따",
-        avatarBg: "bg-amber-100 text-amber-700",
-        name: "따뜻한리듬헌터8090",
-        time: "6시간 전",
-        venue: "레몬과김부각",
-        address: "서울 중구 마른내로 60-1",
-        comment: "너무나도 따뜻하고 또 가고 싶은 혼술바였습니다!! 단골분들이 많은 데에는 분명 이유가 있네요~ 따뜻한 온정을 느끼고 싶을 때 또 찾게 될 것 같습니다. 완전 추천합니다!",
-        rating: 5
-      },
-      {
-        id: 2,
-        avatar: "유",
-        avatarBg: "bg-blue-100 text-blue-700",
-        name: "유쾌한산책러2175",
-        time: "22시간 전",
-        venue: "살롱드솔내",
-        address: "서울 마포구 양화로6길 57",
-        comment: "처음 와인파티였는데 기대 이상으로 너무 좋았습니다. 와인 셀렉션도 훌륭하고 모이신 분들 매너도 최고였어요. 개인적으로 또 방문할 예정입니다!",
-        rating: 5
-      },
-      {
-        id: 3,
-        avatar: "센",
-        avatarBg: "bg-rose-100 text-rose-700",
-        name: "센스있는파티러버7561",
-        time: "1일 전",
-        venue: "큐피트파티",
-        address: "서울 서대문구 연세로7안길 10-4",
-        comment: "진행자분이 어색할 틈 없이 너무 스무스하게 분위기 이끌어주셔서 진짜 편하게 대화 나누고 왔습니다. 2차까지 다들 같이 갈 정도로 훈훈했어요!",
-        rating: 5
-      },
-      {
-        id: 4,
-        avatar: "시",
-        avatarBg: "bg-emerald-100 text-emerald-700",
-        name: "시크한무드메이커3410",
-        time: "1일 전",
-        venue: "혼술바 고도 잠실방이점",
-        address: "서울 송파구 올림픽로32길 22-13",
-        comment: "혼자 처음 다녀왔는데 매장 분위기 너무 아늑하고 사장님, 직원분들 다 친절하셔서 시간 가는 줄 몰랐네요. 혼술 초보자분들께 강추합니다.",
-        rating: 5
-      },
-      {
-        id: 5,
-        avatar: "달",
-        avatarBg: "bg-violet-100 text-violet-700",
-        name: "달콤한와인러버5521",
-        time: "2일 전",
-        venue: "제로러브 라운지",
-        address: "서울 강남구 테헤란로 14길 8",
-        comment: "와인 4종을 비교해서 마셔볼 수 있어서 좋았고, 핑거푸드도 계속 채워주셔서 만족스러웠어요. 대화 주제 카드 덕분에 어색함 없이 이야기할 수 있었습니다.",
-        rating: 5
-      },
-      {
-        id: 6,
-        avatar: "조",
-        avatarBg: "bg-sky-100 text-sky-700",
-        name: "조용한탐험가9042",
-        time: "3일 전",
-        venue: "제주보름 을지로점",
-        address: "서울 중구 마른내로 42",
-        comment: "퇴근 후 혼자 들렀는데 사장님이 취향을 잘 물어봐 주셔서 딱 맞는 술을 추천받았어요. 좌석 간격도 넉넉하고 음악도 과하지 않아서 편안했습니다.",
-        rating: 4
-      },
-      {
-        id: 7,
-        avatar: "초",
-        avatarBg: "bg-teal-100 text-teal-700",
-        name: "초록빛대화가3388",
-        time: "4일 전",
-        venue: "큐피트파티 신촌점",
-        address: "서울 서대문구 연세로7안길 10-4",
-        comment: "내향적인 편이라 긴장했는데 진행자분이 리드해 주셔서 금방 풀렸어요. 대화 카드 주제가 좋아서 2차까지 자연스럽게 이어졌습니다. 재참여 의사 있어요!",
-        rating: 5
-      },
-      {
-        id: 8,
-        avatar: "밤",
-        avatarBg: "bg-orange-100 text-orange-700",
-        name: "밤하늘산책자1176",
-        time: "5일 전",
-        venue: "야화 혼술바 신림점",
-        address: "서울 관악구 신림로59길 14",
-        comment: "신림에서 이렇게 조용한 혼술바가 있다니 놀랐어요. 안주도 깔끔하고 무엇보다 혼자 와도 눈치 보이지 않는 분위기가 최고입니다. 다음엔 친구도 데려올게요.",
-        rating: 5
-      }
-    ];
-
-    const PARTNERS = [
-      "야화 혼술바 왕십리점", "홍대혼술바 시점", "만남회관", "제로러브", 
-      "솔로몬파티", "제주보름 분당야탑점", "제주보름 천호점", "LOVE ATTACK", 
-      "43번지 혼술바 을지로점", "동률 혼술바", "제주아홉 동인천점", "살롱드솔내",
-      "레몬과김부각", "혼술바 고도 잠실점"
     ];
 
 
@@ -309,7 +252,7 @@
         const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.reviews) || "[]");
         if (Array.isArray(saved) && saved.length > 0) return saved;
       } catch (e) {}
-      return REVIEWS;
+      return [];
     };
 
     // Application status labels
@@ -323,6 +266,24 @@
       REJECTED: { label: "미선정", className: "bg-zinc-100 text-zinc-500" },
       CANCELLED: { label: "취소됨", className: "bg-zinc-100 text-zinc-500" },
     };
+
+    // L-06: 모달 열림 시 포커스를 모달 내부로 이동하고, 닫힘 시 트리거로 복귀한다.
+    function useModalFocus(isOpen, selector) {
+      const triggerRef = React.useRef(null);
+      useEffect(() => {
+        if (!isOpen) return;
+        triggerRef.current = document.activeElement;
+        const modal = document.querySelector(selector);
+        if (modal) {
+          const target = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+          if (target) target.focus();
+        }
+        return () => {
+          const t = triggerRef.current;
+          if (t && typeof t.focus === 'function') t.focus();
+        };
+      }, [isOpen, selector]);
+    }
 
     // --- Main Application Component ---
     function App() {
@@ -414,6 +375,9 @@
       // Dialog states
       const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
       const [activePartyDetail, setActivePartyDetail] = useState(null);
+      const [pendingDeepLink, setPendingDeepLink] = useState(() =>
+        window.PartyShare ? window.PartyShare.getPartyIdFromSearch(window.location.search) : null
+      );
       const [toastMessage, setToastMessage] = useState("");
 
       // Party detail modal flow: detail -> form -> done
@@ -422,8 +386,17 @@
       const [applyError, setApplyError] = useState("");
       const [applySubmitting, setApplySubmitting] = useState(false);
 
-      // Reviews "전체보기" toggle
-      const [showAllReviews, setShowAllReviews] = useState(false);
+      const [searchQuery, setSearchQuery] = useState("");
+
+      // Date filter (G-05): all / this week / weekend / specific date (KST)
+      const [selectedDateMode, setSelectedDateMode] = useState("all");
+      const [selectedDate, setSelectedDate] = useState(() => {
+        if (window.PartyDateFilter) {
+          const parts = window.PartyDateFilter.kstDateParts(new Date().toISOString());
+          return parts ? parts.date : "";
+        }
+        return "";
+      });
 
       // Region modal helper state
       const [modalSelectedCategory, setModalSelectedCategory] = useState("seoul");
@@ -517,6 +490,13 @@
         } catch (e) {}
       }, [reviews]);
 
+      // L-06: 모달 포커스 이동·복귀 (열림 시 모달 내부 첫 컨트롤, 닫힘 시 트리거)
+      useModalFocus(isRegionModalOpen, '[role="dialog"][aria-label="지역 선택"]');
+      useModalFocus(Boolean(activePartyDetail), '[role="dialog"][aria-labelledby="party-detail-title"]');
+      useModalFocus(isNotificationOpen, '[role="dialog"][aria-labelledby="notification-title"]');
+      useModalFocus(isReviewWriteOpen, '[role="dialog"][aria-label="후기 작성"]');
+      useModalFocus(isMyPageOpen, '[role="dialog"][aria-label="마이페이지"]');
+
       // Close modals on ESC
       useEffect(() => {
         const onKeyDown = (event) => {
@@ -577,6 +557,22 @@
         setActivePartyDetail(null);
         setApplyStep("detail");
         setApplyError("");
+      };
+
+      // Share a real party via a ?party=id deep link. Example parties are not shareable.
+      const handleShareParty = async (party) => {
+        if (!window.PartyShare || !window.PartyShare.isShareable(party)) return;
+        const url = window.PartyShare.buildShareUrl(party, window.location.origin, window.location.pathname);
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: party.title, text: party.title, url });
+            return;
+          } catch (err) {
+            if (err && err.name === "AbortError") return;
+          }
+        }
+        const ok = await window.PartyShare.copyText(url);
+        showToast(ok ? "파티 링크가 복사되었어요." : "링크 복사에 실패했어요. 주소창의 링크를 복사해 주세요.");
       };
 
       // Auth functions
@@ -802,14 +798,42 @@
       };
 
       // Render filtered parties
+      const displayParties = useMemo(() => {
+        if (live) {
+          if (partiesLoading || partiesError) return [];
+          return window.PartyShowcase ? window.PartyShowcase.build(parties) : parties;
+        }
+        return demoMode ? parties : [];
+      }, [live, demoMode, parties, partiesLoading, partiesError]);
+
       const filteredParties = useMemo(() => {
-        return parties.filter((party) => {
+        const query = searchQuery.trim().toLocaleLowerCase();
+        const dateFiltered = window.PartyDateFilter
+          ? window.PartyDateFilter.filter(displayParties, selectedDateMode, { date: selectedDate })
+          : displayParties;
+        return dateFiltered.filter((party) => {
           const regionMatch = selectedRegion === "전체 지역" || party.region === selectedRegion;
-          const dayMatch = selectedDay === "전체" || party.days.includes(selectedDay);
+          const dayMatch = selectedDay === "전체" || (party.days || []).includes(selectedDay);
           const categoryMatch = selectedCategory === "전체" || party.category === selectedCategory;
-          return regionMatch && dayMatch && categoryMatch;
+          const searchMatch = !query || [party.title, party.venue, party.region].some((value) => String(value || "").toLocaleLowerCase().includes(query));
+          return regionMatch && dayMatch && categoryMatch && searchMatch;
         });
-      }, [parties, selectedRegion, selectedDay, selectedCategory]);
+      }, [displayParties, selectedRegion, selectedDay, selectedCategory, searchQuery, selectedDateMode, selectedDate]);
+
+      const exampleCount = filteredParties.filter((party) => party.isExample).length;
+      const actualCount = filteredParties.length - exampleCount;
+
+      // Open a shared party (?party=id) once the list is ready, then clean the URL.
+      useEffect(() => {
+        if (!pendingDeepLink || partiesLoading || partiesError) return;
+        const target = displayParties.find((party) => String(party.id) === String(pendingDeepLink));
+        if (!target) return;
+        openPartyDetail(target);
+        setPendingDeepLink(null);
+        if (window.history.replaceState) {
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      }, [pendingDeepLink, displayParties, partiesLoading, partiesError]);
 
       // Check if user has applied to a party
       const hasApplied = (partyId) => {
@@ -870,6 +894,7 @@
             }
             setApplyStep("done");
             showToast("신청이 접수되었습니다!");
+            saveProfile(name, phone);
           } else {
             // Demo mode
             const application = {
@@ -886,6 +911,7 @@
             setApplications((prev) => [application, ...prev]);
             setApplyStep("done");
             showToast('신청이 접수되었습니다! (데모 모드)');
+            saveProfile(name, phone);
           }
           addNotification({
             type: 'apply',
@@ -910,6 +936,48 @@
         return () => mediaQuery.removeEventListener('change', handler);
       }, []);
 
+      // Form ref for focus management
+      const formRef = React.useRef(null);
+
+      // Profile storage key
+      const PROFILE_STORAGE_KEY = 'partyconnect:profile';
+
+      // Load saved profile on form open
+      const loadSavedProfile = React.useCallback(() => {
+        try {
+          const saved = localStorage.getItem(PROFILE_STORAGE_KEY);
+          if (saved) {
+            const profile = JSON.parse(saved);
+            if (profile.name || profile.phone) {
+              setApplyForm(prev => ({
+                ...prev,
+                name: profile.name || '',
+                phone: profile.phone || '',
+              }));
+            }
+          }
+        } catch (e) {}
+      }, []);
+
+      // Save profile on submit
+      const saveProfile = React.useCallback((name, phone) => {
+        try {
+          localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify({ name, phone, savedAt: new Date().toISOString() }));
+        } catch (e) {}
+      }, []);
+
+      // Load profile when form opens
+      React.useEffect(() => {
+        if (applyStep === 'form') {
+          loadSavedProfile();
+          // Focus first input
+          setTimeout(() => {
+            const nameInput = document.getElementById('apply-name');
+            if (nameInput) nameInput.focus();
+          }, 0);
+        }
+      }, [applyStep, loadSavedProfile]);
+
       // ================================================================
       // RENDER
       // ================================================================
@@ -931,11 +999,11 @@
                   <a href="party-connect/" className="text-sm font-bold text-rose-600 transition hover:text-rose-700">
                     HypeConnect
                   </a>
-                  <a href="#reviews" className="text-sm font-semibold text-zinc-700 transition hover:text-rose-600">
-                    커뮤니티
+                  <a href="#how-it-works" className="text-sm font-semibold text-zinc-700 transition hover:text-rose-600">
+                    참여 방법
                   </a>
-                  <a href="#partners" className="text-sm font-semibold text-zinc-500 transition hover:text-zinc-900">
-                    제휴신청
+                  <a href="mailto:partner@jhypelabs.com" className="text-sm font-semibold text-zinc-500 transition hover:text-zinc-900">
+                    점주 문의
                   </a>
                 </nav>
 
@@ -944,7 +1012,7 @@
                   {/* Notification Bell */}
                   <button 
                     onClick={() => setIsNotificationOpen(true)}
-                    className="relative p-2 rounded-full hover:bg-zinc-100 transition text-zinc-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                    className="icon-btn relative p-2 rounded-full hover:bg-zinc-100 transition text-zinc-600 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
                     aria-label={`알림${unreadCount > 0 ? `, ${unreadCount}개 읽지 않음` : ''}`}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1041,7 +1109,7 @@
                     <button
                       key={i}
                       onClick={() => { setCurrentBanner(i); setIsBannerPaused(true); }}
-                      className={`w-2 h-2 rounded-full transition ${i === currentBanner ? 'bg-white' : 'bg-white/50'}`}
+                      className={`icon-btn w-2 h-2 rounded-full transition ${i === currentBanner ? 'bg-white' : 'bg-white/50'}`}
                       aria-label={`배너 ${i + 1}로 이동`}
                     />
                   ))}
@@ -1059,6 +1127,9 @@
                   <p className="text-sm text-zinc-500 mt-1">
                     혼술바, 소개팅, 소셜파티를 한 곳에서 만나보세요
                   </p>
+                  {!partiesLoading && !partiesError && (live || demoMode) && (
+                    <p className="text-xs text-zinc-500 mt-2" aria-live="polite">실제 {actualCount}개 · 예시 {exampleCount}개</p>
+                  )}
                 </div>
                 <a 
                   href="party-connect/" 
@@ -1080,8 +1151,8 @@
                   </svg>
                   <input
                     type="text"
-                    placeholder="파티명, 장소, 지역으로 검색"
-                    className="w-full pl-10 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                    placeholder="파티명, 업체명, 지역 검색"
+                    className="w-full pl-10 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent min-h-[44px]"
                     onChange={(e) => setSearchQuery(e.target.value)}
                     aria-label="파티 검색"
                   />
@@ -1092,12 +1163,12 @@
                   {/* Category */}
                   <div>
                     <label className="text-xs font-semibold text-zinc-500 mb-2 block">카테고리</label>
-                    <div className="flex flex-wrap gap-2 no-scrollbar" role="group" aria-label="카테고리 필터">
+                    <div className="flex flex-wrap gap-2 filter-container" role="group" aria-label="카테고리 필터">
                       {CATEGORIES.map((cat) => (
                         <button
                           key={cat}
                           onClick={() => setSelectedCategory(cat)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition filter-chip ${
                             selectedCategory === cat
                               ? 'bg-rose-600 text-white shadow-sm'
                               : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
@@ -1113,12 +1184,12 @@
                   {/* Day */}
                   <div>
                     <label className="text-xs font-semibold text-zinc-500 mb-2 block">요일</label>
-                    <div className="flex flex-wrap gap-2 no-scrollbar" role="group" aria-label="요일 필터">
+                    <div className="flex flex-wrap gap-2 filter-container" role="group" aria-label="요일 필터">
                       {DAYS.map((day) => (
                         <button
                           key={day}
                           onClick={() => setSelectedDay(day)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition min-w-[44px] ${
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition filter-chip min-w-[44px] ${
                             selectedDay === day
                               ? 'bg-rose-600 text-white shadow-sm'
                               : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
@@ -1131,12 +1202,42 @@
                     </div>
                   </div>
 
+                  {/* Date */}
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-500 mb-2 block">날짜</label>
+                    <div className="flex flex-wrap gap-2 filter-container" role="group" aria-label="날짜 필터">
+                      {[{ value: "all", label: "전체" }, { value: "week", label: "이번 주" }, { value: "weekend", label: "주말" }, { value: "date", label: "날짜 지정" }].map((mode) => (
+                        <button
+                          key={mode.value}
+                          onClick={() => setSelectedDateMode(mode.value)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition filter-chip ${
+                            selectedDateMode === mode.value
+                              ? 'bg-rose-600 text-white shadow-sm'
+                              : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
+                          }`}
+                          aria-pressed={selectedDateMode === mode.value}
+                        >
+                          {mode.label}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedDateMode === "date" && (
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="mt-2 w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-sm font-medium text-zinc-900 focus:outline-none focus:ring-2 focus:ring-rose-500 min-h-[44px]"
+                        aria-label="필터 날짜 지정"
+                      />
+                    )}
+                  </div>
+
                   {/* Region */}
                   <div>
                     <label className="text-xs font-semibold text-zinc-500 mb-2 block">지역</label>
                     <button
                       onClick={() => setIsRegionModalOpen(true)}
-                      className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-left text-sm font-medium text-zinc-900 hover:bg-zinc-50 transition flex items-center justify-between"
+                      className="w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-left text-sm font-medium text-zinc-900 hover:bg-zinc-50 transition flex items-center justify-between min-h-[44px]"
                     >
                       <span>{selectedRegion}</span>
                       <svg className="w-4 h-4 text-zinc-400 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1183,7 +1284,7 @@
                 {partiesLoading ? (
                   <div className="col-span-full text-center py-12 text-zinc-500">불러오는 중…</div>
                 ) : null}
-                {parties.length === 0 && !partiesLoading && !partiesError ? (
+                {displayParties.length === 0 && !partiesLoading && !partiesError ? (
 
                   <div className="col-span-full text-center py-12">
                     <svg className="mx-auto w-16 h-16 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1232,22 +1333,23 @@
                         />
                         {/* Badges */}
                         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                          {party.badges.slice(0, 2).map((badge, i) => (
+                          {party.isExample && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 shadow-sm">예시</span>}
+                          {(party.badges || []).slice(0, 2).map((badge, i) => (
                             <span key={i} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/90 backdrop-blur-sm text-zinc-800 shadow-sm">
                               {badge}
                             </span>
                           ))}
                         </div>
                         {/* Wishlist */}
-                        <button
+                        {!party.isExample && <button
                           onClick={(e) => toggleWishlist(e, party.id)}
-                          className="absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-zinc-100 transition"
+                          className="icon-btn absolute top-3 right-3 p-2 rounded-full bg-white/90 backdrop-blur-sm shadow-sm hover:bg-zinc-100 transition"
                           aria-label={wishlist.has(party.id) ? "관심 파티에서 제거" : "관심 파티에 추가"}
                         >
                           <svg className={`w-5 h-5 ${wishlist.has(party.id) ? 'text-rose-600 fill-current' : 'text-zinc-500'}`} fill={wishlist.has(party.id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                           </svg>
-                        </button>
+                        </button>}
                       </div>
 
                       {/* Content */}
@@ -1259,8 +1361,11 @@
                         </div>
 
                         {/* Title */}
-                        <h3 className="font-bold text-zinc-900 text-base line-clamp-2 mb-2 group-hover:text-rose-600 transition">
-                          {party.title}
+                        <h3 className="font-bold text-zinc-900 text-base line-clamp-2 mb-2">
+                          <button type="button" onClick={() => openPartyDetail(party)} className="text-left hover:text-rose-600 focus-visible:rounded">
+                            {party.title}
+                            {party.isExample && <span className="sr-only"> (예시 파티 상세 보기)</span>}
+                          </button>
                         </h3>
 
                         {/* Description */}
@@ -1283,7 +1388,7 @@
                           </span>
                         </div>
 
-                        {/* Recruit Status */}
+                      {/* Recruit Status */}
                         <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
                           <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${party.currentRecruit >= party.recruit ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
                             {party.currentRecruit >= party.recruit ? '모집 마감' : `모집 ${party.currentRecruit}/${party.recruit}`}
@@ -1292,17 +1397,18 @@
 
                         {/* CTA Button */}
                         <button
+                          type="button"
                           onClick={() => openPartyDetail(party)}
-                          disabled={party.currentRecruit >= party.recruit || hasApplied(party.id)}
+                          disabled={party.isExample || party.currentRecruit >= party.recruit || hasApplied(party.id)}
                           className={`w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition min-h-[44px] ${
-                            party.currentRecruit >= party.recruit
+                            party.isExample ? 'bg-zinc-200 text-zinc-600 cursor-not-allowed' : party.currentRecruit >= party.recruit
                               ? 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
                               : hasApplied(party.id)
                                 ? 'bg-emerald-100 text-emerald-700 cursor-not-allowed'
                                 : 'bg-rose-600 text-white hover:bg-rose-700 shadow-md'
                           }`}
                         >
-                          {party.currentRecruit >= party.recruit
+                          {party.isExample ? "신청 오픈 예정" : party.currentRecruit >= party.recruit
                             ? "모집 마감"
                             : hasApplied(party.id)
                               ? "신청 완료"
@@ -1318,59 +1424,32 @@
             </section>
 
 
-            {/* Reviews Section */}
-            <section id="reviews" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16" aria-labelledby="reviews-heading">
-              <div className="flex items-center justify-between mb-6">
-                <h2 id="reviews-heading" className="text-2xl font-extrabold text-zinc-950">참여 후기</h2>
-                <button
-                  onClick={() => setShowAllReviews(!showAllReviews)}
-                  className="text-sm font-semibold text-rose-600 hover:underline"
-                >
-                  {showAllReviews ? '접기' : '전체보기'}
-                </button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {reviews.slice(0, showAllReviews ? reviews.length : 3).map((review) => (
-                  <article key={review.id} className="bg-white rounded-2xl border border-zinc-200 p-5 hover:shadow-md transition">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className={`w-10 h-10 rounded-full ${review.avatarBg} flex items-center justify-center text-sm font-bold`}>
-                        {review.avatar}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-zinc-900">{review.name}</p>
-                        <p className="text-xs text-zinc-500">{review.time} · {review.venue}</p>
-                      </div>
+            {/* How It Works Section */}
+            <section id="how-it-works" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16" aria-labelledby="how-it-works-heading">
+              <h2 id="how-it-works-heading" className="text-2xl font-extrabold text-zinc-950 mb-6">이렇게 진행돼요</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {[
+                  { step: "01", title: "신청", desc: "관심 있는 파티를 찾아 신청하세요", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" },
+                  { step: "02", title: "선정", desc: "신청자 중 방문자로 선정됩니다", icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" },
+                  { step: "03", title: "방문", desc: "파티 날짜에 맞춰 매장을 방문하세요", icon: "M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" },
+                  { step: "04", title: "미션", desc: "방문 후 미션을 수행하고 인증하세요", icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" },
+                  { step: "05", title: "완료", desc: "미션 검수 후 체험이 완료됩니다", icon: "M5 13l4 4L19 7" }
+                ].map((item) => (
+                  <div key={item.step} className="bg-white rounded-2xl border border-zinc-200 p-5 text-center hover:shadow-md transition">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-rose-50 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
+                      </svg>
                     </div>
-                    <div className="flex items-center gap-1 mb-2">
-                      {[...Array(5)].map((_, i) => (
-                        <svg key={i} className={`w-4 h-4 ${i < review.rating ? 'text-amber-400 fill-current' : 'text-zinc-300'}`} fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.26-1.18L12 2z"/></svg>
-                      ))}
-                    </div>
-                    <p className="text-sm text-zinc-700 line-clamp-3">{review.comment}</p>
-                    <p className="text-xs text-zinc-400 mt-2">{review.address}</p>
-                  </article>
+                    <span className="text-xs font-bold text-rose-600 mb-1 block">STEP {item.step}</span>
+                    <h3 className="text-base font-bold text-zinc-900 mb-1">{item.title}</h3>
+                    <p className="text-xs text-zinc-500">{item.desc}</p>
+                  </div>
                 ))}
               </div>
             </section>
 
-            {/* Partners Section */}
-            <section id="partners" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16" aria-labelledby="partners-heading">
-              <h2 id="partners-heading" className="text-2xl font-extrabold text-zinc-950 mb-6">제휴 파트너</h2>
-              <div className="bg-white rounded-2xl border border-zinc-200 p-6">
-                <p className="text-zinc-600 mb-4">HypeConnect와 함께하는 다양한 파트너들을 소개합니다.</p>
-                <div className="flex flex-wrap gap-3">
-                  {PARTNERS.map((partner, i) => (
-                    <span key={i} className="px-3 py-1.5 bg-zinc-50 text-zinc-700 rounded-full text-sm border border-zinc-200">
-                      {partner}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <a href="#partners" className="px-5 py-2.5 bg-rose-600 text-white font-semibold rounded-xl hover:bg-rose-700 transition">제휴 신청하기</a>
-                  <a href="mailto:partner@jhypelabs.com" className="px-5 py-2.5 border border-zinc-300 text-zinc-700 font-semibold rounded-xl hover:bg-zinc-50 transition">이메일 문의</a>
-                </div>
-              </div>
-            </section>
+
           </main>
 
           {/* ================= FOOTER ================= */}
@@ -1386,20 +1465,20 @@
           {/* Region Modal */}
           {isRegionModalOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="지역 선택" onClick={() => setIsRegionModalOpen(false)}>
-              <div className="relative w-full max-w-md max-h-[80vh] bg-white rounded-2xl shadow-2xl flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-md max-h-[80vh] bg-white rounded-2xl shadow-2xl flex flex-col animate-slide-up modal-content" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b border-zinc-100">
                   <h3 className="text-base font-bold text-zinc-900">지역 선택</h3>
-                  <button onClick={() => setIsRegionModalOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기">
+                  <button onClick={() => setIsRegionModalOpen(false)} className="icon-btn rounded-full hover:bg-zinc-100 transition" aria-label="지역 선택 모달 닫기">
                     <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4">
-                  <div className="flex gap-2 border-b border-zinc-100 pb-3 mb-4 no-scrollbar" role="tablist">
+                  <div className="flex gap-2 border-b border-zinc-100 pb-3 mb-4 no-scrollbar filter-container" role="tablist">
                     {REGION_CATEGORIES.map((cat) => (
                       <button
                         key={cat.id}
                         onClick={() => setModalSelectedCategory(cat.id)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap ${
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition whitespace-nowrap filter-chip ${
                           modalSelectedCategory === cat.id
                             ? 'bg-rose-600 text-white'
                             : 'text-zinc-700 hover:bg-zinc-100'
@@ -1416,7 +1495,7 @@
                       <button
                         key={sub}
                         onClick={() => { setSelectedRegion(sub); setIsRegionModalOpen(false); }}
-                        className={`w-full px-4 py-2 rounded-xl text-left text-sm font-medium transition ${
+                        className={`w-full px-4 py-2.5 rounded-xl text-left text-sm font-medium transition min-h-[44px] ${
                           selectedRegion === sub
                             ? 'bg-rose-50 text-rose-600'
                             : 'text-zinc-700 hover:bg-zinc-50'
@@ -1434,7 +1513,7 @@
           {/* Party Detail Modal */}
           {activePartyDetail && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="party-detail-title" onClick={closePartyDetail}>
-              <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up modal-content" onClick={e => e.stopPropagation()}>
                 {/* Image Gallery */}
                 <div className="relative aspect-[16/9] bg-zinc-100">
                   <img
@@ -1445,10 +1524,10 @@
                   />
                   {activePartyDetail.images.length > 1 && (
                     <>
-                      <button onClick={() => setSelectedDetailImage((prev) => (prev - 1 + activePartyDetail.images.length) % activePartyDetail.images.length)} className="absolute left-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 shadow-lg hover:bg-white transition" aria-label="이전 이미지">
+                      <button onClick={() => setSelectedDetailImage((prev) => (prev - 1 + activePartyDetail.images.length) % activePartyDetail.images.length)} className="icon-btn absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 shadow-lg hover:bg-white transition" aria-label="이전 이미지">
                         <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                       </button>
-                      <button onClick={() => setSelectedDetailImage((prev) => (prev + 1) % activePartyDetail.images.length)} className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 shadow-lg hover:bg-white transition" aria-label="다음 이미지">
+                      <button onClick={() => setSelectedDetailImage((prev) => (prev + 1) % activePartyDetail.images.length)} className="icon-btn absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 shadow-lg hover:bg-white transition" aria-label="다음 이미지">
                         <svg className="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                       </button>
                       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
@@ -1467,13 +1546,16 @@
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 text-[10px] font-medium">{activePartyDetail.category}</span>
                         <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 text-[10px] font-medium">{activePartyDetail.region}</span>
+                        {activePartyDetail.isExample && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">예시</span>}
                       </div>
                       <h3 id="party-detail-title" className="text-lg font-bold text-zinc-900 line-clamp-2">{activePartyDetail.title}</h3>
                     </div>
-                    <button onClick={closePartyDetail} className="p-2 rounded-full hover:bg-zinc-100 transition flex-shrink-0" aria-label="상세 닫기">
+                    <button onClick={closePartyDetail} className="icon-btn p-2 rounded-full hover:bg-zinc-100 transition flex-shrink-0" aria-label="파티 상세 모달 닫기">
                       <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
+
+                  {activePartyDetail.isExample && <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">제휴 매장이 확정되면 실제 파티로 열려요.</p>}
 
                   {/* Application Flow */}
                   {applyStep === 'detail' && (
@@ -1509,6 +1591,11 @@
                         <p className="text-sm text-zinc-700 whitespace-pre-line">{activePartyDetail.desc}</p>
                       </div>
 
+                      {activePartyDetail.missionRequirements && <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+                        <p className="text-xs text-zinc-600 mb-1">미션 조건</p>
+                        <p className="text-sm text-zinc-800 whitespace-pre-line">{activePartyDetail.missionRequirements}</p>
+                      </div>}
+
                       {/* Recruit Status */}
                       <div className="p-3 rounded-xl bg-white border border-zinc-200">
                         <div className="flex items-center justify-between">
@@ -1524,7 +1611,7 @@
 
                       {/* Action Buttons */}
                       <div className="space-y-2">
-                        <button
+                        {activePartyDetail.isExample ? <button type="button" disabled className="w-full py-3 rounded-xl text-sm font-bold bg-zinc-200 text-zinc-600 cursor-not-allowed min-h-[48px]">신청 오픈 예정</button> : <button
                           onClick={() => setApplyStep('form')}
                           disabled={activePartyDetail.currentRecruit >= activePartyDetail.recruit || hasApplied(activePartyDetail.id)}
                           className={`w-full py-3 rounded-xl text-sm font-bold transition min-h-[48px] ${
@@ -1540,8 +1627,8 @@
                             : hasApplied(activePartyDetail.id)
                               ? "신청 완료"
                               : "파티 신청하기"}
-                        </button>
-                        {currentUser && hasApplied(activePartyDetail.id) && !reviews.some(r => r.userId === currentUser.id && r.venue === activePartyDetail.venue) && (
+                        </button>}
+                        {!activePartyDetail.isExample && currentUser && hasApplied(activePartyDetail.id) && !reviews.some(r => r.userId === currentUser.id && r.venue === activePartyDetail.venue) && (
                           <button
                             onClick={() => openReviewWrite(activePartyDetail)}
                             className="w-full py-3 rounded-xl text-sm font-semibold border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition min-h-[48px]"
@@ -1549,20 +1636,28 @@
                             후기 작성하기
                           </button>
                         )}
-                        <button
+                        {!activePartyDetail.isExample && <button
                           onClick={() => openMap(activePartyDetail)}
                           className="w-full py-3 rounded-xl text-sm font-semibold border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition min-h-[48px] flex items-center justify-center gap-2"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                           카카오맵에서 보기
-                        </button>
+                        </button>}
+                        {!activePartyDetail.isExample && window.PartyShare && <button
+                          onClick={() => handleShareParty(activePartyDetail)}
+                          className="w-full py-3 rounded-xl text-sm font-semibold border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition min-h-[48px] flex items-center justify-center gap-2"
+                          aria-label="파티 공유하기"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                          공유하기
+                        </button>}
                       </div>
                     </div>
                   )}
 
                   {/* Application Form */}
                   {applyStep === 'form' && (
-                    <form onSubmit={submitApplication} className="space-y-4">
+                    <form onSubmit={submitApplication} className="space-y-4" ref={formRef}>
                       <h3 className="text-lg font-bold text-zinc-900">파티 신청</h3>
                       <p className="text-sm text-zinc-500">{activePartyDetail.title}</p>
                       
@@ -1580,7 +1675,7 @@
                           value={applyForm.name}
                           onChange={(e) => setApplyForm({...applyForm, name: e.target.value})}
                           placeholder="이름을 입력해 주세요"
-                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent min-h-[44px]"
                           autoComplete="name"
                           required
                         />
@@ -1594,7 +1689,7 @@
                           value={applyForm.phone}
                           onChange={(e) => setApplyForm({...applyForm, phone: e.target.value})}
                           placeholder="010-0000-0000"
-                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                          className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent min-h-[44px]"
                           autoComplete="tel"
                           required
                         />
@@ -1604,7 +1699,7 @@
                         <label className="block text-sm font-medium text-zinc-700 mb-1">참여 일정 <span className="text-rose-600">*</span></label>
                         <div className="flex flex-wrap gap-2">
                           {activePartyDetail.days.map((day) => (
-                            <label key={day} className="flex items-center gap-2 cursor-pointer">
+                            <label key={day} className="radio-label flex items-center gap-2 cursor-pointer">
                               <input
                                 type="radio"
                                 name="apply-day"
@@ -1619,7 +1714,7 @@
                         </div>
                       </div>
 
-                      <label className="flex items-start gap-3 cursor-pointer">
+                      <label className="checkbox-label flex items-start gap-3 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={applyForm.agree}
@@ -1679,14 +1774,14 @@
           {/* Notification Center */}
           {isNotificationOpen && (
             <div className="fixed inset-0 z-[60] flex items-start justify-end bg-black/60 p-4 backdrop-blur-sm animate-fade-in" onClick={() => setIsNotificationOpen(false)}>
-              <div role="dialog" aria-modal="true" aria-labelledby="notification-title" onClick={e => e.stopPropagation()} className="animate-slide-up relative w-full max-w-md max-h-[80vh] rounded-2xl bg-white shadow-2xl flex flex-col">
+              <div role="dialog" aria-modal="true" aria-labelledby="notification-title" onClick={e => e.stopPropagation()} className="animate-slide-up relative w-full max-w-md max-h-[80vh] rounded-2xl bg-white shadow-2xl flex flex-col modal-content">
                 <div className="flex items-center justify-between border-b border-zinc-100 p-4">
                   <h3 id="notification-title" className="text-base font-bold text-zinc-900">알림</h3>
                   <div className="flex items-center gap-2">
                     {unreadCount > 0 && (
                       <button onClick={markAllAsRead} className="text-xs font-semibold text-rose-600 hover:underline">전체 읽음</button>
                     )}
-                    <button onClick={() => setIsNotificationOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기">
+                    <button onClick={() => setIsNotificationOpen(false)} className="icon-btn p-2 rounded-full hover:bg-zinc-100 transition" aria-label="알림 센터 닫기">
                       <svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                   </div>
@@ -1708,7 +1803,7 @@
                               <p className="text-sm text-zinc-600 mt-0.5">{notif.message}</p>
                               <p className="text-xs text-zinc-400 mt-1">{new Date(notif.createdAt).toLocaleString('ko-KR')}</p>
                             </div>
-                            <button onClick={() => { markAsRead(notif.id); deleteNotification(notif.id); }} className="p-1 text-zinc-400 hover:text-zinc-600" aria-label="알림 삭제">
+                            <button onClick={() => { markAsRead(notif.id); deleteNotification(notif.id); }} className="icon-btn p-1 text-zinc-400 hover:text-zinc-600" aria-label="알림 삭제">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                           </div>
@@ -1724,10 +1819,10 @@
           {/* Review Write Modal */}
           {isReviewWriteOpen && reviewWriteParty && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="후기 작성" onClick={() => setIsReviewWriteOpen(false)}>
-              <div className="relative w-full max-w-md max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-md max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-slide-up modal-content" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b border-zinc-100">
                   <h3 className="text-base font-bold text-zinc-900">후기 작성</h3>
-                  <button onClick={() => setIsReviewWriteOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기"><svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                  <button onClick={() => setIsReviewWriteOpen(false)} className="icon-btn p-2 rounded-full hover:bg-zinc-100 transition" aria-label="후기 작성 모달 닫기"><svg className="w-5 h-5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </div>
                 <form onSubmit={submitReview} className="flex-1 overflow-y-auto p-4 space-y-4">
                   <p className="text-sm text-zinc-500 text-center">「{reviewWriteParty.title}」 후기</p>
@@ -1757,10 +1852,10 @@
           {/* My Page Modal */}
           {isMyPageOpen && currentUser && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true" aria-label="마이페이지" onClick={() => setIsMyPageOpen(false)}>
-              <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col animate-slide-up" onClick={e => e.stopPropagation()}>
+              <div className="relative w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col animate-slide-up modal-content" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between p-4 border-b border-zinc-200">
                   <h2 className="text-lg font-bold text-zinc-900">마이페이지</h2>
-                  <button onClick={() => setIsMyPageOpen(false)} className="p-2 rounded-full hover:bg-zinc-100 transition" aria-label="닫기"><svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                  <button onClick={() => setIsMyPageOpen(false)} className="icon-btn p-2 rounded-full hover:bg-zinc-100 transition" aria-label="마이페이지 모달 닫기"><svg className="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </div>
                 <div className="p-4 border-b border-zinc-200">
                   <div className="flex items-center gap-3">
@@ -1803,7 +1898,20 @@
                                 <button onClick={() => handleMyApplicationCancel(app)} className="mt-2 w-full py-2 text-sm font-medium text-rose-600 hover:text-rose-700 transition">신청 취소</button>
                               )}
                               {app.status === 'APPROVED' && app.visitCode && (
-                                <div className="mt-2 p-2 bg-emerald-50 rounded-lg text-sm text-emerald-700">방문 인증 코드: <span className="font-mono font-bold">{app.visitCode}</span></div>
+                                <div className="mt-2 p-3 bg-emerald-50 rounded-lg text-sm text-emerald-700">
+                                  <div>방문 인증 코드: <span className="font-mono font-bold">{app.visitCode}</span></div>
+                                  {window.PartyQR && (
+                                    <div className="mt-2 flex flex-col items-center gap-1">
+                                      <div
+                                        className="bg-white p-2 rounded-lg border border-emerald-100"
+                                        dangerouslySetInnerHTML={{ __html: window.PartyQR.toSVG(app.visitCode, { size: 140, margin: 2 }) }}
+                                        role="img"
+                                        aria-label={`방문 인증 QR 코드 ${app.visitCode}`}
+                                      />
+                                      <span className="text-[11px] text-emerald-600">현장에서 이 QR을 보여주세요</span>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                               <ApplicationExtras application={app} onChanged={handleMissionSubmitted} />
                             </div>

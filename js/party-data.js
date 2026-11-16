@@ -1,144 +1,150 @@
 // Extracted party data from index.html - shared across home and party-connect pages
+// NOTE: 모든 업체명·주소는 예시(가명)이며 실제와 무관합니다.
+// NOTE: 설명은 검증 불가한 실적 주장(결혼 확정, 연프 출연진, 실제 운영 등)을 제거한 중립적 문구로 수정됨.
+// NOTE: 신규 코드는 js/party-showcase.js의 PartyShowcase.build()를 사용하세요. 이 파일은 하위 호환용으로 유지.
 
 var PARTY_LIST = [
   {
     id: 1,
-    title: "[양재] 올해만 3커플 결혼 확정! 연프 출연진도 내돈내산하는 바로 그곳",
+    title: "[양재] 프라이빗 소셜 라운지 모임",
     region: "강남/서초",
     category: "소개팅",
     days: ["금", "토", "일"],
     recruit: 10,
     currentRecruit: 8,
-    venue: "솔로몬클럽 양재본점",
-    address: "서울 서초구 양재동 12-4",
-    desc: "💖 올해만 벌써 3커플 결혼 확정! 📺 연애 프로그램 출연진도 '내돈내산'으로 방문하는 프리미엄 소셜 클럽",
+    venue: "OO 라운지 양재 (예시)",
+    address: "서울 서초구 일대 (가명)",
+    desc: "편안한 분위기에서 새로운 사람들과 자연스럽게 대화할 수 있는 소셜 모임입니다.",
     images: [
-      "https://qdoyiwzgysussttzvzxn.supabase.co/storage/v1/object/public/hospital-lumi-connect-campaigns/05427d2a-ad94-40e8-80c2-7455382cb8f4/6d6db1aa-a8f4-4c53-883f-1608bc64bdaa/thumbnail-32c8c8ef-4334-4b0e-a8c5-c2049cd794ed.jpg",
-      "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=600&q=80"
+      "assets/party-example-01.svg",
+      "assets/party-example-02.svg"
     ],
     badges: ["NEW", "이벤트"],
     isFeatured: true
   },
   {
     id: 2,
-    title: "[강남] 제로라운지의 두번째, 프리미엄 와인파티 제로러브",
+    title: "[강남] 프리미엄 와인 네트워킹 파티",
     region: "강남/서초",
     category: "소셜파티",
     days: ["목", "금", "토"],
     recruit: 10,
     currentRecruit: 10,
-    venue: "제로러브 라운지",
-    address: "서울 강남구 테헤란로 14길 8",
-    desc: "고급 와인 4종과 핑거푸드가 무제한 제공되는 2030 프리미엄 소셜 네트워킹 와인파티",
+    venue: "OO 와인바 강남 (예시)",
+    address: "서울 강남구 일대 (가명)",
+    desc: "와인과 핑거푸드를 즐기며 여유롭게 네트워킹하는 파티입니다.",
     images: [
-      "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=600&q=80",
-      "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=600&q=80"
+      "assets/party-example-01.svg",
+      "assets/party-example-03.svg"
     ],
     badges: ["마감임박"],
     isFeatured: true
   },
   {
     id: 3,
-    title: "[을지로] 제주보름 🌕 힙한 을지로에서 즐기는 편안한 혼술바!",
+    title: "[을지로] 힙한 분위기의 혼술바",
     region: "종로/광화문",
     category: "혼술바",
     days: ["월", "화", "수", "목", "금", "토", "일"],
     recruit: 8,
     currentRecruit: 5,
-    venue: "제주보름 을지로점",
-    address: "서울 중구 마른내로 42",
-    desc: "사장님이 정말 친절하시고, 처음 온 사람도 편안한 분위기에 즐길 수 있는 힙지로 최고의 혼술바",
+    venue: "OO 혼술바 을지로 (예시)",
+    address: "서울 중구 일대 (가명)",
+    desc: "혼자 방문해도 편안하게 즐길 수 있는 분위기의 혼술바입니다.",
     images: [
-      "https://qdoyiwzgysussttzvzxn.supabase.co/storage/v1/object/public/hospital-lumi-connect-campaigns/05427d2a-ad94-40e8-80c2-7455382cb8f4/83fed0a3-ca66-4928-81ba-2c3f3d19f1e2/thumbnail-764360e4-a9ee-40d3-a763-e523b938625a.jpg",
-      "https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=600&q=80"
+      "assets/party-example-02.svg",
+      "assets/party-example-03.svg"
     ],
     badges: ["HOT"],
     isFeatured: false
   },
   {
     id: 4,
-    title: "[신촌] 내향인들의 프리미엄 대화형 소셜링, 큐피드파티",
+    title: "[신촌] 대화형 소셜링 모임",
     region: "신촌/이대",
     category: "소개팅",
     days: ["수", "금", "토"],
     recruit: 12,
     currentRecruit: 9,
-    venue: "큐피트파티 신촌점",
-    address: "서울 서대문구 연세로7안길 10-4",
-    desc: "어색함 없는 1:1 로테이션 대화 카드와 편안한 분위기 조성. 내향인(I)도 200% 만족하는 소셜링",
+    venue: "XX 소셜라운지 신촌 (예시)",
+    address: "서울 서대문구 일대 (가명)",
+    desc: "어색함 없이 대화할 수 있도록 구성된 소셜링 프로그램입니다.",
     images: [
-      "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=600&q=80",
-      "https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=600&q=80"
+      "assets/party-example-01.svg",
+      "assets/party-example-03.svg"
     ],
     badges: ["NEW"],
     isFeatured: false
   },
   {
     id: 5,
-    title: "[합정] 하이엔드 와인파티, 편안하고 자연스러운 파티",
+    title: "[합정] 편안한 와인 파티",
     region: "홍대/마포",
     category: "소셜파티",
     days: ["금", "토"],
     recruit: 10,
     currentRecruit: 7,
-    venue: "살롱드솔내 합정",
-    address: "서울 마포구 양화로6길 57",
-    desc: "합정역 5분 역세권! 실제 운영되는 고급 와인바에서 열리는 맛과 분위기 모두 보장된 시크릿 파티",
+    venue: "XX 와인파티룸 합정 (예시)",
+    address: "서울 마포구 일대 (가명)",
+    desc: "역세권 와인바에서 맛과 분위기를 즐기는 파티입니다.",
     images: [
-      "https://qdoyiwzgysussttzvzxn.supabase.co/storage/v1/object/public/hospital-lumi-connect-campaigns/05427d2a-ad94-40e8-80c2-7455382cb8f4/0343b81f-e139-4aa0-8f4d-3502e33bcd4d/thumbnail-99b0bfee-ef2d-4fe2-869c-a57b20639e9e.jpg"
+      "assets/party-example-03.svg"
     ],
     badges: ["이벤트"],
     isFeatured: true
   },
   {
     id: 6,
-    title: "[신림] 야화 신림점 신규 입점! 분위기 아주 좋아요",
+    title: "[신림] 감성 아지트 혼술바",
     region: "관악/신림",
     category: "혼술바",
     days: ["월", "화", "수", "목", "금", "토"],
     recruit: 8,
     currentRecruit: 6,
-    venue: "야화 혼술바 신림점",
-    address: "서울 관악구 신림로59길 14",
-    desc: "감성 조명과 음악, 혼자 와도 사장님과 도란도란 이야기 나누며 힐링할 수 있는 따뜻한 심야 아지트",
+    venue: "XX 아지트 신림 (예시)",
+    address: "서울 관악구 일대 (가명)",
+    desc: "감성적인 조명과 음악이 있는 편안한 혼술 공간입니다.",
     images: [
-      "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=600&q=80"
+      "assets/party-example-02.svg"
     ],
     badges: ["NEW"],
+    isExample: false,
     isFeatured: false
   },
   {
     id: 7,
-    title: "[문래] 제로라운지 내향인 도파민파티",
+    title: "[문래] 창작촌 소셜 파티",
     region: "여의도/영등포",
     category: "소셜파티",
     days: ["목", "금", "토"],
     recruit: 10,
     currentRecruit: 8,
-    venue: "문래 제로라운지",
-    address: "서울 영등포구 도림로 432",
-    desc: "문래 창작촌의 힙한 감성 공간에서 맛있는 핑거푸드와 함께 부담 없이 즐기는 웰컴 소셜링",
+    venue: "OO 소셜라운지 문래 (예시)",
+    address: "서울 영등포구 일대 (가명)",
+    desc: "문래 창작촌 감성 공간에서 즐기는 소셜 파티입니다.",
     images: [
-      "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=600&q=80"
+      "assets/party-example-01.svg"
     ],
     badges: [],
+    isExample: false,
     isFeatured: false
   },
   {
     id: 8,
-    title: "[을지로] 43번지 혼술바 을지로점, 퇴근 후 혼술하기 좋은 곳!",
+    title: "[을지로] 퇴근길 혼술바",
     region: "명동/을지로",
     category: "혼술바",
     days: ["월", "화", "수", "목", "금"],
     recruit: 6,
     currentRecruit: 4,
-    venue: "43번지 혼술바",
-    address: "서울 중구 을지로11길 19",
-    desc: "퇴근길 가볍게 한잔! 하루의 피로를 풀어주는 웰컴 드링크와 편안한 좌석 배치",
+    venue: "XX 혼술바 을지로 (예시)",
+    address: "서울 중구 일대 (가명)",
+    desc: "퇴근 후 가볍게 한잔하기 좋은 혼술바입니다.",
     images: [
-      "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=600&q=80"
+      "assets/party-example-02.svg"
     ],
     badges: [],
+    isExample: false,
     isFeatured: false
   }
 ];
