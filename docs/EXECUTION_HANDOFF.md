@@ -161,3 +161,10 @@
 - **정책: 홈페이지는 운영 중이 아닌 개발 단계이므로, 검증(CI 통과) 후에는 언제나 main으로 병합한다.** 별도 검토 대기로 병합을 보류하지 않는다. (운영 DB 쓰기·운영 배포·시크릿 변경은 여전히 Jacob 명시 승인 필요.)
 - 적용: PR #38(6Soo→main)을 CI 통과 확인 후 squash 병합(`--delete-branch` 금지), 병합 후 `git merge origin/main`으로 6Soo 동기화. 명세 상태표(FEATURE_SPEC/SPECIFICATION) 갱신도 같은 정책으로 검증 후 병합.
 - 여전히 대기: L-01 약관 본문·L-03 사업자 값(자료), G-14 실서버 취소 검증(운영 DB 위험·별도 승인), 서버 API 항목(partylink 저장소 부재).
+
+### 병합 실행 완료 (2026-11-16)
+
+- 문서 커밋 `5aab89f` CI 43888081726 **success**(Validate & Lint ✓, E2E 3브라우저 ✓ 10m41s, Deployment Readiness는 main-push 전용이라 PR에서 생략) 확인 후 병합 실행.
+- PR #38 초안→준비 완료 전환(`gh pr ready 38`) → `gh pr merge 38 --squash`(**`--delete-branch` 미사용**, 6Soo 장기 브랜치 보존). main squash 커밋 `b345b50` "feat(web): Part B P0·P1·P2 구현 통합 + 개발 단계 main 병합 정책".
+- 병합 후 `git fetch origin && git merge origin/main --no-edit` → 충돌 없음(ort), 6Soo 동기화 병합 커밋 `5f9b148`. `git push origin 6Soo` 완료, 로컬 HEAD=origin/6Soo=`5f9b148` 일치 확인. 강제 푸시·reset 없음.
+- 운영 DB 쓰기·운영 배포·시크릿 변경은 실행하지 않음(여전히 Jacob 명시 승인 게이트). 보존 미추적 파일 `nul`·`pr-body.md`·`__pycache__` 미변경.
