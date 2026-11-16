@@ -85,6 +85,7 @@
   <script src="js/party-share.js"></script>
   <script src="js/party-date-filter.js"></script>
   <script src="js/party-qr.js"></script>
+  <script src="js/party-notify.js"></script>
   <script src="js/mission-ui.js"></script>
 
   <style>
@@ -419,7 +420,14 @@
         }
       });
       const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-      const [unreadCount, setUnreadCount] = useState(0);
+      const [unreadCount, setUnreadCount] = useState(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem("partyconnect:notifications") || "[]");
+          return Array.isArray(saved) ? saved.filter((n) => !n.read).length : 0;
+        } catch (e) {
+          return 0;
+        }
+      });
 
       // Review writing
       const [isReviewWriteOpen, setIsReviewWriteOpen] = useState(false);
@@ -707,6 +715,24 @@
         setNotifications((prev) => prev.filter((n) => n.id !== notifId));
       };
 
+      // G-21: 알림 함은 새로고침 후에도 유지된다(초기화 함수가 이미 이 키를 읽는다).
+      useEffect(() => {
+        try { localStorage.setItem("partyconnect:notifications", JSON.stringify(notifications)); } catch (e) {}
+      }, [notifications]);
+
+      // G-21: 실제 신청 상태 변화(서버 조회 결과)를 알림으로 반영한다.
+      // 최초 조회는 상태만 기록하고, 이후 선정·반려·보완 요청·체험 완료 변화가 있을 때만 알린다.
+      // 빈 목록은 서버 조회 전 초기 상태일 수 있으므로 이전 기록을 덮어쓰지 않는다(덮어쓰면 변화 감지 불가).
+      useEffect(() => {
+        if (!live || !currentUser || !window.PartyNotify || applications.length === 0) return;
+        const seen = window.PartyNotify.loadSeen(currentUser.id);
+        const result = window.PartyNotify.buildEvents(seen, applications);
+        result.events.forEach((ev) => {
+          addNotification({ type: ev.type, title: ev.title, message: ev.message });
+        });
+        window.PartyNotify.saveSeen(currentUser.id, result.nextSeen);
+      }, [applications, live, currentUser && currentUser.id]);
+
       // Review writing
       const openReviewWrite = (party) => {
         setReviewWriteParty(party);
@@ -718,7 +744,12 @@
       const submitReview = (e) => {
         e.preventDefault();
         if (!reviewWriteParty || !currentUser) return;
-        
+
+        if (!hasCompletedApplication(reviewWriteParty.id)) {
+          showToast("체험 완료된 파티만 후기를 작성할 수 있어요.");
+          return;
+        }
+
         if (reviewWriteForm.comment.trim().length < 10) {
           showToast("후기는 10자 이상 작성해 주세요.");
           return;
@@ -837,9 +868,18 @@
 
       // Check if user has applied to a party
       const hasApplied = (partyId) => {
-        return applications.some((a) => 
-          a.partyId === partyId && 
+        return applications.some((a) =>
+          a.partyId === partyId &&
           isActiveApplication(a.status) &&
+          (!live || (currentUser && a.userId === currentUser.id))
+        );
+      };
+
+      // G-22: 후기 작성은 체험 완료(COMPLETED, 미션 최종 승인)된 신청만 가능하다.
+      const hasCompletedApplication = (partyId) => {
+        return applications.some((a) =>
+          a.partyId === partyId &&
+          String(a.status || '').toUpperCase() === 'COMPLETED' &&
           (!live || (currentUser && a.userId === currentUser.id))
         );
       };
@@ -1628,7 +1668,7 @@
                               ? "신청 완료"
                               : "파티 신청하기"}
                         </button>}
-                        {!activePartyDetail.isExample && currentUser && hasApplied(activePartyDetail.id) && !reviews.some(r => r.userId === currentUser.id && r.venue === activePartyDetail.venue) && (
+                        {!activePartyDetail.isExample && currentUser && hasCompletedApplication(activePartyDetail.id) && !reviews.some(r => r.userId === currentUser.id && r.venue === activePartyDetail.venue) && (
                           <button
                             onClick={() => openReviewWrite(activePartyDetail)}
                             className="w-full py-3 rounded-xl text-sm font-semibold border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 transition min-h-[48px]"

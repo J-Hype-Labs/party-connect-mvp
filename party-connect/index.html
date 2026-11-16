@@ -61,6 +61,7 @@
   <script src="../js/party-share.js"></script>
   <script src="../js/party-date-filter.js"></script>
   <script src="../js/party-qr.js"></script>
+  <script src="../js/party-notify.js"></script>
 
   <!-- Supabase & Auth Modules -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -269,7 +270,12 @@
         } catch (e) { return []; }
       });
       const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-      const [unreadCount, setUnreadCount] = useState(0);
+      const [unreadCount, setUnreadCount] = useState(() => {
+        try {
+          const saved = JSON.parse(localStorage.getItem('partyconnect:notifications') || '[]');
+          return Array.isArray(saved) ? saved.filter((n) => !n.read).length : 0;
+        } catch (e) { return 0; }
+      });
       const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
       // Auth state
@@ -561,6 +567,24 @@
       const deleteNotification = (notifId) => {
         setNotifications((prev) => prev.filter((n) => n.id !== notifId));
       };
+
+      // G-21: 알림 함은 새로고침 후에도 유지된다(초기화 함수가 이미 이 키를 읽는다).
+      useEffect(() => {
+        try { localStorage.setItem('partyconnect:notifications', JSON.stringify(notifications)); } catch (e) {}
+      }, [notifications]);
+
+      // G-21: 실제 신청 상태 변화(서버 조회 결과)를 알림으로 반영한다.
+      // 최초 조회는 상태만 기록하고, 이후 선정·반려·보완 요청·체험 완료 변화가 있을 때만 알린다.
+      // 빈 목록은 서버 조회 전 초기 상태일 수 있으므로 이전 기록을 덮어쓰지 않는다(덮어쓰면 변화 감지 불가).
+      useEffect(() => {
+        if (!live || !currentUser || !window.PartyNotify || applications.length === 0) return;
+        const seen = window.PartyNotify.loadSeen(currentUser.id);
+        const result = window.PartyNotify.buildEvents(seen, applications);
+        result.events.forEach((ev) => {
+          addNotification({ type: ev.type, title: ev.title, message: ev.message });
+        });
+        window.PartyNotify.saveSeen(currentUser.id, result.nextSeen);
+      }, [applications, live, currentUser && currentUser.id]);
 
       // My Page
       const openMyPage = () => {

@@ -168,3 +168,27 @@
 - PR #38 초안→준비 완료 전환(`gh pr ready 38`) → `gh pr merge 38 --squash`(**`--delete-branch` 미사용**, 6Soo 장기 브랜치 보존). main squash 커밋 `b345b50` "feat(web): Part B P0·P1·P2 구현 통합 + 개발 단계 main 병합 정책".
 - 병합 후 `git fetch origin && git merge origin/main --no-edit` → 충돌 없음(ort), 6Soo 동기화 병합 커밋 `5f9b148`. `git push origin 6Soo` 완료, 로컬 HEAD=origin/6Soo=`5f9b148` 일치 확인. 강제 푸시·reset 없음.
 - 운영 DB 쓰기·운영 배포·시크릿 변경은 실행하지 않음(여전히 Jacob 명시 승인 게이트). 보존 미추적 파일 `nul`·`pr-body.md`·`__pycache__` 미변경.
+
+## 2026-11-17 나머지 기능 구현 — G-21·G-22 웹 측 (감독자 직접 구현)
+
+사용자 지시 "l1 l3는 보류, 나머지 기능구현 완료할것". 명세 전수 대조 후 이 워크스페이스에서 구현 가능한 나머지 항목을 진행했다. L-01/L-03 보류 유지(재질문 없음). partylink 서버 저장소 부재를 C:\AX 전체에서 재확인 → 서버 의존 항목은 여전히 불가.
+
+| 요구사항 | 현재 상태 | 구현 및 실제 근거 |
+|---|---|---|
+| G-21 사이트 내 알림 함 | 웹 측 구현·검증 완료 | `js/party-notify.js`(window.PartyNotify): 실제 신청 상태 변화에서 알림 도출 — 선정(APPROVED)·반려(REJECTED)·보완 요청(MISSION_SUBMITTED→VISITED)·체험 완료(COMPLETED). 최초 조회는 기록만, 사용자별 seen 상태 저장, 알림 함 새로고침 후 유지(읽기만 있던 기존 코드에 저장 보완). 홈·탐색 양쪽 배선. 단위 27 + 통합 17×3브라우저 |
+| G-22 후기 작성 게이트 | 웹 측 구현·검증 완료 | COMPLETED(미션 최종 승인) 신청만 후기 작성: 상세 버튼 조건 `hasCompletedApplication` + 제출 시 방어. 홈 전용(탐색에 후기 기능 없음). 통합 17에 게이트 6건 포함 |
+| G-20 서버 푸시·G-22 후기 DB·G-19 찜 동기화 | BLOCKED | partylink 서버 저장소 부재. 알림·후기 저장은 아직 localStorage |
+| G-09 지도·S-03/S-04 점주 화면·M-12 관리 기록 | 보류 유지 | 제품 결정에 의한 P2 보류(카카오 JS 키·M5 결과·Q-14 선행) |
+| G-14 취소 실서버 검증·G-04 실데이터·L-05 실서버 스모크 | BLOCKED | 운영 DB 위험·운영 자료·서버 필요 |
+| S-02 제휴 폼·G-18 탈퇴·L-02/04/07·M-09 | BLOCKED | 서버 API/저장소 선행 필요 |
+
+감독자 검증·수정(예외):
+- 위임 대신 직접 구현: 두 항목이 공유 HTML 소규모 수정이라 병렬 위임 시 충돌 → 감독자 직접 구현(P1의 감독자 배선 소유 원칙과 동일).
+- 검증 중 결함 3건 발견·수정: ① 서버 조회 전 빈 목록이 seen 상태를 덮어써 변화 감지가 불가하던 경합 ② 알림 미저장(기존 코드가 localStorage 키를 읽기만 하고 기록하지 않음) ③ loadSeen 배열 방어 누락 + 단위 테스트 VM 렐름 비교 오류.
+- 로컬 서버 flake 진단(코드 결함 아님): `ECONNREFUSED ::1`(IPv6) → `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000`으로 해결. IPv4에서도 200여 테스트 장기 런은 python 서버 열화 → 회귀를 소그룹으로 분리(invocation별 신선 서버). showcase 단독 27/27 통과 확인. 메모리에 저장.
+
+검사 기록:
+- 단위 27/27, `validate:jsx/html` 통과(검증기 목록에 party-notify.js 추가).
+- 신규 통합 `tests/p2-review-notify.spec.js` 17×3브라우저 = 51/51.
+- 회귀: Chromium 216(장기 런 214 + showcase 2건 단독 재실행 통과, showcase 단독 27/27)·Mobile Chrome 196·Mobile Safari 196 통과. p1 모듈 스위트는 Chromium 통과(해당 모듈 무변경).
+- 운영 DB 쓰기·운영 배포·시크릿 변경 없음. 커밋 후 CI 통과 확인 → 개발 단계 정책대로 main squash 병합(`--delete-branch` 금지)·6Soo 동기화. 병합 실행 기록은 git 이력·최종 보고로 남기며 별도 문서 커밋을 만들지 않는다(재귀 방지).
