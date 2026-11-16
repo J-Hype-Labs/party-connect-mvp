@@ -124,7 +124,8 @@ test.describe('관리자 페이지 — 신청 관리', () => {
     const actions = async (id) => page.locator(`[data-app-id="${id}"] [data-action]`).evaluateAll((els) => els.map((e) => e.dataset.action));
     await expect(page.locator('#app-list li')).toHaveCount(4);
     expect(await actions('a1')).toEqual(['approve', 'reject']);
-    expect(await actions('a2')).toEqual(['verify-visit', 'noshow']);
+    // APPROVED: 방문 인증/노쇼 + M-11 연락처·선정 안내 복사(연락처·방문코드가 있을 때)
+    expect(await actions('a2')).toEqual(['verify-visit', 'noshow', 'copy-phone', 'copy-template']);
     expect(await actions('a3')).toEqual(['complete', 'request-revision']);
     expect(await actions('a4')).toEqual([]);
   });
