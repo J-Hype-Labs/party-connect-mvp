@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>점주 방문 인증 - HypeConnect</title>
+  <meta name="description" content="점주가 게스트의 방문 코드를 확인해 방문을 인증합니다. (UI 골격 - 서버 연동은 별도)">
+  <link rel="icon" href="../assets/hypeconnect-icon.svg" type="image/svg+xml">
+  <meta name="robots" content="noindex">
+
+  <!-- Pretendard Font (사이트 표준) -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+  <!-- Tailwind CSS CDN + 브랜드 토큰 (party-connect/index.html 과 동일 언어) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              primary: '#F43F5E',
+              secondary: '#FB7185',
+              accent: '#2563EB',
+              surface: '#FFFFFF',
+              ink: '#0F172A',
+              muted: '#71717A',
+              line: '#E4E4E7',
+              dark: '#0F172A',
+              light: '#FFF1F2',
+            },
+            error: '#EF4444',
+            success: '#059669',
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- React 18 & ReactDOM & Babel CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- 모듈: OwnerVisit (코드 정규화/검증/요청 위임. 서버 없으면 fail-closed) -->
+  <script src="../js/owner-visit.js"></script>
+
+  <style>
+    /* 최소 커스텀: 가늘고 조용한 안내 문구 */
+    .owner-hint { color: #71717A; font-size: 12.5px; line-height: 1.5; }
+    input[type="text"] { letter-spacing: 0.14em; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body class="bg-zinc-50 text-zinc-900 antialiased min-h-screen flex flex-col">
+  <div id="root"></div>
+  <noscript><p class="state-msg">이 화면은 JavaScript가 필요합니다.</p></noscript>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const h = window.OwnerVisit;
+    if (!h) throw new Error('OwnerVisit 모듈을 불러올 수 없습니다.');
+
+    function OwnerVisitPage() {
+      const [applicationId, setApplicationId] = useState('');
+      const [code, setCode] = useState('');
+      const [error, setError] = useState(null); // { code, message } (표시 전용, 서버 메시지 보존)
+      const [outcome, setOutcome] = useState(null); // { tone, code?, message }
+      const [busy, setBusy] = useState(false);
+      const [enabled, setEnabled] = useState(h.isAvailable());
+      const [unavailableReason, setUnavailableReason] = useState(h.describe().reason || '');
+
+      useEffect(() => {
+        const onCfg = function () {
+          setEnabled(h.isAvailable());
+          setUnavailableReason(h.describe().reason || '');
+        };
+        window.addEventListener('owner-visit:config', onCfg);
+        return function () { window.removeEventListener('owner-visit:config', onCfg); };
+      }, []);
+
+      function syncCode(raw) {
+        const n = h.normalizeCode(raw);
+        setCode(n);
+        if (n !== raw) { setError(null); setOutcome(null); }
+      }
+
+      async function onSubmit(ev) {
+        ev.preventDefault();
+        if (busy) return;
+        setOutcome(null);
+        if (!enabled) {
+          setError({ code: 'OWNER_API_NOT_READY', message: unavailableReason || h.describe().reason || '점주 인증 API가 아직 준비되지 않았습니다' });
+          return;
+        }
+        if (!h.isValidCodeFormat(code)) {
+          setError({ code: 'INVALID_CODE_FORMAT', message: h.CODE_FORMAT_HINT });
+          return;
+        }
+        const appId = (applicationId || '').trim();
+        if (!appId) {
+          setError({ code: 'MISSING_APPLICATION_ID', message: h.MISSING_APPLICATION_HINT });
+          return;
+        }
+        setBusy(true);
+        try {
+          await h.verifyVisit(appId, code);
+          setError(null);
+          setOutcome({ tone: 'success', message: '방문을 인증했습니다.' });
+        } catch (e) {
+          // 실패는 서버 메시지를 그대로 보여준다 (코드 신설/번역 금지).
+          const msg = (e && e.message) ? e.message : '요청을 처리하지 못했습니다.';
+          setOutcome({ tone: 'error', code: (e && e.code) || undefined, message: msg });
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      const buttonDisabled = !enabled || busy || !h.isValidCodeFormat(code);
+      const showInvalid = (code.trim() !== '' && !h.isValidCodeFormat(code)) || (!!error && error.code === 'INVALID_CODE_FORMAT');
+      const resultClass = outcome
+        ? (outcome.tone === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          : outcome.tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800'
+          : 'border-zinc-200 bg-white text-zinc-700')
+        : '';
+
+      return (
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <header className="mb-6">
+            <img src="../assets/hypeconnect-logo.svg" alt="HypeConnect" width="140" height="26" className="h-7 w-auto" />
+            <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight">점주 방문 인증</h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              게스트가 매장에서 보여 준 방문 코드를 확인해 방문을 인증합니다. (UI 골격 - 서버 연동 별도)
+            </p>
+          </header>
+          <form className="mt-6 bg-white rounded-2xl border border-zinc-200 p-5 sm:p-6 shadow-sm" onSubmit={onSubmit} noValidate>
+            <div className="grid gap-4">
+              <label className="block" htmlFor="owner-application">
+                <span className="text-sm font-semibold text-zinc-700">신청 ID</span>
+                <input
+                  id="owner-application" type="text" autoComplete="off"
+                  value={applicationId} disabled={!enabled || busy}
+                  aria-label="신청 ID (내 신청 목록에서 확인)"
+                  placeholder="예: app_1a2b3c"
+                  onChange={(ev) => { setApplicationId(ev.target.value); setError(null); setOutcome(null); }}
+                />
+              </label>
+              <label className="block" htmlFor="owner-visit-code">
+                <span className="text-sm font-semibold text-zinc-700">방문 코드</span>
+                <input
+                  id="owner-visit-code" type="text" autoComplete="off"
+                  value={code} disabled={!enabled || busy}
+                  aria-invalid={showInvalid ? 'true' : 'false'}
+                  aria-describedby="owner-visit-code-hint"
+                  placeholder="HC-7F3K9Q"
+                  onChange={(ev) => syncCode(ev.target.value)}
+                />
+                <span id="owner-visit-code-hint" className="mt-2 owner-hint">
+                  대문자·하이픈 자동 정규화. 코드는 게스트 화면에서만 생성됩니다.
+                </span>
+              </label>
+            </div>
+            <div className="mt-5">
+              <button
+                id="owner-verify-btn" type="submit" disabled={buttonDisabled}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: enabled ? '#F43F5E' : '#A1A1AA' }}
+                aria-busy={busy ? 'true' : 'false'}
+              >
+                {busy ? '인증 중…' : '인증'}
+              </button>
+              <p className="mt-3 owner-hint">
+                {h.TIME_WINDOW_HINT} · 서버 규칙이며 클라이언트는 안내만 표시합니다.
+              </p>
+            </div>
+          </form>
+          <div className="mt-6">
+            <div role="status" aria-live="polite" data-testid="owner-result">
+              {outcome ? (
+                <p className={'rounded-xl border px-4 py-3 text-sm ' + resultClass}
+                  role={outcome.tone === 'error' ? 'alert' : 'status'}
+                  data-code={outcome.code}>
+                  {outcome.message}
+                </p>
+              ) : null}
+            </div>
+            {error ? <p className="mt-2 text-sm text-rose-600" role="alert">{error.message}</p> : null}
+            {!enabled ? (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+                {(unavailableReason || h.describe().reason || '점주 인증 API가 아직 준비되지 않았습니다') + ' — 서버가 배포되면 이 화면에서 바로 사용할 수 있습니다.'}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<OwnerVisitPage />);
+  </script>
+</body>
+</html>
