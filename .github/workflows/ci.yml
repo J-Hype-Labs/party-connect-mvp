@@ -170,7 +170,7 @@ jobs:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
       - name: Run P1 feature modules (share, QR, date filter, responsive)
-        run: npx playwright test tests/p1-share.spec.js tests/p1-qr.spec.js tests/p1-date-filter.spec.js tests/p1-responsive.spec.js --reporter=list
+        run: npx playwright test tests/p1-share.spec.js tests/p1-qr.spec.js tests/p1-date-filter.spec.js tests/p1-responsive.spec.js tests/g14-cancel.spec.js --reporter=list
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
           # 날짜 필터는 KST 기준이다. 러너 기본 타임존(UTC)과 어긋나지 않도록 고정한다.
