@@ -54,12 +54,13 @@ async function fillCode(page, { applicationId = 'app_1', code }) {
 for (const width of [320, 1440]) {
   test.describe('점주 방문 인증 레이아웃 @ ' + width + 'px', () => {
     test('가로 넘침 없음 (body 내 모든 요소)', async ({ page }) => {
+      // 레이아웃을 재는 검사이므로 뷰포트를 먼저 고정한다(나중에 바꾸면 반영 전에 측정될 수 있다).
+      await page.setViewportSize({ width, height: 900 });
       await openVisit(page);
       await mockError(page, { status: 409, code: 'OUTSIDE_WINDOW', message: '아직 인증 시간창이 아닙니다.' });
       await fillCode(page, { code: 'HC-7F3K9Q' });
       await page.getByRole('button', { name: '인증' }).click();
       await expect(page.locator('[data-testid="owner-result"]')).toContainText('아직 인증 시간창이 아닙니다.');
-      await page.setViewportSize({ width, height: 900 });
       const overflow = await page.evaluate(() => {
         const vw = document.documentElement.clientWidth;
         const bad = [];
