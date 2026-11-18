@@ -77,6 +77,9 @@ jobs:
     name: E2E Browser Tests (Chromium, Mobile Chrome, WebKit)
     runs-on: ubuntu-latest
     needs: validate
+    env:
+      # 서비스는 KST 기준으로 동작한다(날짜 필터·표시 시각). 러너 기본(UTC)과 어긋나지 않게 고정한다.
+      TZ: Asia/Seoul
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -163,6 +166,23 @@ jobs:
 
       - name: Run G-09 map exploration tests (stubbed Kakao SDK)
         run: npx playwright test tests/p2-map.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: Run P1 feature modules (share, QR, date filter, responsive)
+        run: npx playwright test tests/p1-share.spec.js tests/p1-qr.spec.js tests/p1-date-filter.spec.js tests/p1-responsive.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          # 날짜 필터는 KST 기준이다. 러너 기본 타임존(UTC)과 어긋나지 않도록 고정한다.
+          TZ: Asia/Seoul
+
+      - name: Run P2 accessibility, profile and review/notify suites
+        run: npx playwright test tests/p2-a11y.spec.js tests/p2-profile.spec.js tests/p2-review-notify.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: Run admin enhancement suites (bulk actions, catalog, CSV)
+        run: npx playwright test tests/admin-app-enhance.spec.js tests/admin-catalog-enhance.spec.js tests/admin-csv.spec.js --reporter=list
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
