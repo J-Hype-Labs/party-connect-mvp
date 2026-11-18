@@ -151,6 +151,11 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
+      - name: Run P1 policy guidance tests (Q-08, Q-16, Q-21)
+        run: npx playwright test tests/p1-policy.spec.js tests/p1-admin-checklist.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
       - name: Stop local server
         if: always()
         run: |
