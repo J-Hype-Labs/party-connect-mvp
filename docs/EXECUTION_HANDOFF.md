@@ -239,3 +239,27 @@ P1 질문 기한(2026-11-18) 도래·이견 없음 → 예시 답변 확정. 서
 - PR #42 생성(`p2/policy-guidance-integration`), CI 에 P2 스위트 추가.
 
 **교훈:** 엑사원은 계약·문서 작성은 잘하나(세 계약 문서 모두 유용), 대형 단일 HTML 의 JSX/괄호 구조 완성은 신뢰할 수 없다(3건 모두 파싱 실패 또는 결함). 위임 시 "신규 모듈+테스트"는 맡기고 화면 배선은 감독자가 하는 것이 이 저장소의 기존 원칙과 일치한다.
+
+## 2026-11-19 G-09 지도 탐색 완성 (감독자 직접 마무리)
+
+사용자 지시 "모두진행". 앞서 엑사원 위임분을 분리했던 G-09(지도)의 화면 미완 결함을 직접 잡아 완성했다.
+
+| 요구사항 | 상태 | 근거 |
+|---|---|---|
+| G-09 지도 기반 탐색 | 구현·자동검증 완료 | `js/party-map.js` + `party-connect/index.html` 지도 탭. 단위 41/41, 통합 5×3브라우저=15/15(키 없음 비활성·SDK 1회 로드·마커 업체 단위 묶기·재진입 캐시·SDK 실패 폴백·320px 넘침 없음). PR #43 main squash 병합(8fc56eb)·6Soo 동기화(8eb78c4), CI 44401896173 success(E2E 18m33s) |
+
+이번에 잡은 실제 결함 6건(이전 시도가 화면에서 안 되던 원인):
+1. `createMap` 가드가 `kakao.Map`(최상위)을 검사 → 실제 SDK는 `kakao.maps.Map`
+2. `new kakao.Map(...)` → `new kakao.maps.Map(...)`
+3. `buildVenues` 인덱스 falsy 버그(`!index[addr]`)로 첫 주소 인덱스 0 재사용 실패 → `=== undefined`
+4. 호스트 DOM 순환 의존(mapStatus='ready'일 때만 호스트 렌더 ↔ ready 설정이 그 전에 필요) → SDK 로드 후 ready 로 호스트 먼저 렌더, effect가 drawMap
+5. `setParties` 계약 불일치(배열 기대 vs 페이지가 buildVenues 객체 전달) → 페이지가 파티 배열 전달
+6. SDK 재사용 판정이 `mapLoaded`만 확인 → `kakao.maps.Map` 유효성까지 확인
+
+검사 기록:
+- 단위 `party-map` 41/41, `party-policy` 23/23, `party-notify` 27/27
+- 통합 `tests/p2-map.spec.js` 15/15 (3브라우저)
+- 회귀: 탐색 페이지·공유·날짜 필터 23건 통과(share 1건 단독 재실행 2/2 — 장기 실행 flake)
+- `validate:jsx`/`validate:html` PASS
+- 운영 DB 쓰기·운영 배포·시크릿 변경 없음. 카카오 키는 코드에 넣지 않음(콘솔 발급·도메인 등록 후 config 한 줄로 활성).
+- 남은 것: 실제 카카오 키는 계정 소유자 콘솔 작업 필요. 서버 API 연동 3종(S-03·S-04·M-12)은 partylink 저장소 부재로 불가(C:\AX·C:\ 전체 재확인). L-01·L-03은 자료 대기 유지.
