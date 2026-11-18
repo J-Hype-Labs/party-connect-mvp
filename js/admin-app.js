@@ -421,6 +421,9 @@
     headChildren.push(h('strong', { text: g.name || '(이름 없음)' }));
     headChildren.push(h('span', { class: 'badge ' + st[1], text: st[0] }));
 
+    // M-12: 처리 기록이 있으면 '처리: 이름 시각' 한 줄. 없으면 아무 것도 더하지 않는다.
+    const auditLine = auditDisplay(a);
+
     return h('li', { class: 'card', 'data-app-id': a.id },
       h('div', { class: 'card-head' }, headChildren),
       h('dl', { class: 'meta' },
@@ -434,11 +437,28 @@
         a.rejectReason ? row('반려 사유', a.rejectReason) : null,
         g.isBlocked ? row('계정', '차단됨') : null,
         g.noshowCount ? row('노쇼 이력', g.noshowCount + '회') : null),
+      auditLine,
       balanceWarn,
       actions.length ? h('div', { class: 'actions' }, actions) : null);
   }
 
   function row(k, v) { return h('div', null, h('dt', { text: k }), h('dd', { text: v })); }
+
+  // M-12: 처리 기록 한 줄('처리: 이름 M/D HH:MM'). AdminAudit 미로드/미구현이거나
+  //      레코드가 없으면 null → 기존 카드 출력 그대로. 값은 textContent 로만 넣는다.
+  function auditDisplay(a) {
+    const w = window.AdminAudit;
+    if (!w || typeof w.summarize !== 'function') return null;
+    const rec = a && a.audit;
+    if (!rec || typeof rec !== 'object' || Array.isArray(rec)) return null;
+    try {
+      const line = w.summarize(rec);
+      if (typeof line !== 'string' || !line) return null;
+      return h('p', { class: 'audit-line', text: line });
+    } catch (e) {
+      return null;
+    }
+  }
 
   // 사용자가 입력한 URL 은 http(s) 만 링크로 만든다
   function safeLink(url) {

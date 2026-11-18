@@ -28,6 +28,7 @@ button, select, input, textarea { font: inherit; }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .meta { margin: 0; display: grid; gap: 2px; }
 .meta > div { display: flex; gap: 8px; }
+.audit-line { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
 .meta dt { color: var(--muted); min-width: 64px; }
 .meta dd { margin: 0; word-break: break-all; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }

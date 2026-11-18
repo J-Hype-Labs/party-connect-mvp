@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HypeConnect 점주 로그인</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/hypeconnect-icon.svg" />
+  <meta name="description" content="HypeConnect 점주 로그인. 카카오 계정으로 로그인하고 내 파티의 신청자를 확인하세요." />
+
+  <!-- Pretendard Font (게스트 화면과 같은 CDN) -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+
+  <!-- Tailwind CSS CDN (게스트 화면과 같은 설정) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              primary: '#F43F5E',
+              secondary: '#FB7185',
+              accent: '#2563EB',
+              surface: '#FFFFFF',
+              ink: '#0F172A',
+              muted: '#71717A',
+              line: '#E4E4E7',
+              dark: '#0F172A',
+              light: '#FFF1F2',
+            },
+            error: '#EF4444',
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- React 18 & ReactDOM & Babel CDN (게스트 화면과 같은 버전대) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- 공용 모듈 (수정 금지, 공개 API만 사용) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script>
+    // PartyLink 연동 설정 — 두 값이 있으면 실서비스 모드로 동작합니다.
+    //   - 로컬(localhost/127.0.0.1): ?live=1 일 때만 실서비스, 그 외 데모
+    //   - 그 외(호스팅): 두 값이 있으면 실서비스 — ?demo=1 로 우회 불가(엔진 판정)
+    //   - 그 외 + 설정 없음: 데모 대체 금지(fail-closed)
+    // ⚠️ service_role / secret 키는 절대 넣지 마세요(anon/publishable 키만).
+    // 점주 API 게이트: 서버(partylink 엣지 함수)에 점주 권한 API가 구현·배포되기 전까지
+    // 기본 false — 클라이언트는 서버 유무를 추측하지 않고 "사용 불가"를 정직하게 표시한다.
+    // 서버 계약 준비 후 배포 설정에서 true 로 켠다(docs/OWNER_API_CONTRACT.md 초안 참고).
+    window.PARTYLINK_CONFIG = {
+      supabaseUrl: "https://cpctedhhojmbycnqhzli.supabase.co",
+      supabaseAnonKey: "sb_publishable_JEWNbxlUSWRkyVePlejC_A_I0WlLi6e",
+      ownerApiEnabled: false,
+    };
+  </script>
+  <script src="../js/auth-client.js"></script>
+  <script src="../js/auth-service.js"></script>
+  <!-- 점주 API 계약 클라이언트: 비활성 기본 → 요청 없이 { available:false } -->
+  <script src="../js/owner-api.js"></script>
+
+  <style>
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    /* L-06 관례: 터치 타깃 최소 44×44 */
+    button, select, input { min-height: 44px; }
+    .owner-table-wrap { overflow-x: auto; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 0 !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body className="bg-zinc-50 text-zinc-900 antialiased min-h-screen">
+  <div id="root">
+    <p className="px-6 py-8 text-sm text-zinc-500">불러오는 중…</p>
+  </div>
+  <noscript><p className="max-w-md mx-auto px-4 py-16 text-center text-sm text-zinc-500">이 화면은 JavaScript가 필요합니다.</p></noscript>
+
+  <script type="text/babel">
+    // ===== 점주 화면 (S-03 골격) =====
+    // 범위: 점주 로그인 + 내 파티 목록 + 신청자 표(이름·연락처·상태·신청일) + 빈 상태 안내.
+    // 실제 서버 연동 없음: window.OwnerApi 가 계약 클라이언트(기본 비활성).
+    // 권한은 서버가 판정한다 — 여기 표시는 상태 안내일 뿐, 클라이언트만으로 데이터를 노출하지 않는다.
+    const { useEffect, useState } = React;
+
+    const EMPTY_OWNER_MESSAGE = '아직 등록된 점주 계정이 아니거나, 서버 점주 API가 준비되지 않았습니다';
+    const STATUS_LABEL = {
+      APPLIED: '신청', APPROVED: '선정', VISITED: '방문 인증', MISSION_SUBMITTED: '미션 제출',
+      COMPLETED: '완료', REJECTED: '반려', CANCELLED: '취소', NOSHOW: '노쇼'
+    };
+
+    const auth = window.PARTYLINK_AUTH || null;
+    const authService = window.PARTYLINK_AUTH_SERVICE || null;
+    const ownerApi = window.OwnerApi || null;
+
+    const dateFmt = new Intl.DateTimeFormat('ko-KR', {
+      timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
+    });
+
+    function fmtDate(value) {
+      if (!value) return '-';
+      const d = new Date(value);
+      return isNaN(d.getTime()) ? '-' : dateFmt.format(d);
+    }
+    function statusLabel(status) {
+      const key = String(status || '').toUpperCase();
+      return STATUS_LABEL[key] || (status ? String(status) : '-');
+    }
+    function listOf(body, key) {
+      if (Array.isArray(body)) return body;
+      if (body && Array.isArray(body[key])) return body[key];
+      return [];
+    }
+    function errorMessage(e, fallback) {
+      return (e && e.message) ? e.message : fallback;
+    }
+
+    function App() {
+      const [view, setView] = useState('boot'); // boot|login|forbidden|unavailable|error|app
+      const [notice, setNotice] = useState('');
+      const [busy, setBusy] = useState(false);
+      const [parties, setParties] = useState([]);
+      const [selectedId, setSelectedId] = useState('');
+      const [applications, setApplications] = useState([]);
+      const [appsState, setAppsState] = useState('idle'); // idle|loading|ready
+
+      async function loadApplications(partyId) {
+        if (!ownerApi || !partyId) { setApplications([]); setAppsState('idle'); return; }
+        setAppsState('loading');
+        let list;
+        try {
+          list = await ownerApi.applications(partyId);
+        } catch (e) {
+          setAppsState('idle');
+          if (e && e.status === 403) { setNotice('이 파티의 신청자를 볼 권한이 없습니다.'); return; }
+          setNotice(errorMessage(e, '신청자를 불러오지 못했습니다.'));
+          return;
+        }
+        if (list && list.available === false) { setApplications([]); setAppsState('idle'); setView('unavailable'); return; }
+        setApplications(listOf(list, 'applications'));
+        setAppsState('ready');
+      }
+
+      async function loadParties() {
+        if (!ownerApi) { setView('unavailable'); return; }
+        let list;
+        try {
+          list = await ownerApi.parties();
+        } catch (e) {
+          if (e && e.status === 401) { setView('login'); return; }
+          if (e && e.status === 403) { setView('forbidden'); setNotice(errorMessage(e, '파티 목록을 볼 권한이 없습니다.')); return; }
+          setView('error'); setNotice(errorMessage(e, '파티 목록을 불러오지 못했습니다.')); return;
+        }
+        if (list && list.available === false) { setParties([]); setSelectedId(''); setApplications([]); setView('unavailable'); return; }
+        const next = listOf(list, 'parties');
+        setParties(next);
+        setApplications([]);
+        setAppsState('idle');
+        if (next.length) {
+          const firstId = String(next[0].id);
+          setSelectedId(firstId);
+          setView('app');
+          await loadApplications(firstId);
+        } else {
+          setSelectedId('');
+          setView('app');
+        }
+      }
+
+      async function checkOwner() {
+        setBusy(true);
+        setNotice('');
+        if (!ownerApi) { setBusy(false); setView('unavailable'); return; }
+        let me;
+        try {
+          me = await ownerApi.me();
+        } catch (e) {
+          setBusy(false);
+          if (e && e.status === 401) { setView('login'); return; }
+          if (e && e.status === 403) { setView('forbidden'); setNotice(errorMessage(e, '이 계정은 점주로 등록되어 있지 않습니다.')); return; }
+          setView('error'); setNotice(errorMessage(e, '점주 정보를 확인하지 못했습니다.')); return;
+        }
+        if (me && me.available === false) { setBusy(false); setView('unavailable'); return; }
+        setBusy(false);
+        await loadParties();
+      }
+
+      useEffect(() => {
+        if (!auth || !auth.live) { setView('notlive'); return undefined; }
+        let requestId = 0;
+        const run = async (id) => {
+          let session = null;
+          try {
+            const sess = await auth.client.auth.getSession();
+            session = sess && sess.data ? sess.data.session : null;
+          } catch (e) {
+            if (id === requestId) { setView('error'); setNotice(errorMessage(e, '세션을 확인하지 못했습니다.')); }
+            return;
+          }
+          if (id !== requestId) return;
+          if (!session) { setView('login'); setNotice(''); return; }
+          await checkOwner();
+        };
+        run(++requestId);
+        if (authService && typeof authService.subscribe === 'function') {
+          try {
+            authService.subscribe(function (state) {
+              if (state === 'SIGNED_OUT') { requestId++; setView('login'); setNotice(''); setParties([]); setSelectedId(''); setApplications([]); }
+            });
+          } catch (e) { /* 구독 실패는 치명적이지 않다 */ }
+        }
+        return undefined;
+      }, []);
+
+      async function onLogin() {
+        setBusy(true);
+        try {
+          if (!authService || typeof authService.loginWithKakao !== 'function') throw new Error('로그인 모듈을 불러오지 못했습니다.');
+          if (typeof authService.saveReturnUrl === 'function') authService.saveReturnUrl(null, 'owner');
+          await authService.loginWithKakao();
+        } catch (e) {
+          setNotice(errorMessage(e, '카카오 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.'));
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      function onLogout() {
+        try {
+          if (auth && auth.client && auth.client.auth && typeof auth.client.auth.signOut === 'function') auth.client.auth.signOut();
+        } catch (e) { /* 세션이 이미 없을 수 있음 */ }
+        setParties([]); setSelectedId(''); setApplications([]); setAppsState('idle'); setNotice(''); setView('login');
+      }
+
+      function onSelectParty(e) {
+        const id = e.target.value;
+        setSelectedId(id);
+        setApplications([]);
+        setAppsState('idle');
+        setNotice('');
+        loadApplications(id);
+      }
+
+      if (view === 'boot' || view === 'loading') {
+        return <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4"><p className="text-sm text-zinc-500">확인하는 중…</p></div>;
+      }
+      if (view === 'notlive') {
+        return <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4"><div className="w-full max-w-md bg-white border border-zinc-200 rounded-2xl p-6 sm:p-8 text-center shadow-sm">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-zinc-950 mb-2">실서비스 설정이 필요합니다</h1>
+          <p className="text-sm text-zinc-500">주소 끝에 ?live=1 을 붙여 열어 주세요. 설정이 없는 동안에는 어떤 데이터도 표시하지 않습니다.</p>
+        </div></div>;
+      }
+      if (view === 'login') {
+        return <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4"><div className="w-full max-w-md bg-white border border-zinc-200 rounded-2xl p-6 sm:p-8 text-center shadow-sm">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-zinc-950 mb-2">점주 로그인</h1>
+          <p className="text-sm text-zinc-500 mb-6">
+            점주 계정은 운영팀이 먼저 등록합니다. 카카오 로그인으로 내 파티의 신청자를 확인할 수 있어요.
+          </p>
+          <button id="login-btn" type="button"
+            className="w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={busy} onClick={onLogin}>카카오로 로그인</button>
+          {notice ? <p className="mt-4 text-sm text-rose-600" role="alert">{notice}</p> : null}
+        </div></div>;
+      }
+      if (view === 'forbidden') {
+        return <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4"><div className="w-full max-w-md bg-white border border-zinc-200 rounded-2xl p-6 sm:p-8 text-center shadow-sm">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-zinc-950 mb-2">점주 권한이 없습니다</h1>
+          <p className="text-sm text-zinc-500 mb-2">{notice || '이 계정은 점주로 등록되어 있지 않습니다. 점주 계정 등록은 운영팀에 요청해 주세요.'}</p>
+          <button id="owner-logout-btn" type="button"
+            className="mt-4 w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            disabled={busy} onClick={onLogout}>다른 계정으로 로그인</button>
+        </div></div>;
+      }
+      if (view === 'unavailable') {
+        return <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4"><div className="w-full max-w-md bg-white border border-zinc-200 rounded-2xl p-6 sm:p-8 text-center shadow-sm">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-zinc-950 mb-2">내 파티</h1>
+          <p id="owner-empty" className="text-sm text-zinc-500">{EMPTY_OWNER_MESSAGE}</p>
+          <p className="mt-3 text-xs text-zinc-400">점주 기능은 서버 점주 API가 열리는 시점에 활성화됩니다. 위 상태는 오류가 아니라 준비 상태입니다.</p>
+        </div></div>;
+      }
+      if (view === 'error') {
+        return <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4"><div className="w-full max-w-md bg-white border border-zinc-200 rounded-2xl p-6 sm:p-8 text-center shadow-sm">
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-zinc-950 mb-2">확인하지 못했습니다</h1>
+          <p className="text-sm text-rose-600 mb-5">{notice || '요청을 처리하지 못했습니다.'}</p>
+          <button id="owner-retry-btn" type="button"
+            className="w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+            disabled={busy} onClick={checkOwner}>다시 시도</button>
+        </div></div>;
+      }
+      // view === 'app'
+      return <div className="min-h-screen bg-zinc-50">
+        <header className="sticky top-0 z-20 border-b border-zinc-200 bg-white/95 backdrop-blur">
+          <div className="mx-auto flex max-w-xl items-center justify-between px-4 py-3">
+            <span className="flex items-center gap-2">
+              <img className="brand-logo" src="../assets/hypeconnect-logo.svg" alt="HypeConnect" width="132" height="24" />
+              <strong className="text-sm font-semibold text-zinc-900">점주</strong>
+            </span>
+            <button id="owner-topbar-logout" type="button"
+              className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+              onClick={onLogout}>로그아웃</button>
+          </div>
+        </header>
+        <main className="mx-auto max-w-xl px-4 pb-16 pt-6 sm:px-6">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-950">내 파티</h1>
+          <p className="mt-1 text-sm text-zinc-500">가입한 파티와 신청자 목록입니다. 권한 판정은 서버가 합니다.</p>
+          {notice ? <p className="mt-4 text-sm text-rose-600" role="alert">{notice}</p> : null}
+          {parties.length === 0 ? (
+            <p id="owner-empty" className="mt-6 rounded-2xl border border-zinc-200 bg-white px-4 py-10 text-center text-sm text-zinc-500">{EMPTY_OWNER_MESSAGE}</p>
+          ) : (
+            <>
+            <section className="mt-6" aria-labelledby="owner-parties-heading">
+              <h2 id="owner-parties-heading" className="text-sm font-semibold text-zinc-500">파티 목록</h2>
+              <ul className="mt-2 space-y-2">
+                {parties.map((p, i) => (
+                  <li key={i}>
+                    <button type="button"
+                      className={'w-full rounded-xl border px-4 py-2.5 text-left text-sm ' + (selectedId === String(p.id) ? 'border-rose-400 bg-rose-50 font-semibold text-rose-700 focus:ring-2 focus:ring-rose-500' : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50 focus:ring-2 focus:ring-zinc-400')}
+                      aria-pressed={selectedId === String(p.id)}
+                      onClick={onSelectParty}>
+                      <span className="font-semibold">{p.title || '(제목 없음)'}</span>
+                      <span className="mt-0.5 block text-xs text-zinc-500">{p.storeName ? p.storeName + ' · ' : ''}{fmtDate(p.startsAt)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+            {selectedId ? (
+              <section className="mt-4" aria-labelledby="owner-apps-heading">
+                <h2 id="owner-apps-heading" className="text-sm font-semibold text-zinc-500">신청자</h2>
+                {appsState === 'loading' ? (
+                  <p role="status" className="mt-2 text-sm text-zinc-500">신청자를 불러오는 중…</p>
+                ) : appsState === 'ready' && applications.length === 0 ? (
+                  <p className="mt-2 text-sm text-zinc-500">아직 신청자가 없습니다.</p>
+                ) : appsState === 'ready' ? (
+                  <div className="mt-2 rounded-xl border border-zinc-200 bg-white">
+                    <div className="owner-table-wrap">
+                      <table className="owner-table min-w-full divide-y divide-zinc-200 text-sm">
+                        <thead>
+                          <tr className="text-left text-xs font-semibold text-zinc-500">
+                            <th scope="col" className="px-4 py-2.5">이름</th>
+                            <th scope="col" className="px-4 py-2.5">연락처</th>
+                            <th scope="col" className="px-4 py-2.5">상태</th>
+                            <th scope="col" className="px-4 py-2.5">신청일</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {applications.map((a, j) => (
+                            <tr key={j}>
+                              <td className="px-4 py-2.5 text-zinc-900">{a.name || '(이름 없음)'}</td>
+                              <td className="px-4 py-2.5 text-zinc-600">{a.phone || '-'}</td>
+                              <td className="px-4 py-2.5">{statusLabel(a.status)}</td>
+                              <td className="px-4 py-2.5 text-zinc-500">{fmtDate(a.appliedAt)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+            </>
+          )}
+        </main>
+      </div>;
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

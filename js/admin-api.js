@@ -32,10 +32,24 @@
     return s ? '?' + s : '';
   }
 
+  // 감사 로그 조회 게이트(초안 계약: docs/ADMIN_AUDIT_API_CONTRACT.md).
+  // 서버·계약 확정 전이므로 기본 꺼짐 — 꺼져 있으면 요청을 보내지 않는다(반환값 null).
+  function auditLogEnabled() {
+    if (window.AdminAudit && window.AdminAudit.enabled === true) return true;
+    if (window.PARTYLINK_CONFIG && window.PARTYLINK_CONFIG.auditLog === true) return true;
+    if (window.ADMIN_CONFIG && window.ADMIN_CONFIG.auditLog === true) return true;
+    return false;
+  }
+
   window.ADMIN_API = {
     me: function () { return request('admin/me'); },
     parties: function (params) { return request('admin/parties' + query(Object.assign({ limit: 200 }, params))); },
     applications: function (params) { return request('admin/applications' + query(Object.assign({ limit: 200 }, params))); },
+    // 감사 로그: 정의만 해 둔 조회(현재 호출부 없음). 게이트가 켜졌을 때만 GET /admin/audits?...
+    audits: function (params) {
+      if (!auditLogEnabled()) return Promise.resolve(null);
+      return request('admin/audits' + query(params));
+    },
     summary: function () { return request('admin/summary'); },
     guests: function (params) { return request('admin/guests' + query(Object.assign({ limit: 300 }, params))); },
     blockGuest: function (id, blocked) { return request('admin/guests/' + id + '/block', { method: 'POST', body: { blocked: !!blocked } }); },
