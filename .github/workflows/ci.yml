@@ -166,6 +166,21 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
+      - name: Run P1 feature modules (share, QR, date filter, responsive)
+        run: npx playwright test tests/p1-share.spec.js tests/p1-qr.spec.js tests/p1-date-filter.spec.js tests/p1-responsive.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: Run P2 accessibility, profile and review/notify suites
+        run: npx playwright test tests/p2-a11y.spec.js tests/p2-profile.spec.js tests/p2-review-notify.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: Run admin enhancement suites (bulk actions, catalog, CSV)
+        run: npx playwright test tests/admin-app-enhance.spec.js tests/admin-catalog-enhance.spec.js tests/admin-csv.spec.js --reporter=list
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+
       - name: Stop local server
         if: always()
         run: |

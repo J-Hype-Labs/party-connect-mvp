@@ -64,9 +64,6 @@ async function setup(page, { apps = [], holdApps = false, audits = [AUDIT_1] } =
 
 const open = (page) => page.goto('/admin/?live=1');
 
-// 페이지 로드 후 모듈을 끼워 넣어 'AdminAudit 이 로드된 환경' 을 만든다.
-const loadAuditModule = (page) => page.addScriptTag({ url: '/js/admin-audit.js' });
-
 test.describe('관리자 페이지 — M-12 처리 기록 표시', () => {
   test('감사 레코드가 없으면 카드에 처리 줄이 없다', async ({ page }) => {
     await setup(page, { apps: [appRecord(), appRecord({ id: 'a2', status: 'APPROVED', visitCode: 'K7M2ABCD12' })], audits: [] });
@@ -85,19 +82,18 @@ test.describe('관리자 페이지 — M-12 처리 기록 표시', () => {
       holdApps: true,
     });
     await open(page);
-    await loadAuditModule(page);   // 서버가 준 레코드 + 모듈 → 카드 렌더 전에 준비
     info.release();
     await expect(page.locator('#app-list .audit-line')).toHaveText('처리: 김관리 11/20 09:10');
     // 기존 로직 비파괴: APPLIED 액션 유지
     expect(await page.locator('[data-app-id="a1"] [data-action]').evaluateAll((els) => els.map((e) => e.dataset.action))).toEqual(['approve', 'reject']);
   });
 
-  test('AdminAudit 이 없으면 레코드가 있어도 아무 것도 더하지 않는다', async ({ page }) => {
-    await setup(page, { apps: [appRecord({ audit: { actorName: '김관리', action: 'approve', at: '2026-11-20T00:10:00Z' } })], audits: [] });
+  test('모듈은 실제 페이지가 로드하고, 감사 레코드가 없는 카드에는 처리 줄이 없다', async ({ page }) => {
+    await setup(page, { apps: [appRecord()], audits: [] });
     await open(page);
-    // 모듈을 로드하지 않은 상태
+    // admin/index.html 이 js/admin-audit.js 를 실제로 로드하는지 확인(수동 주입 없이).
+    expect(await page.evaluate(() => typeof (window.AdminAudit && window.AdminAudit.summarize))).toBe('function');
     await expect(page.locator('#app-list .audit-line')).toHaveCount(0);
-    await expect(page.locator('[data-app-id="a1"]')).not.toContainText('처리');
     await expect(page.locator('[data-app-id="a1"] .badge')).toHaveText('신청');
     await expect(page.locator('[data-app-id="a1"] [data-action="approve"]')).toBeVisible();
   });
@@ -105,7 +101,6 @@ test.describe('관리자 페이지 — M-12 처리 기록 표시', () => {
   test('summarize 형식(KST M/D HH:MM)·결함 허용·ACTION_LABELS', async ({ page }) => {
     await setup(page, { apps: [] });
     await open(page);
-    await loadAuditModule(page);
     const r = await page.evaluate(() => {
       const w = window.AdminAudit;
       return {
@@ -139,7 +134,6 @@ test.describe('관리자 페이지 — M-12 처리 기록 표시', () => {
   test('merge: 최신 레코드 선택·복사본 반환·원본 불변', async ({ page }) => {
     await setup(page, { apps: [] });
     await open(page);
-    await loadAuditModule(page);
     const r = await page.evaluate(() => {
       const apps = [{ id: 'a1' }, { id: 'a2' }, { id: 7 }, {}];
       const audits = [
@@ -209,7 +203,6 @@ test.describe('관리자 페이지 — M-12 처리 기록 표시', () => {
     });
     await page.setViewportSize({ width: 360, height: 740 });
     await open(page);
-    await loadAuditModule(page);
     info.release();
     await expect(page.locator('#app-list .audit-line')).toHaveCount(2);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
