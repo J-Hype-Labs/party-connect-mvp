@@ -1,12 +1,13 @@
 # HypeConnect 문서 안내
 
-기준 문서는 저장소 최상위의 **[SPECIFICATION.md](../SPECIFICATION.md)** 하나다. 아래 문서는 그 명세의 상세 참조이며, 각 문서의 "현재 상태" 표는 작성 시점 기록이다. 현재 상태는 SPECIFICATION.md 4장을 따른다.
+기준 문서는 저장소 최상위의 **[SPECIFICATION.md](../SPECIFICATION.md)** 하나다. 아래 문서는 그 명세의 상세 참조이며, 각 문서의 "현재 상태" 표는 작성 시점 기록이다. 현재 상태는 **`FEATURE_SPEC.md` 상태표**를 따른다.
 
 ## 상세 참조
 
 | 문서 | 내용 | 담당 파트 |
 |---|---|---|
-| [FEATURE_SPEC.md](FEATURE_SPEC.md) | 전체 기능 목록·담당·우선순위, 1단계 하이브리드, 보완점·한계점 | A·B |
+| [FEATURE_SPEC.md](FEATURE_SPEC.md) | **전체 기능 목록·상태표(최신)**, 1단계 하이브리드, 보완점·한계점 | A·B |
+| [EXECUTION_HANDOFF.md](EXECUTION_HANDOFF.md) | 실행 기록 — 무엇을 어떤 근거로 했는지 누적 | A·B |
 | [DECISIONS_NEEDED.md](DECISIONS_NEEDED.md) | 기획·운영 결정 질문 목록 | A·B |
 | [PM_HANDOFF.md](PM_HANDOFF.md) | PM 세션 인계 메모(지금 상태·다음 할 일) | A·B |
 | [admin-page.md](admin-page.md) | 관리자 화면 구성·실행·테스트 | A |
@@ -14,7 +15,17 @@
 | [AUTH_IMPLEMENTATION_SPEC.md](AUTH_IMPLEMENTATION_SPEC.md) | 카카오 OAuth, Supabase Auth, 세션, 동의, 보안 계약 | B |
 | [AUTH_UI_UX_SPEC.md](AUTH_UI_UX_SPEC.md) | 로그인·callback·가입 동의·오류 화면 | B |
 | [AUTH_DEPLOYMENT_CHECKLIST.md](AUTH_DEPLOYMENT_CHECKLIST.md) | 카카오·Supabase 콘솔과 배포 절차 | A·B |
-| [MAP_EXPLORATION_DESIGN.md](MAP_EXPLORATION_DESIGN.md) | 지도 기반 탐색 설계 (보류) | B |
+| [MAP_EXPLORATION_DESIGN.md](MAP_EXPLORATION_DESIGN.md) | 지도 기반 탐색 — 설계 + 구현 결과(2026-11-19) | B |
+
+## 서버 계약 문서 (서버 담당 전달용)
+
+서버(`partylink`) 구현이 없어 웹은 화면·계약만 준비된 항목의 계약서다.
+
+| 문서 | 내용 |
+|---|---|
+| [OWNER_API_CONTRACT.md](OWNER_API_CONTRACT.md) | 점주 로그인·내 파티·신청자 조회(S-03) |
+| [OWNER_VISIT_API_CONTRACT.md](OWNER_VISIT_API_CONTRACT.md) | 점주 방문 인증(S-04) |
+| [ADMIN_AUDIT_API_CONTRACT.md](ADMIN_AUDIT_API_CONTRACT.md) | 관리 행위 기록(M-12) |
 
 서버 쪽 문서(`partylink` 저장소): `docs/party-connect-integration.md`(API 계약), `docs/admin-page-spec.md`(관리자 명세 v1.0), `docs/settlement-check.md`(정산 검증 SQL).
 
