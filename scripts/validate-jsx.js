@@ -115,7 +115,6 @@ function main() {
     path.join(__dirname, '..', 'js', 'party-qr.js'),
     path.join(__dirname, '..', 'js', 'party-notify.js'),
     path.join(__dirname, '..', 'js', 'party-policy.js'),
-    path.join(__dirname, '..', 'js', 'party-map.js'),
     path.join(__dirname, '..', 'js', 'admin-audit.js'),
     path.join(__dirname, '..', 'js', 'owner-api.js'),
     path.join(__dirname, '..', 'js', 'owner-visit.js')
