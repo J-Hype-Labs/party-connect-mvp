@@ -53,6 +53,10 @@ button, select, input, textarea { font: inherit; }
 .dlg input, .dlg textarea { width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
 .dlg-err { color: var(--bad); min-height: 1.4em; margin: 8px 0 0; }
 .hint { color: var(--muted); font-size: 12px; }
+.policy-checklist { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #F8FAFC; font-size: 13px; }
+.policy-checklist strong { display: block; margin-bottom: 4px; }
+.policy-checklist ul { margin: 0; padding-left: 18px; }
+.policy-checklist li { margin: 2px 0; }
 
 #toasts { position: fixed; left: 16px; right: 16px; bottom: 16px; display: grid; gap: 8px; z-index: 50; pointer-events: none; }
 .toast { max-width: 480px; margin: 0 auto; padding: 12px 14px; border-radius: 10px; color: #fff; background: var(--bad); pointer-events: auto; }

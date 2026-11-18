@@ -517,9 +517,19 @@
   }
 
   function completeDialog(a) {
-    dialog('최종 승인', h('div', null,
+    const body = h('div', null,
       h('p', { text: '승인하면 ' + (a.storeName || '점포') + '의 적립금에서 ' + won(a.feeAmount) + '이(가) 차감됩니다.' }),
-      h('p', { class: 'hint', text: '적립금 원장은 수정할 수 없어 되돌릴 수 없습니다.' })), '승인하고 차감', false, async function () {
+      h('p', { class: 'hint', text: '적립금 원장은 수정할 수 없어 되돌릴 수 없습니다.' }));
+    // Q-21 미션 검수 체크리스트: 승인 전에 확인할 항목을 버튼 옆에 표시한다.
+    if (window.PartyPolicy && Array.isArray(window.PartyPolicy.REVIEW_CHECKLIST)) {
+      body.appendChild(h('div', { class: 'policy-checklist' },
+        h('strong', { text: '검수 체크리스트' }),
+        h('ul', null, window.PartyPolicy.REVIEW_CHECKLIST.map(function (item) {
+          return h('li', { text: item });
+        })),
+        h('p', { class: 'hint', text: window.PartyPolicy.REVISION_LIMIT })));
+    }
+    dialog('최종 승인', body, '승인하고 차감', false, async function () {
       const ok = await run(a, 'complete', function () { return api.complete(a.id); }, '승인했습니다.');
       return ok ? '' : '승인하지 못했습니다. 위 알림의 안내를 확인해 주세요.';
     });

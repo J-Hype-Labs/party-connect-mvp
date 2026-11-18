@@ -70,6 +70,21 @@ for (const vp of VIEWPORTS) {
         expect(box.x).toBeGreaterThanOrEqual(-1);
         expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
       });
+
+      test('선정 기준·노쇼 안내 카드가 상세 모달 안에서 가로 넘침 없이 보인다', async ({ page }) => {
+        await loadLive(page, { path, parties: [FIXTURE_PARTY], signedIn: false });
+        const card = page.locator('article[data-party-id="' + FIXTURE_PARTY.id + '"]');
+        await card.getByRole('button', { name: '파티 신청하기', exact: true }).click();
+        const dialog = page.locator('[role="dialog"][aria-labelledby="party-detail-title"]');
+        await expect(dialog).toBeVisible({ timeout: 30000 });
+        await expect(dialog.getByText('선정 기준', { exact: true })).toBeVisible();
+        await expectNoOverflow(page);
+        const box = await dialog.getByText('선정 기준', { exact: true }).boundingBox();
+        const width = await page.evaluate(() => document.documentElement.clientWidth);
+        expect(box).not.toBeNull();
+        expect(box.x).toBeGreaterThanOrEqual(-1);
+        expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
+      });
     });
   }
 }
