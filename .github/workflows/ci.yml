@@ -169,7 +169,7 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
-      - name: Run P1 feature modules (share, QR, date filter, responsive)
+      - name: Run P1 feature modules (share, QR, date filter, responsive, cancel)
         run: npx playwright test tests/p1-share.spec.js tests/p1-qr.spec.js tests/p1-date-filter.spec.js tests/p1-responsive.spec.js tests/g14-cancel.spec.js --reporter=list
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
