@@ -63,6 +63,7 @@
   <script src="../js/party-qr.js"></script>
   <script src="../js/party-notify.js"></script>
 <script src="../js/party-policy.js"></script>
+<script src="../js/party-map.js"></script>
 
   <!-- Supabase & Auth Modules -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -137,6 +138,25 @@
       scrollbar-width: none;
     }
     .filter-container::-webkit-scrollbar { display: none; }
+
+    /* P2 G-09: 지도 탐색 — 컨테이너 높이는 모바일 60vh·데스크톱 520px */
+    .party-map-host { position: relative; width: 100%; min-width: 0; height: 520px; }
+    .party-map-canvas { display: block; width: 100%; height: 100%; min-height: 0; }
+    .party-map-venue-list { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+    .party-map-venue-btn { min-height: 44px; }
+    .party-map-issues { margin-top: .75rem; display: grid; gap: .25rem; font-size: .8125rem; color: #57534e; }
+    .party-map-issues p { margin: 0; }
+    .party-map-issue-head { font-weight: 700; color: #78716c; }
+    .party-map-issue-strong { font-weight: 600; color: #9a3412; }
+    .party-map-sheet { margin-top: .75rem; border: 1px solid #e7e5e4; border-radius: 12px; padding: .75rem 1rem; display: grid; gap: .5rem; }
+    .party-map-sheet-title { font-weight: 700; font-size: .875rem; color: #1c1917; }
+    .party-map-sheet-sub { font-size: .75rem; color: #78716c; margin: 0; }
+    .party-map-sheet-row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; flex-wrap: wrap; }
+    .party-map-sheet-party { font-size: .8125rem; }
+    .party-map-sheet-btn { min-height: 44px; padding: .4rem .75rem; font-size: .8125rem; font-weight: 600; border-radius: 9px; cursor: pointer; }
+    @media (max-width: 640px) {
+      .party-map-host { height: 60vh; min-height: 240px; }
+    }
     /* Ensure no color-only state: add text/pattern indicators */
     .status-badge { display: inline-flex; align-items: center; gap: 0.25rem; }
   </style>
@@ -181,11 +201,17 @@
       isActiveApplication = () => false 
     } = window.PARTYLINK_PARTY_API || {};
     const { ApplicationExtras = () => null } = window.PARTYLINK_MISSION_UI || {};
+     // G-09: 지도 모듈 (순수 로직 buildVenues/좌표 캐시 + DOM 렌더). window.PartyMap.
+     const PartyMap = window.PartyMap || null;
 
     // 데모 데이터(PARTY_LIST·localStorage)는 로컬에서만 쓴다. 호스팅 사이트에서
     // 실서비스 설정이 없으면 데모로 대체하지 않고 오류를 표시한다(fail-closed).
-    const demoMode = !live && isLocal;
-    const settingsError = !live && !isLocal;
+     const demoMode = !live && isLocal;
+     const settingsError = !live && !isLocal;
+     // 카카오 JavaScript 키(브라우저 노출 가능한 공개 설정값). 있으면 지도 탭 활성, 없으면 비활성+안내만.
+     const kakaoKey = (window.PARTYLINK_CONFIG && window.PARTYLINK_CONFIG.kakaoJsKey) || '';
+     const kakaoKeyPresent = typeof kakaoKey === 'string' && kakaoKey.trim() !== '';
+
 
     const REGION_CATEGORIES = [
       { id: "all", name: "전체 지역", subRegions: ["전체"] },
@@ -278,6 +304,11 @@
         } catch (e) { return 0; }
       });
       const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+      // G-09 지도 상태: 기본은 목록(mapOpen=false). 탭이 열린 동안에만 SDK·좌표 조회.
+      const [mapOpen, setMapOpen] = useState(false);
+      const [mapStatus, setMapStatus] = useState(null);
+      const [mapLoaded, setMapLoaded] = useState(false);
+      const [mapBusy, setMapBusyToken] = useState(false);
 
       // Auth state
       const [currentUser, setCurrentUser] = useState(null);
@@ -392,11 +423,22 @@
           if (error) {
             setPartiesError(error);
             setParties([]);
-          } else {
-            setParties(normalizeServerParties(data));
-          }
-        });
-      }, [live]);
+           } else {
+             setParties(normalizeServerParties(data));
+           }
+         });
+       }, [live]);
+
+       // 지도가 열려 있는 동안 필터 결과가 바뀌면 마커를 다시 그린다(좌표 캐시 재사용, SDK 재로드 없음).
+       useEffect(() => {
+         if (!mapOpen || mapStatus !== 'ready' || mapBusy) return;
+         setMapBusyToken(true);
+         refreshMarkers().then(
+           () => setMapBusyToken(false),
+           () => setMapBusyToken(false)
+         );
+       }, [mapOpen, filteredParties]);
+
 
       // Load my applications on mount (live mode)
       useEffect(() => {
@@ -623,6 +665,80 @@
           setApplications(prev => prev.map(a => a.id === app.id ? { ...a, status: 'CANCELLED' } : a));
           showToast('신청이 취소되었습니다. (데모 모드)');
         }
+      };
+
+      // G-09: 지도 SDK 는 지도 탭이 처음 열릴 때만 지연 로드하고, 좌표는 localStorage 캐시를 재사용한다.
+      // 마커·업체 목록·시트 패널 렌더는 PartyMap 모듈이 담당한다(textContent만 사용, innerHTML 없음).
+      const refreshMarkers = async () => {
+        if (!PartyMap) {
+          setMapStatus('error');
+          showToast('지도를 불러오지 못했어요. 목록으로 볼 수 있어요.');
+          setMapOpen(false);
+          return;
+        }
+        setMapBusyToken(true);
+        setMapStatus('loading');
+        try {
+          const list = Array.isArray(filteredParties)
+            ? filteredParties.filter((party) => party && typeof party === 'object')
+            : [];
+          const grouped = PartyMap.buildVenues(list);
+          if (!kakaoKeyPresent) { setMapStatus('disabled'); setMapBusyToken(false); return; }
+          const kakao = await (mapLoaded && window.kakao)
+            ? Promise.resolve(window.kakao)
+            : PartyMap.loadSdk(kakaoKey);
+          if (window.kakao) kakao = window.kakao;
+          await new Promise((resolve) => {
+            try {
+              const host = document.getElementById('party-map-host');
+              if (typeof window.__partyMapEnsureMap === 'function') {
+                window.__partyMapEnsureMap(grouped, kakao, resolve);
+                return;
+              }
+              if (!host || typeof PartyMap.createMap !== 'function') { resolve(); return; }
+              // React 재렌더로 host 가 바뀌었으면 이전 인스턴스 정리 후 재생성
+              if (window.__partyMapInstance && window.__partyMapHost && window.__partyMapHost !== host) {
+                try { window.__partyMapInstance.destroy(); } catch (e) { /* 무시 */ }
+                window.__partyMapInstance = null;
+                window.__partyMapHost = null;
+              }
+              if (!window.__partyMapInstance) {
+                window.__partyMapInstance = PartyMap.createMap({
+                  container: host,
+                  kakao: kakao,
+                  onSelectParty: (party) => openPartyDetail(party)
+                });
+                window.__partyMapHost = host;
+              }
+              window.__partyMapInstance.setParties(grouped);
+              resolve();
+            } catch (e) {
+              setMapStatus('error');
+              showToast('지도를 그리지 못했어요. 목록으로 볼 수 있어요.');
+              setMapOpen(false);
+              resolve();
+            }
+          });
+          setMapLoaded(true);
+          setMapStatus('ready');
+        } catch (e) {
+          setMapStatus('error');
+          showToast('지도를 불러오지 못했어요. 목록으로 볼 수 있어요.');
+          setMapOpen(false);
+        } finally {
+          setMapBusyToken(false);
+        }
+      };
+
+      const handleMapToggle = (next) => {
+        const open = typeof next === 'boolean' ? next : !mapOpen;
+        setMapOpen(open);
+        if (!open) return;
+        if (!kakaoKeyPresent) {
+          showToast('카카오맵 키가 없어 지도를 켤 수 없어요. 목록으로 볼 수 있어요.');
+          return;
+        }
+        if (mapStatus === null || mapStatus === 'error' || mapStatus === 'ready') refreshMarkers();
       };
 
       // Map
@@ -861,11 +977,35 @@
                     혼술바, 소개팅, 소셜파티를 한 곳에서 만나보세요
                   </p>
                 </div>
-                {live && !partiesLoading && !partiesError && (
-                  <p className="text-sm text-zinc-500" aria-live="polite">
-                    실제 {visibleActualCount}개 · 예시 {visibleExampleCount}개
-                  </p>
-                )}
+                <div className="flex items-center gap-3">
+                  {live && !partiesLoading && !partiesError && (
+                    <p className="text-sm text-zinc-500" aria-live="polite">
+                      실제 {visibleActualCount}개 · 예시 {visibleExampleCount}개
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    aria-pressed={!mapOpen}
+                    onClick={() => handleMapToggle(false)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition filter-chip ${
+                      !mapOpen ? 'bg-rose-600 text-white shadow-sm' : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
+                    }`}
+                  >
+                    목록
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={mapOpen}
+                    onClick={() => handleMapToggle(true)}
+                    disabled={!kakaoKeyPresent}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition filter-chip ${
+                      mapOpen ? 'bg-rose-600 text-white shadow-sm' : 'bg-white text-zinc-700 border border-zinc-200 hover:bg-zinc-50'
+                    }`}
+                  >
+                    지도
+                  </button>
+                  {!kakaoKeyPresent && <span className="text-xs text-amber-700">카카오맵 키가 없어 지도 탭을 쓸 수 없어요</span>}
+                </div>
               </div>
 
               {/* Search & Filters */}
@@ -974,6 +1114,20 @@
                   </div>
                 </div>
               </div>
+
+              {/* P2 G-09: 지도 탭 — 기본은 목록, 열 때만 SDK 지연 로드. 좌표·마커 실패는 안내/목록으로 폴백. */}
+              {mapOpen ? (
+                <div id="party-map-region" role="region" aria-label="업체 지도">
+                  {mapStatus === 'loading' ? <p className="text-sm text-zinc-500">지도를 준비하는 중…</p> : null}
+                  {mapStatus === 'error' ? (
+                    <div role="status" className="text-sm text-zinc-600">지도를 불러오지 못했어요. 목록으로 볼 수 있어요.</div>
+                  ) : null}
+                  {mapStatus === 'disabled' ? (
+                    <div role="status" className="text-sm text-zinc-600">카카오맵 키가 없어 지도를 쓸 수 없어요. 목록으로 볼 수 있어요.</div>
+                  ) : null}
+                  {mapStatus === 'ready' ? <div id="party-map-host" className="party-map-host" /> : null}
+                </div>
+              ) : null}
 
               {/* Loading / Error / Empty States */}
               {settingsError ? (
