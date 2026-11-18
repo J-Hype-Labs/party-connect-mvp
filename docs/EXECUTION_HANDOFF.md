@@ -211,3 +211,31 @@ P1 질문 기한(2026-11-18) 도래·이견 없음 → 예시 답변 확정. 서
 - 회귀: 탐색 16/16, 관리자 30/30, 종합·여정 16/16, 모바일·알림·접근성 110/111 + 실패 1건 단독 ×2 재실행 24/24(flaky).
 - 검증 환경 예외(코드 결함 아님): python `http.server` 장시간 실행 후 응답 열화로 실패 → 서버 재기동 후 전부 통과. showcase 실패 4건은 변경 stash(기준선)에서도 동일 실패. Playwright 1.64.1 대응 브라우저 빌드(1248/2370) 설치 필요.
 - 커밋 `7145b98`(구현·문서)·`7c8b668`(CI에 P1 정책 스위트 추가) → PR #41. 운영 DB 쓰기·운영 배포·시크릿 변경 없음.
+
+## 2026-11-19 P2 엑사원(K-EXAONE 2.5) 병렬 위임 — S-03·S-04·M-12
+
+사용자 지시: "일부러 나중으로 미룬 것 엑사원에게 위임해서 진행". P2 보류 4개 항목을 격리 worktree 4개로 나눠 OpenCode 경유 `exaone/k-exaone_v2.5` 에 병렬 위임하고, 감독자가 통합·검증했다.
+
+| 요구사항 | 결과 | 근거 |
+|---|---|---|
+| S-03 점주 로그인 골격 | 구현·검증 완료 | `owner/index.html`, `js/owner-api.js`, `docs/OWNER_API_CONTRACT.md`. `ownerApiEnabled` 기본 false → 네트워크 요청 0(fail-closed). 통합 9/9 |
+| S-04 점주 방문 인증 골격 | 구현·검증 완료 | `owner/visit.html`, `js/owner-visit.js`, `docs/OWNER_VISIT_API_CONTRACT.md`. 코드 정규화·형식 검증·transport seam. 카메라/QR 스캔 범위 제외. 통합 9/9 |
+| M-12 관리 행위 기록 | 구현·검증 완료 | `js/admin-audit.js`, `admin-app.js` 카드에 `처리: 이름 시각`, `docs/ADMIN_AUDIT_API_CONTRACT.md`. 감사 조회 기본 꺼짐. 통합 7/7 + 기존 관리자 30/30 |
+| G-09 지도 탐색 | **분리(미완)** | `js/party-map.js`·단위 41/41 은 완성했으나 화면에서 마커 미생성. 병합 커밋 revert, 시도는 `backup/map-attempt`(`e78e399`)에 보존 |
+
+감독자 검증에서 발견·수정한 결함:
+- S-03: JSX `class=` 57곳(React `className` 필요)·삼항 두 노드(프래그먼트 누락)·`loadParties` 에서 `setView('app')` 누락·테스트 헬퍼 `ownerCalls` 구조 불일치·async 비교 누락·상태 셀 strict 중복.
+- S-04: `React.createElement` 괄호 불균형(파싱 실패)·`normalizeCode` 접두사 규칙·테스트 transport 결과 순서·configure 이벤트 반영 대기 누락.
+- M-12: `KST` 형식이 Intl 표기(`11. 20.`)와 달라 계약(`M/D HH:MM`)으로 조립, `.audit-line` 클래스 누락, 테스트 기대값 모순 1건.
+- G-09: `Object.create(null)` 인덱스 falsy 버그(`index[addr] === undefined`), `const kakao` 재할당, `kakao.Map` vs `kakao.maps.Map` 검사, React 렌더 순서(호스트 DOM 존재 시점) — 마지막 항목 미해결.
+
+위임 중 권한 처리: 존재하지 않는 경로(`C:\home\user\...`) 6건·`AWS_*` 환경변수 나열 1건·SDK 재설치 1건 거부, Temp 로그 쓰기 2건 허용. G-09 에이전트는 3시간 반복 재작성으로 진전 없어 취소.
+
+검사 기록:
+- 단위 `party-policy` 23/23, `party-notify` 27/27, `party-map` 41/41(분리 전)
+- 통합 `owner-page` 9/9, `owner-visit` 9/9, `admin-audit` 7/7, `p1-policy` 6/6 → 31/31
+- 회귀 기존 관리자 30/30, P1 정책 36/36, `validate:jsx`·`validate:html` PASS
+- 운영 DB 쓰기·운영 배포·시크릿 변경 없음. 기능 기본값 false 라 실제 동작 변화 없음.
+- PR #42 생성(`p2/policy-guidance-integration`), CI 에 P2 스위트 추가.
+
+**교훈:** 엑사원은 계약·문서 작성은 잘하나(세 계약 문서 모두 유용), 대형 단일 HTML 의 JSX/괄호 구조 완성은 신뢰할 수 없다(3건 모두 파싱 실패 또는 결함). 위임 시 "신규 모듈+테스트"는 맡기고 화면 배선은 감독자가 하는 것이 이 저장소의 기존 원칙과 일치한다.
