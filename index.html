@@ -1955,6 +1955,9 @@
                               {app.status === 'APPLIED' && (
                                 <button onClick={() => handleMyApplicationCancel(app)} className="mt-2 w-full py-2 text-sm font-medium text-rose-600 hover:text-rose-700 transition">신청 취소</button>
                               )}
+                              {app.status === 'APPLIED' && (
+                                <p className="mt-1 text-[11px] text-zinc-500">선정 전에는 언제든 취소할 수 있어요. 선정 후에는 파티 시작 24시간 전까지만 취소되며, 그 뒤 불참은 노쇼로 처리돼요.</p>
+                              )}
                               {app.status === 'APPROVED' && app.visitCode && (
                                 <div className="mt-2 p-3 bg-emerald-50 rounded-lg text-sm text-emerald-700">
                                   <div>방문 인증 코드: <span className="font-mono font-bold">{app.visitCode}</span></div>
